@@ -1,0 +1,3 @@
+*.o
+ld_err.txt
+missing_syms.txt
