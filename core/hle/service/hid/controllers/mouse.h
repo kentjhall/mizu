@@ -13,7 +13,7 @@
 #include "core/hle/service/hid/controllers/controller_base.h"
 
 namespace Service::HID {
-class Controller_Mouse final : public ControllerBase {
+class Controller_Mouse final : public ControllerLockedBase<Controller_Mouse> {
 public:
     explicit Controller_Mouse();
     ~Controller_Mouse() override;

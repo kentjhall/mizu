@@ -148,7 +148,7 @@ bool Controller_NPad::IsDeviceHandleValid(const DeviceHandle& device_handle) {
 }
 
 Controller_NPad::Controller_NPad()
-    : ControllerBase{} {
+    : ControllerLockedBase{} {
     latest_vibration_values.fill({DEFAULT_VIBRATION_VALUE, DEFAULT_VIBRATION_VALUE});
 }
 

@@ -8,7 +8,7 @@
 #include "core/hle/service/hid/controllers/controller_base.h"
 
 namespace Service::HID {
-class Controller_Stubbed final : public ControllerBase {
+class Controller_Stubbed final : public ControllerLockedBase<Controller_Stubbed> {
 public:
     explicit Controller_Stubbed();
     ~Controller_Stubbed() override;

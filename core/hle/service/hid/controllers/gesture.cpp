@@ -22,7 +22,7 @@ constexpr f32 Square(s32 num) {
     return static_cast<f32>(num * num);
 }
 
-Controller_Gesture::Controller_Gesture() : ControllerBase() {}
+Controller_Gesture::Controller_Gesture() : ControllerLockedBase() {}
 Controller_Gesture::~Controller_Gesture() = default;
 
 void Controller_Gesture::OnInit() {

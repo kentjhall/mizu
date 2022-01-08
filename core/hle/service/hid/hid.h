@@ -5,6 +5,7 @@
 #pragma once
 
 #include <chrono>
+#include <mutex>
 #include <sys/mman.h>
 
 #include "core/hle/service/hid/controllers/controller_base.h"
@@ -59,11 +60,6 @@ private:
     template <typename T>
     void MakeController(HidController controller) {
         controllers[static_cast<std::size_t>(controller)] = std::make_unique<T>();
-    }
-    template <typename T>
-    void MakeControllerWithServiceContext(HidController controller) {
-        controllers[static_cast<std::size_t>(controller)] =
-            std::make_unique<T>();
     }
 
     void GetSharedMemoryHandle(Kernel::HLERequestContext& ctx);
@@ -185,7 +181,7 @@ private:
     };
     static_assert(sizeof(VibrationDeviceInfo) == 0x8, "VibrationDeviceInfo has incorrect size.");
 
-    std::shared_ptr<IAppletResource> applet_resource;
+    Shared<std::shared_ptr<IAppletResource>> applet_resource;
 };
 
 /// Reload input devices. Used when input configuration changed

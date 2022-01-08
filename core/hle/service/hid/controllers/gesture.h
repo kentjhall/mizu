@@ -12,7 +12,7 @@
 #include "core/hle/service/hid/controllers/controller_base.h"
 
 namespace Service::HID {
-class Controller_Gesture final : public ControllerBase {
+class Controller_Gesture final : public ControllerLockedBase<Controller_Gesture> {
 public:
     explicit Controller_Gesture();
     ~Controller_Gesture() override;

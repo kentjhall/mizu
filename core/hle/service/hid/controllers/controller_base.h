@@ -4,16 +4,10 @@
 
 #pragma once
 
+#include <shared_mutex>
 #include "common/common_types.h"
 #include "common/swap.h"
-
-namespace Core::Timing {
-class CoreTiming;
-}
-
-namespace Core {
-class System;
-}
+#include "core/hle/service/service.h"
 
 namespace Service::HID {
 class ControllerBase {
@@ -56,5 +50,17 @@ protected:
     static_assert(sizeof(CommonHeader) == 0x20, "CommonHeader is an invalid size");
 
     ;
+};
+
+template <class Derived>
+class ControllerLockedBase : public ControllerBase {
+public:
+    explicit ControllerLockedBase() : ControllerBase() {}
+
+    auto ReadLocked() { return Service::SharedReader(mtx, *static_cast<const Derived *>(this)); };
+    auto WriteLocked() { return Service::SharedWriter(mtx, *static_cast<Derived *>(this)); };
+
+private:
+    std::shared_mutex mtx;
 };
 } // namespace Service::HID

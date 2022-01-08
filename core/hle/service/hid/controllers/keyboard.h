@@ -14,7 +14,7 @@
 #include "core/hle/service/hid/controllers/controller_base.h"
 
 namespace Service::HID {
-class Controller_Keyboard final : public ControllerBase {
+class Controller_Keyboard final : public ControllerLockedBase<Controller_Keyboard> {
 public:
     explicit Controller_Keyboard();
     ~Controller_Keyboard() override;

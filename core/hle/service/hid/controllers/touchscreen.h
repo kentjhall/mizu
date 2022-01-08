@@ -13,7 +13,7 @@
 #include "core/hle/service/hid/controllers/controller_base.h"
 
 namespace Service::HID {
-class Controller_Touchscreen final : public ControllerBase {
+class Controller_Touchscreen final : public ControllerLockedBase<Controller_Touchscreen> {
 public:
     enum class TouchScreenModeForNx : u8 {
         UseSystemSetting,

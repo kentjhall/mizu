@@ -11,7 +11,7 @@
 #include "core/hle/service/hid/controllers/controller_base.h"
 
 namespace Service::HID {
-class Controller_XPad final : public ControllerBase {
+class Controller_XPad final : public ControllerLockedBase<Controller_XPad> {
 public:
     explicit Controller_XPad();
     ~Controller_XPad() override;

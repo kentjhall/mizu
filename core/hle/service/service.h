@@ -64,6 +64,8 @@ class SharedReader {
 public:
     SharedReader(Shared<T>& shared)
         : l(shared.mtx), data(shared.data) {}
+    SharedReader(std::shared_mutex& mtx, const T& data)
+        : l(mtx), data(data) {}
     const T *operator->() { return &data; }
     const T& operator*() { return data; }
 private:
@@ -76,6 +78,8 @@ class SharedWriter {
 public:
     SharedWriter(Shared<T>& shared)
         : l(shared.mtx), data(shared.data) {}
+    SharedWriter(std::shared_mutex& mtx, T& data)
+        : l(mtx), data(data) {}
     T *operator->() { return &data; }
     T& operator*() { return data; }
 private:

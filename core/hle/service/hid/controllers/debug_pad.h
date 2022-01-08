@@ -14,7 +14,7 @@
 #include "core/hle/service/hid/controllers/controller_base.h"
 
 namespace Service::HID {
-class Controller_DebugPad final : public ControllerBase {
+class Controller_DebugPad final : public ControllerLockedBase<Controller_DebugPad> {
 public:
     explicit Controller_DebugPad();
     ~Controller_DebugPad() override;

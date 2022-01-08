@@ -10,7 +10,7 @@
 namespace Service::HID {
 constexpr std::size_t SHARED_MEMORY_OFFSET = 0x3400;
 
-Controller_Mouse::Controller_Mouse() : ControllerBase{} {}
+Controller_Mouse::Controller_Mouse() : ControllerLockedBase{} {}
 Controller_Mouse::~Controller_Mouse() = default;
 
 void Controller_Mouse::OnInit() {}

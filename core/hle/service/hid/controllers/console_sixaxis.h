@@ -12,7 +12,7 @@
 #include "core/hle/service/hid/controllers/controller_base.h"
 
 namespace Service::HID {
-class Controller_ConsoleSixAxis final : public ControllerBase {
+class Controller_ConsoleSixAxis final : public ControllerLockedBase<Controller_ConsoleSixAxis> {
 public:
     explicit Controller_ConsoleSixAxis();
     ~Controller_ConsoleSixAxis() override;

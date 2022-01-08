@@ -20,7 +20,7 @@ namespace Service::HID {
 constexpr u32 NPAD_HANDHELD = 32;
 constexpr u32 NPAD_UNKNOWN = 16; // TODO(ogniK): What is this?
 
-class Controller_NPad final : public ControllerBase {
+class Controller_NPad final : public ControllerLockedBase<Controller_NPad> {
 public:
     explicit Controller_NPad();
     ~Controller_NPad() override;
