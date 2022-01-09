@@ -5,10 +5,8 @@
 #pragma once
 
 #include <memory>
-
-namespace Core {
-class System;
-}
+#include "core/frontend/emu_window.h"
+#include "video_core/renderer_base.h"
 
 namespace Core::Frontend {
 class EmuWindow;
@@ -18,12 +16,17 @@ namespace Tegra {
 class GPU;
 }
 
+namespace Service {
+template <typename T>
+class Shared;
+};
+
 namespace VideoCore {
 
 class RendererBase;
 
-/// Creates an emulated GPU instance using the given system context.
-std::unique_ptr<Tegra::GPU> CreateGPU(Core::Frontend::EmuWindow& emu_window, Core::System& system);
+/// Creates an emulated GPU instance
+Service::Shared<Tegra::GPU> CreateGPU();
 
 u16 GetResolutionScaleFactor(const RendererBase& renderer);
 

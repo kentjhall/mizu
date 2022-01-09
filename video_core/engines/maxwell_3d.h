@@ -25,10 +25,6 @@
 #include "video_core/macro/macro.h"
 #include "video_core/textures/texture.h"
 
-namespace Core {
-class System;
-}
-
 namespace Tegra {
 class MemoryManager;
 }
@@ -50,7 +46,7 @@ namespace Tegra::Engines {
 
 class Maxwell3D final : public EngineInterface {
 public:
-    explicit Maxwell3D(Core::System& system, MemoryManager& memory_manager);
+    explicit Maxwell3D(GPU& gpu, MemoryManager& memory_manager);
     ~Maxwell3D();
 
     /// Binds a rasterizer to this engine.
@@ -1537,7 +1533,7 @@ private:
     /// Returns a query's value or an empty object if the value will be deferred through a cache.
     std::optional<u64> GetQueryResult();
 
-    Core::System& system;
+    GPU& gpu;
     MemoryManager& memory_manager;
 
     VideoCore::RasterizerInterface* rasterizer = nullptr;

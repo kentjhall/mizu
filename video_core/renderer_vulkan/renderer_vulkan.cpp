@@ -93,12 +93,10 @@ Device CreateDevice(const vk::Instance& instance, const vk::InstanceDispatch& dl
 }
 } // Anonymous namespace
 
-RendererVulkan::RendererVulkan(Core::TelemetrySession& telemetry_session_,
-                               Core::Frontend::EmuWindow& emu_window,
-                               Core::Memory::Memory& cpu_memory_, Tegra::GPU& gpu_,
+RendererVulkan::RendererVulkan(Tegra::GPU& gpu_,
                                std::unique_ptr<Core::Frontend::GraphicsContext> context_) try
-    : RendererBase(emu_window, std::move(context_)), telemetry_session(telemetry_session_),
-      cpu_memory(cpu_memory_), gpu(gpu_), library(OpenLibrary()),
+    : RendererBase(gpu_.RenderWindow(), std::move(context_)), telemetry_session(gpu.TelemetrySession()),
+      gpu(gpu_), library(OpenLibrary()),
       instance(CreateInstance(library, dld, VK_API_VERSION_1_1, render_window.GetWindowInfo().type,
                               true, Settings::values.renderer_debug.GetValue())),
       debug_callback(Settings::values.renderer_debug ? CreateDebugCallback(instance) : nullptr),
@@ -107,9 +105,9 @@ RendererVulkan::RendererVulkan(Core::TelemetrySession& telemetry_session_,
       state_tracker(gpu), scheduler(device, state_tracker),
       swapchain(*surface, device, scheduler, render_window.GetFramebufferLayout().width,
                 render_window.GetFramebufferLayout().height, false),
-      blit_screen(cpu_memory, render_window, device, memory_allocator, swapchain, scheduler,
+      blit_screen(render_window, device, memory_allocator, swapchain, scheduler,
                   screen_info),
-      rasterizer(render_window, gpu, gpu.MemoryManager(), cpu_memory, screen_info, device,
+      rasterizer(render_window, gpu, gpu.MemoryManager(), screen_info, device,
                  memory_allocator, state_tracker, scheduler) {
     Report();
 } catch (const vk::Exception& exception) {

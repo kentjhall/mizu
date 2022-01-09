@@ -4,8 +4,9 @@
 
 #include <chrono>
 #include <ctime>
-#include <sys/prctl.h>
+#include <pthread.h>
 #include <sys/eventfd.h>
+#include "common/thread.h"
 #include "core/core.h"
 #include "core/hle/kernel/k_event.h"
 #include "core/hle/kernel/k_process.h"
@@ -17,8 +18,8 @@
 
 namespace Service::KernelHelpers {
 
-void SetupServiceContext(std::string name_) {
-    ASSERT(::prctl(PR_SET_NAME, (unsigned long) name_.c_str(), 0, 0, 0) == 0);
+void SetupServiceContext(std::string name) {
+    Common::SetCurrentThreadName(name.c_str());
 }
 
 int CreateEvent(std::string&& name) {
@@ -57,6 +58,10 @@ void ClearEvent(int efd) {
         return nullptr;
     }
     return timerid;
+}
+
+void CloseTimerEvent(::timer_t event) {
+    ::timer_delete(event);
 }
 
 void ScheduleRepeatTimerEvent(std::chrono::nanoseconds interval, ::timer_t event) {

@@ -10,11 +10,11 @@
 
 namespace Service::Nvidia::Devices {
 
-nvhost_nvjpg::nvhost_nvjpg(Core::System& system_) : nvdevice{system_} {}
+nvhost_nvjpg::nvhost_nvjpg() : nvdevice{} {}
 nvhost_nvjpg::~nvhost_nvjpg() = default;
 
 NvResult nvhost_nvjpg::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                              std::vector<u8>& output) {
+                              std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     switch (command.group) {
     case 'H':
         switch (command.cmd) {
@@ -33,19 +33,19 @@ NvResult nvhost_nvjpg::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>&
 }
 
 NvResult nvhost_nvjpg::Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                              const std::vector<u8>& inline_input, std::vector<u8>& output) {
+                              const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl={:08X}", command.raw);
     return NvResult::NotImplemented;
 }
 
 NvResult nvhost_nvjpg::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                              std::vector<u8>& output, std::vector<u8>& inline_output) {
+                              std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl={:08X}", command.raw);
     return NvResult::NotImplemented;
 }
 
-void nvhost_nvjpg::OnOpen(DeviceFD fd) {}
-void nvhost_nvjpg::OnClose(DeviceFD fd) {}
+void nvhost_nvjpg::OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
+void nvhost_nvjpg::OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
 
 NvResult nvhost_nvjpg::SetNVMAPfd(const std::vector<u8>& input, std::vector<u8>& output) {
     IoctlSetNvmapFD params{};

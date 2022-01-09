@@ -88,11 +88,11 @@ NVFlinger::~NVFlinger() {
         buffer_queue->Disconnect();
     }
     if (!Settings::values.use_multi_core) {
-        KernelHelpers::UnscheduleTimerEvent(composition_event);
+        KernelHelpers::CloseTimerEvent(composition_event);
     }
 }
 
-void NVFlinger::SetNVDrvInstance(std::shared_ptr<Nvidia::Module> instance) {
+void NVFlinger::SetNVDrvInstance(std::shared_ptr<Shared<Nvidia::Module>> instance) {
     nvdrv = std::move(instance);
 }
 
@@ -115,7 +115,7 @@ std::optional<u64> NVFlinger::OpenDisplay(std::string_view name) {
     return itr->GetID();
 }
 
-std::optional<u64> NVFlinger::CreateLayer(u64 display_id) {
+std::optional<u64> NVFlinger::CreateLayer(u64 display_id, ::pid_t pid) {
     const auto lock_guard = Lock();
     auto* const display = FindDisplay(display_id);
 
@@ -124,15 +124,15 @@ std::optional<u64> NVFlinger::CreateLayer(u64 display_id) {
     }
 
     const u64 layer_id = next_layer_id++;
-    CreateLayerAtId(*display, layer_id);
+    CreateLayerAtId(*display, layer_id, pid);
     return layer_id;
 }
 
-void NVFlinger::CreateLayerAtId(VI::Display& display, u64 layer_id) {
+void NVFlinger::CreateLayerAtId(VI::Display& display, u64 layer_id, ::pid_t pid) {
     const u32 buffer_queue_id = next_buffer_queue_id++;
     buffer_queues.emplace_back(
         std::make_unique<BufferQueue>(buffer_queue_id, layer_id));
-    display.CreateLayer(layer_id, *buffer_queues.back());
+    display.CreateLayer(layer_id, *buffer_queues.back(), pid);
 }
 
 void NVFlinger::CloseLayer(u64 layer_id) {
@@ -143,9 +143,9 @@ void NVFlinger::CloseLayer(u64 layer_id) {
     }
 }
 
-std::optional<u32> NVFlinger::FindBufferQueueId(u64 display_id, u64 layer_id) {
+std::optional<u32> NVFlinger::FindBufferQueueId(u64 display_id, u64 layer_id, ::pid_t pid) {
     const auto lock_guard = Lock();
-    const auto* const layer = FindOrCreateLayer(display_id, layer_id);
+    const auto* const layer = FindOrCreateLayer(display_id, layer_id, pid);
 
     if (layer == nullptr) {
         return std::nullopt;
@@ -154,7 +154,7 @@ std::optional<u32> NVFlinger::FindBufferQueueId(u64 display_id, u64 layer_id) {
     return layer->GetBufferQueue().GetId();
 }
 
-int NVFlinger::FindVsyncEvent(u64 display_id) {
+int NVFlinger::FindVsyncEvent(u64 display_id) const {
     const auto lock_guard = Lock();
     auto* const display = FindDisplay(display_id);
 
@@ -165,7 +165,7 @@ int NVFlinger::FindVsyncEvent(u64 display_id) {
     return display->GetVSyncEvent();
 }
 
-BufferQueue* NVFlinger::FindBufferQueue(u32 id) {
+BufferQueue* NVFlinger::FindBufferQueue(u32 id) const {
     const auto lock_guard = Lock();
     const auto itr = std::find_if(buffer_queues.begin(), buffer_queues.end(),
                                   [id](const auto& queue) { return queue->GetId() == id; });
@@ -221,7 +221,7 @@ const VI::Layer* NVFlinger::FindLayer(u64 display_id, u64 layer_id) const {
     return display->FindLayer(layer_id);
 }
 
-VI::Layer* NVFlinger::FindOrCreateLayer(u64 display_id, u64 layer_id) {
+VI::Layer* NVFlinger::FindOrCreateLayer(u64 display_id, u64 layer_id, ::pid_t pid) {
     auto* const display = FindDisplay(display_id);
 
     if (display == nullptr) {
@@ -232,7 +232,7 @@ VI::Layer* NVFlinger::FindOrCreateLayer(u64 display_id, u64 layer_id) {
 
     if (layer == nullptr) {
         LOG_DEBUG(Service, "Layer at id {} not found. Trying to create it.", layer_id);
-        CreateLayerAtId(*display, layer_id);
+        CreateLayerAtId(*display, layer_id, pid);
         return display->FindLayer(layer_id);
     }
 
@@ -261,12 +261,12 @@ void NVFlinger::Compose() {
 
         const auto& igbp_buffer = buffer->get().igbp_buffer;
 
-        auto& gpu = system.GPU();
+        auto& gpu = layer.GPU();
         const auto& multi_fence = buffer->get().multi_fence;
         guard->unlock();
         for (u32 fence_id = 0; fence_id < multi_fence.num_fences; fence_id++) {
             const auto& fence = multi_fence.fences[fence_id];
-            gpu.WaitFence(fence.id, fence.value);
+            SharedUnlocked(gpu)->WaitFence(fence.id, fence.value);
         }
         guard->lock();
 
@@ -275,12 +275,12 @@ void NVFlinger::Compose() {
         // Now send the buffer to the GPU for drawing.
         // TODO(Subv): Support more than just disp0. The display device selection is probably based
         // on which display we're drawing (Default, Internal, External, etc)
-        auto nvdisp = nvdrv->GetDevice<Nvidia::Devices::nvdisp_disp0>("/dev/nvdisp_disp0");
+        auto nvdisp = SharedReader(*nvdrv)->GetDevice<Nvidia::Devices::nvdisp_disp0>("/dev/nvdisp_disp0");
         ASSERT(nvdisp);
 
-        nvdisp->flip(igbp_buffer.gpu_buffer_id, igbp_buffer.offset, igbp_buffer.external_format,
-                     igbp_buffer.width, igbp_buffer.height, igbp_buffer.stride,
-                     buffer->get().transform, buffer->get().crop_rect);
+        nvdisp->WriteLocked()->flip(igbp_buffer.gpu_buffer_id, igbp_buffer.offset, igbp_buffer.external_format,
+                                    igbp_buffer.width, igbp_buffer.height, igbp_buffer.stride,
+                                    buffer->get().transform, buffer->get().crop_rect, gpu);
 
         swap_interval = buffer->get().swap_interval;
         buffer_queue.ReleaseBuffer(buffer->get().slot);
@@ -290,7 +290,7 @@ void NVFlinger::Compose() {
 s64 NVFlinger::GetNextTicks() const {
     static constexpr s64 max_hertz = 120LL;
 
-    const auto& settings = Settings::values;
+    auto& settings = Settings::values;
     const bool unlocked_fps = settings.disable_fps_limit.GetValue();
     const s64 fps_cap = unlocked_fps ? static_cast<s64>(settings.fps_cap.GetValue()) : 1;
     return (1000000000 * (1LL << swap_interval)) / (max_hertz * fps_cap);

@@ -9,14 +9,6 @@
 #include "video_core/vulkan_common/vulkan_memory_allocator.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
 
-namespace Core {
-class System;
-}
-
-namespace Core::Memory {
-class Memory;
-}
-
 namespace Core::Frontend {
 class EmuWindow;
 }
@@ -47,8 +39,7 @@ struct VKScreenInfo {
 
 class VKBlitScreen {
 public:
-    explicit VKBlitScreen(Core::Memory::Memory& cpu_memory,
-                          Core::Frontend::EmuWindow& render_window, const Device& device,
+    explicit VKBlitScreen(Core::Frontend::EmuWindow& render_window, const Device& device,
                           MemoryAllocator& memory_manager, VKSwapchain& swapchain,
                           VKScheduler& scheduler, const VKScreenInfo& screen_info);
     ~VKBlitScreen();
@@ -97,7 +88,6 @@ private:
     u64 GetRawImageOffset(const Tegra::FramebufferConfig& framebuffer,
                           std::size_t image_index) const;
 
-    Core::Memory::Memory& cpu_memory;
     Core::Frontend::EmuWindow& render_window;
     const Device& device;
     MemoryAllocator& memory_allocator;

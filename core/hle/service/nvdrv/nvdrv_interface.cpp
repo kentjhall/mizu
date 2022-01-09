@@ -16,8 +16,16 @@
 
 namespace Service::Nvidia {
 
+void NVDRV::SetupSession(::pid_t req_pid) {
+    GrabGPU(req_pid);
+}
+
+void NVDRV::CleanupSession(::pid_t req_pid) {
+    PutGPU(req_pid);
+}
+
 void NVDRV::SignalGPUInterruptSyncpt(const u32 syncpoint_id, const u32 value) {
-    nvdrv->SignalSyncpt(syncpoint_id, value);
+    SharedWriter(*nvdrv)->SignalSyncpt(syncpoint_id, value);
 }
 
 void NVDRV::Open(Kernel::HLERequestContext& ctx) {
@@ -44,7 +52,7 @@ void NVDRV::Open(Kernel::HLERequestContext& ctx) {
         return;
     }
 
-    DeviceFD fd = nvdrv->Open(device_name);
+    DeviceFD fd = SharedWriter(*nvdrv)->Open(device_name, GPU(ctx.GetRequesterPid()));
 
     rb.Push<DeviceFD>(fd);
     rb.PushEnum(fd != INVALID_NVDRV_FD ? NvResult::Success : NvResult::FileOperationFailed);
@@ -72,7 +80,8 @@ void NVDRV::Ioctl1(Kernel::HLERequestContext& ctx) {
     std::vector<u8> output_buffer(ctx.GetWriteBufferSize(0));
     const auto input_buffer = ctx.ReadBuffer(0);
 
-    const auto nv_result = nvdrv->Ioctl1(fd, command, input_buffer, output_buffer);
+    const auto nv_result = SharedReader(*nvdrv)->Ioctl1(fd, command, input_buffer, output_buffer,
+                                                        GPU(ctx.GetRequesterPid()));
     if (command.is_out != 0) {
         ctx.WriteBuffer(output_buffer);
     }
@@ -99,7 +108,8 @@ void NVDRV::Ioctl2(Kernel::HLERequestContext& ctx) {
     std::vector<u8> output_buffer(ctx.GetWriteBufferSize(0));
 
     const auto nv_result =
-        nvdrv->Ioctl2(fd, command, input_buffer, input_inlined_buffer, output_buffer);
+        SharedReader(*nvdrv)->Ioctl2(fd, command, input_buffer, input_inlined_buffer, output_buffer,
+                                     GPU(ctx.GetRequesterPid()));
     if (command.is_out != 0) {
         ctx.WriteBuffer(output_buffer);
     }
@@ -126,7 +136,8 @@ void NVDRV::Ioctl3(Kernel::HLERequestContext& ctx) {
     std::vector<u8> output_buffer_inline(ctx.GetWriteBufferSize(1));
 
     const auto nv_result =
-        nvdrv->Ioctl3(fd, command, input_buffer, output_buffer, output_buffer_inline);
+        SharedReader(*nvdrv)->Ioctl3(fd, command, input_buffer, output_buffer, output_buffer_inline,
+                                     GPU(ctx.GetRequesterPid()));
     if (command.is_out != 0) {
         ctx.WriteBuffer(output_buffer, 0);
         ctx.WriteBuffer(output_buffer_inline, 1);
@@ -148,7 +159,7 @@ void NVDRV::Close(Kernel::HLERequestContext& ctx) {
 
     IPC::RequestParser rp{ctx};
     const auto fd = rp.Pop<DeviceFD>();
-    const auto result = nvdrv->Close(fd);
+    const auto result = SharedWriter(*nvdrv)->Close(fd, GPU(ctx.GetRequesterPid()));
 
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(ResultSuccess);
@@ -177,7 +188,7 @@ void NVDRV::QueryEvent(Kernel::HLERequestContext& ctx) {
         return;
     }
 
-    const auto nv_result = nvdrv->VerifyFD(fd);
+    const auto nv_result = SharedReader(*nvdrv)->VerifyFD(fd, GPU(ctx.GetRequesterPid()));
     if (nv_result != NvResult::Success) {
         LOG_ERROR(Service_NVDRV, "Invalid FD specified DeviceFD={}!", fd);
         ServiceError(ctx, nv_result);
@@ -187,9 +198,9 @@ void NVDRV::QueryEvent(Kernel::HLERequestContext& ctx) {
     if (event_id < MaxNvEvents) {
         IPC::ResponseBuilder rb{ctx, 3, 1};
         rb.Push(ResultSuccess);
-        auto& event = nvdrv->GetEvent(event_id);
-        event.Clear();
-        rb.PushCopyObjects(event);
+        auto event = SharedUnlocked(*nvdrv)->GetEvent(event_id);
+        KernelHelpers::ClearEvent(event);
+        rb.PushCopyFds(event);
         rb.PushEnum(NvResult::Success);
     } else {
         IPC::ResponseBuilder rb{ctx, 3};
@@ -232,8 +243,8 @@ void NVDRV::DumpGraphicsMemoryInfo(Kernel::HLERequestContext& ctx) {
     rb.Push(ResultSuccess);
 }
 
-NVDRV::NVDRV(Core::System& system_, std::shared_ptr<Module> nvdrv_, const char* name)
-    : ServiceFramework{system_, name}, nvdrv{std::move(nvdrv_)} {
+NVDRV::NVDRV(std::shared_ptr<Shared<Module>> nvdrv_, const char* name)
+    : ServiceFramework{name}, nvdrv{std::move(nvdrv_)} {
     static const FunctionInfo functions[] = {
         {0, &NVDRV::Open, "Open"},
         {1, &NVDRV::Ioctl1, "Ioctl"},

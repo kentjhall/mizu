@@ -14,7 +14,7 @@
 
 namespace Tegra {
 
-DmaPusher::DmaPusher(Core::System& system_, GPU& gpu_) : gpu{gpu_}, system{system_} {}
+DmaPusher::DmaPusher(GPU& gpu_) : gpu{gpu_} {}
 
 DmaPusher::~DmaPusher() = default;
 
@@ -29,11 +29,6 @@ void DmaPusher::DispatchCalls() {
 
     dma_state.is_last_call = true;
 
-    while (system.IsPoweredOn()) {
-        if (!Step()) {
-            break;
-        }
-    }
     gpu.FlushCommands();
     gpu.SyncGuestHost();
     gpu.OnCommandListEnd();

@@ -29,6 +29,7 @@
 #include "video_core/vulkan_common/vulkan_device.h"
 #include "video_core/vulkan_common/vulkan_memory_allocator.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
+#include "mizu_servctl.h"
 
 namespace Vulkan {
 
@@ -111,11 +112,10 @@ struct VKBlitScreen::BufferData {
     // Unaligned image data goes here
 };
 
-VKBlitScreen::VKBlitScreen(Core::Memory::Memory& cpu_memory_,
-                           Core::Frontend::EmuWindow& render_window_, const Device& device_,
+VKBlitScreen::VKBlitScreen(Core::Frontend::EmuWindow& render_window_, const Device& device_,
                            MemoryAllocator& memory_allocator_, VKSwapchain& swapchain_,
                            VKScheduler& scheduler_, const VKScreenInfo& screen_info_)
-    : cpu_memory{cpu_memory_}, render_window{render_window_}, device{device_},
+    : render_window{render_window_}, device{device_},
       memory_allocator{memory_allocator_}, swapchain{swapchain_}, scheduler{scheduler_},
       image_count{swapchain.GetImageCount()}, screen_info{screen_info_} {
     resource_ticks.resize(image_count);
@@ -158,7 +158,6 @@ VkSemaphore VKBlitScreen::Draw(const Tegra::FramebufferConfig& framebuffer,
         const u64 image_offset = GetRawImageOffset(framebuffer, image_index);
 
         const VAddr framebuffer_addr = framebuffer.address + framebuffer.offset;
-        const u8* const host_ptr = cpu_memory.GetPointer(framebuffer_addr);
 
         // TODO(Rodrigo): Read this from HLE
         constexpr u32 block_height_log2 = 4;
@@ -166,8 +165,13 @@ VkSemaphore VKBlitScreen::Draw(const Tegra::FramebufferConfig& framebuffer,
         const u64 size_bytes{Tegra::Texture::CalculateSize(true, bytes_per_pixel,
                                                            framebuffer.stride, framebuffer.height,
                                                            1, block_height_log2, 0)};
+        u8 host_data[size_bytes];
+        if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)framebuffer_addr, (long)(u8 *)host_data, size_bytes) == -1) {
+            LOG_CRITICAL(Render_Vulkan,
+                         "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+        }
         Tegra::Texture::UnswizzleTexture(
-            mapped_span.subspan(image_offset, size_bytes), std::span(host_ptr, size_bytes),
+            mapped_span.subspan(image_offset, size_bytes), std::span(host_data, size_bytes),
             bytes_per_pixel, framebuffer.width, framebuffer.height, 1, block_height_log2, 0);
 
         const VkBufferImageCopy copy{

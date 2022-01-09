@@ -485,7 +485,7 @@ void ISelfController::CreateManagedDisplayLayer(Kernel::HLERequestContext& ctx) 
     // TODO(Subv): Find out how AM determines the display to use, for now just
     // create the layer in the Default display.
     const auto display_id = SharedWriter(nv_flinger)->OpenDisplay("Default");
-    const auto layer_id = SharedWriter(nv_flinger)->CreateLayer(*display_id);
+    const auto layer_id = SharedWriter(nv_flinger)->CreateLayer(*display_id, ctx.GetRequesterPid());
 
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(ResultSuccess);
@@ -503,7 +503,7 @@ void ISelfController::CreateManagedDisplaySeparableLayer(Kernel::HLERequestConte
     // side effects.
     // TODO: Support multiple layers
     const auto display_id = SharedWriter(nv_flinger)->OpenDisplay("Default");
-    const auto layer_id = SharedWriter(nv_flinger)->CreateLayer(*display_id);
+    const auto layer_id = SharedWriter(nv_flinger)->CreateLayer(*display_id, ctx.GetRequesterPid());
 
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(ResultSuccess);

@@ -63,7 +63,7 @@ private:
 class CachedQuery final : public VideoCommon::CachedQueryBase<HostCounter> {
 public:
     explicit CachedQuery(QueryCache& cache_, VideoCore::QueryType type_, VAddr cpu_addr_,
-                         u8* host_ptr_);
+                         Tegra::MemoryManager::Pointer host_ptr_);
     ~CachedQuery() override;
 
     CachedQuery(CachedQuery&& rhs) noexcept;

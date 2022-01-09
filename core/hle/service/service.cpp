@@ -10,6 +10,7 @@
 #include "common/string_util.h"
 #include "video_core/gpu.h"
 #include "core/core.h"
+#include "core/hardware_interrupt_manager.h"
 #include "core/loader/loader.h"
 #include "core/hle/ipc.h"
 #include "core/hle/ipc_helpers.h"
@@ -52,7 +53,7 @@
 /* #include "core/hle/service/nim/nim.h" */
 /* #include "core/hle/service/npns/npns.h" */
 #include "core/hle/service/ns/ns.h"
-/* #include "core/hle/service/nvdrv/nvdrv.h" */
+#include "core/hle/service/nvdrv/nvdrv.h"
 #include "core/hle/service/nvflinger/nvflinger.h"
 /* #include "core/hle/service/olsc/olsc.h" */
 /* #include "core/hle/service/pcie/pcie.h" */
@@ -70,7 +71,7 @@
 /* #include "core/hle/service/ssl/ssl.h" */
 /* #include "core/hle/service/time/time.h" */
 /* #include "core/hle/service/usb/usb.h" */
-/* #include "core/hle/service/vi/vi.h" */
+#include "core/hle/service/vi/vi.h"
 /* #include "core/hle/service/wlan/wlan.h" */
 #include "core/reporter.h"
 #include "mizu_servctl.h"
@@ -85,6 +86,9 @@ Shared<APM::Controller> apm_controller;
 Shared<AM::Applets::AppletManager> applet_manager;
 Shared<NVFlinger::NVFlinger> nv_flinger;
 Shared<Glue::ARPManager> arp_manager;
+Shared<InputCommon::InputSubsystem> input_subsystem;
+Shared<Core::Hardware::InterruptManager> interrupt_manager;
+Shared<std::unordered_map<::pid_t, std::pair<size_t, Shared<Tegra::GPU>>>> gpus;
 const Core::Reporter reporter;
 
 thread_local std::unordered_set<std::shared_ptr<Kernel::SessionRequestManager>> session_managers;
@@ -213,8 +217,6 @@ ResultCode ServiceFrameworkBase::HandleSyncRequest(Kernel::HLERequestContext& ct
 
 /// Initialize Services
 void StartServices() {
-    /* nv_flinger = std::make_unique<NVFlinger::NVFlinger>(); */
-
     // NVFlinger needs to be accessed by several services like Vi and AppletOE so we instantiate it
     // here and pass it into the respective InstallInterfaces functions.
 
@@ -226,7 +228,7 @@ void StartServices() {
     }
 
     Account::InstallInterfaces();
-    /* AM::InstallInterfaces(*sm, *nv_flinger, system); */
+    AM::InstallInterfaces();
     /* AOC::InstallInterfaces(*sm, system); */
     APM::InstallInterfaces();
     /* Audio::InstallInterfaces(*sm, system); */
@@ -260,7 +262,7 @@ void StartServices() {
     /* NIM::InstallInterfaces(*sm, system); */
     /* NPNS::InstallInterfaces(*sm, system); */
     NS::InstallInterfaces();
-    /* Nvidia::InstallInterfaces(*sm, *nv_flinger, system); */
+    Nvidia::InstallInterfaces();
     /* OLSC::InstallInterfaces(*sm, system); */
     /* PCIe::InstallInterfaces(*sm, system); */
     /* PCTL::InstallInterfaces(*sm, system); */
@@ -275,7 +277,7 @@ void StartServices() {
     /* SSL::InstallInterfaces(*sm, system); */
     /* Time::InstallInterfaces(system); */
     /* USB::InstallInterfaces(*sm, system); */
-    /* VI::InstallInterfaces(*sm, system, *nv_flinger); */
+    VI::InstallInterfaces();
     /* WLAN::InstallInterfaces(*sm, system); */
 
 }
@@ -305,7 +307,8 @@ void StartServices() {
 		continue;
 	}
 
-        if (session_id == 0) { // 0 means create a new session
+        bool new_session = session_id == 0; // 0 means create a new session
+        if (new_session) { 
             session_id = AddSessionManager(handler);
         }
 
@@ -370,8 +373,11 @@ out:
         }
 
         if (mizu_servctl(MIZU_SCTL_PUT_CMD, session_id, (long)context.IsDomain()) == -1) {
-            // Just give up on the session if this fails
-            session_managers.erase(FindSessionManager(session_id));
+            // Just give up on the new session if this fails
+            if (new_session) {
+                session_managers.erase(FindSessionManager(session_id));
+            }
+            LOG_ERROR(Service, "MIZU_SCTL_PUT_CMD failed: {}", ResultCode(errno).description.Value());
         }
     }
 }

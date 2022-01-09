@@ -40,7 +40,7 @@ namespace Tegra::Engines {
 
 class KeplerCompute final : public EngineInterface {
 public:
-    explicit KeplerCompute(Core::System& system, MemoryManager& memory_manager);
+    explicit KeplerCompute(MemoryManager& memory_manager);
     ~KeplerCompute();
 
     /// Binds a rasterizer to this engine.
@@ -216,7 +216,7 @@ private:
     /// Retrieves information about a specific TSC entry from the TSC buffer.
     Texture::TSCEntry GetTSCEntry(u32 tsc_index) const;
 
-    Core::System& system;
+    ;
     MemoryManager& memory_manager;
     VideoCore::RasterizerInterface* rasterizer = nullptr;
     Upload::State upload_state;

@@ -10,6 +10,7 @@
 #include "core/hle/kernel/k_event.h"
 #include "core/hle/kernel/k_readable_event.h"
 #include "core/hle/kernel/k_writable_event.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/nvdrv/devices/nvdevice.h"
 #include "core/hle/service/nvdrv/devices/nvdisp_disp0.h"
 #include "core/hle/service/nvdrv/devices/nvhost_as_gpu.h"
@@ -28,48 +29,49 @@
 
 namespace Service::Nvidia {
 
-void InstallInterfaces(SM::ServiceManager& service_manager, NVFlinger::NVFlinger& nvflinger,
-                       Core::System& system) {
-    auto module_ = std::make_shared<Module>(system);
-    std::make_shared<NVDRV>(system, module_, "nvdrv")->InstallAsService(service_manager);
-    std::make_shared<NVDRV>(system, module_, "nvdrv:a")->InstallAsService(service_manager);
-    std::make_shared<NVDRV>(system, module_, "nvdrv:s")->InstallAsService(service_manager);
-    std::make_shared<NVDRV>(system, module_, "nvdrv:t")->InstallAsService(service_manager);
-    std::make_shared<NVMEMP>(system)->InstallAsService(service_manager);
-    nvflinger.SetNVDrvInstance(module_);
+void InstallInterfaces() {
+    auto module_ = std::make_shared<Shared<Module>>();
+    MakeService<NVDRV>(module_, "nvdrv");
+    MakeService<NVDRV>(module_, "nvdrv:a");
+    MakeService<NVDRV>(module_, "nvdrv:s");
+    MakeService<NVDRV>(module_, "nvdrv:t");
+    MakeService<NVMEMP>();
+    SharedWriter(nv_flinger)->SetNVDrvInstance(module_);
 }
 
-Module::Module(Core::System& system)
-    : syncpoint_manager{system.GPU()}, service_context{system, "nvdrv"} {
+Module::Module()
+    : syncpoint_manager{} {
+    KernelHelpers::SetupServiceContext("nvdrv");
     for (u32 i = 0; i < MaxNvEvents; i++) {
-        events_interface.events[i].event =
-            service_context.CreateEvent(fmt::format("NVDRV::NvEvent_{}", i));
-        events_interface.status[i] = EventState::Free;
-        events_interface.registered[i] = false;
+        SharedUnlocked ei_unlocked(events_interface);
+        ei_unlocked->events[i].event =
+            KernelHelpers::CreateEvent(fmt::format("NVDRV::NvEvent_{}", i));
+        ei_unlocked->status[i] = EventState::Free;
+        ei_unlocked->registered[i] = false;
     }
-    auto nvmap_dev = std::make_shared<Devices::nvmap>(system);
-    devices["/dev/nvhost-as-gpu"] = std::make_shared<Devices::nvhost_as_gpu>(system, nvmap_dev);
+    auto nvmap_dev = std::make_shared<Devices::nvmap>();
+    devices["/dev/nvhost-as-gpu"] = std::make_shared<Devices::nvhost_as_gpu>(nvmap_dev);
     devices["/dev/nvhost-gpu"] =
-        std::make_shared<Devices::nvhost_gpu>(system, nvmap_dev, syncpoint_manager);
-    devices["/dev/nvhost-ctrl-gpu"] = std::make_shared<Devices::nvhost_ctrl_gpu>(system);
+        std::make_shared<Devices::nvhost_gpu>(nvmap_dev, syncpoint_manager);
+    devices["/dev/nvhost-ctrl-gpu"] = std::make_shared<Devices::nvhost_ctrl_gpu>();
     devices["/dev/nvmap"] = nvmap_dev;
-    devices["/dev/nvdisp_disp0"] = std::make_shared<Devices::nvdisp_disp0>(system, nvmap_dev);
+    devices["/dev/nvdisp_disp0"] = std::make_shared<Devices::nvdisp_disp0>(nvmap_dev);
     devices["/dev/nvhost-ctrl"] =
-        std::make_shared<Devices::nvhost_ctrl>(system, events_interface, syncpoint_manager);
+        std::make_shared<Devices::nvhost_ctrl>(events_interface, syncpoint_manager);
     devices["/dev/nvhost-nvdec"] =
-        std::make_shared<Devices::nvhost_nvdec>(system, nvmap_dev, syncpoint_manager);
-    devices["/dev/nvhost-nvjpg"] = std::make_shared<Devices::nvhost_nvjpg>(system);
+        std::make_shared<Devices::nvhost_nvdec>(nvmap_dev, syncpoint_manager);
+    devices["/dev/nvhost-nvjpg"] = std::make_shared<Devices::nvhost_nvjpg>();
     devices["/dev/nvhost-vic"] =
-        std::make_shared<Devices::nvhost_vic>(system, nvmap_dev, syncpoint_manager);
+        std::make_shared<Devices::nvhost_vic>(nvmap_dev, syncpoint_manager);
 }
 
 Module::~Module() {
     for (u32 i = 0; i < MaxNvEvents; i++) {
-        service_context.CloseEvent(events_interface.events[i].event);
+        KernelHelpers::CloseEvent(SharedReader(events_interface)->events[i].event);
     }
 }
 
-NvResult Module::VerifyFD(DeviceFD fd) const {
+NvResult Module::VerifyFD(DeviceFD fd, Shared<Tegra::GPU>& gpu) const {
     if (fd < 0) {
         LOG_ERROR(Service_NVDRV, "Invalid DeviceFD={}!", fd);
         return NvResult::InvalidState;
@@ -83,7 +85,7 @@ NvResult Module::VerifyFD(DeviceFD fd) const {
     return NvResult::Success;
 }
 
-DeviceFD Module::Open(const std::string& device_name) {
+DeviceFD Module::Open(const std::string& device_name, Shared<Tegra::GPU>& gpu) {
     if (devices.find(device_name) == devices.end()) {
         LOG_ERROR(Service_NVDRV, "Trying to open unknown device {}", device_name);
         return INVALID_NVDRV_FD;
@@ -92,7 +94,7 @@ DeviceFD Module::Open(const std::string& device_name) {
     auto device = devices[device_name];
     const DeviceFD fd = next_fd++;
 
-    device->OnOpen(fd);
+    device->OnOpen(fd, gpu);
 
     open_files[fd] = std::move(device);
 
@@ -100,7 +102,7 @@ DeviceFD Module::Open(const std::string& device_name) {
 }
 
 NvResult Module::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                        std::vector<u8>& output) {
+                        std::vector<u8>& output, Shared<Tegra::GPU>& gpu) const {
     if (fd < 0) {
         LOG_ERROR(Service_NVDRV, "Invalid DeviceFD={}!", fd);
         return NvResult::InvalidState;
@@ -113,11 +115,12 @@ NvResult Module::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input
         return NvResult::NotImplemented;
     }
 
-    return itr->second->Ioctl1(fd, command, input, output);
+    return itr->second->WriteLocked()->Ioctl1(fd, command, input, output, gpu);
 }
 
 NvResult Module::Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                        const std::vector<u8>& inline_input, std::vector<u8>& output) {
+                        const std::vector<u8>& inline_input, std::vector<u8>& output,
+                        Shared<Tegra::GPU>& gpu) const {
     if (fd < 0) {
         LOG_ERROR(Service_NVDRV, "Invalid DeviceFD={}!", fd);
         return NvResult::InvalidState;
@@ -130,11 +133,12 @@ NvResult Module::Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input
         return NvResult::NotImplemented;
     }
 
-    return itr->second->Ioctl2(fd, command, input, inline_input, output);
+    return itr->second->WriteLocked()->Ioctl2(fd, command, input, inline_input, output, gpu);
 }
 
 NvResult Module::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                        std::vector<u8>& output, std::vector<u8>& inline_output) {
+                        std::vector<u8>& output, std::vector<u8>& inline_output,
+                        Shared<Tegra::GPU>& gpu) const {
     if (fd < 0) {
         LOG_ERROR(Service_NVDRV, "Invalid DeviceFD={}!", fd);
         return NvResult::InvalidState;
@@ -147,10 +151,10 @@ NvResult Module::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input
         return NvResult::NotImplemented;
     }
 
-    return itr->second->Ioctl3(fd, command, input, output, inline_output);
+    return itr->second->WriteLocked()->Ioctl3(fd, command, input, output, inline_output, gpu);
 }
 
-NvResult Module::Close(DeviceFD fd) {
+NvResult Module::Close(DeviceFD fd, Shared<Tegra::GPU>& gpu) {
     if (fd < 0) {
         LOG_ERROR(Service_NVDRV, "Invalid DeviceFD={}!", fd);
         return NvResult::InvalidState;
@@ -163,7 +167,7 @@ NvResult Module::Close(DeviceFD fd) {
         return NvResult::NotImplemented;
     }
 
-    itr->second->OnClose(fd);
+    itr->second->WriteLocked()->OnClose(fd, gpu);
 
     open_files.erase(itr);
 
@@ -172,20 +176,17 @@ NvResult Module::Close(DeviceFD fd) {
 
 void Module::SignalSyncpt(const u32 syncpoint_id, const u32 value) {
     for (u32 i = 0; i < MaxNvEvents; i++) {
-        if (events_interface.assigned_syncpt[i] == syncpoint_id &&
-            events_interface.assigned_value[i] == value) {
-            events_interface.LiberateEvent(i);
-            events_interface.events[i].event->GetWritableEvent().Signal();
+        SharedWriter ei_locked(events_interface);
+        if (ei_locked->assigned_syncpt[i] == syncpoint_id &&
+            ei_locked->assigned_value[i] == value) {
+            ei_locked->LiberateEvent(i);
+            KernelHelpers::SignalEvent(ei_locked->events[i].event);
         }
     }
 }
 
-Kernel::KReadableEvent& Module::GetEvent(const u32 event_id) {
-    return events_interface.events[event_id].event->GetReadableEvent();
-}
-
-Kernel::KWritableEvent& Module::GetEventWriteable(const u32 event_id) {
-    return events_interface.events[event_id].event->GetWritableEvent();
+int Module::GetEvent(const u32 event_id) {
+    return SharedReader(events_interface)->events[event_id].event;
 }
 
 } // namespace Service::Nvidia

@@ -86,8 +86,8 @@ u64 HostCounter::BlockingQuery() const {
 }
 
 CachedQuery::CachedQuery(QueryCache& cache_, VideoCore::QueryType type_, VAddr cpu_addr_,
-                         u8* host_ptr_)
-    : CachedQueryBase{cpu_addr_, host_ptr_}, cache{&cache_}, type{type_} {}
+                         Tegra::MemoryManager::Pointer host_ptr_)
+    : CachedQueryBase{cpu_addr_, std::move(host_ptr_)}, cache{&cache_}, type{type_} {}
 
 CachedQuery::~CachedQuery() = default;
 

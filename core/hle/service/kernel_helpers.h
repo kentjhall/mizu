@@ -22,6 +22,8 @@ void ClearEvent(int);
 
 ::timer_t CreateTimerEvent(std::string&& name, void *val, void (*cb)(::sigval));
 
+void CloseTimerEvent(::timer_t event);
+
 void ScheduleTimerEvent(std::chrono::nanoseconds interval, ::timer_t event);
 
 void ScheduleRepeatTimerEvent(std::chrono::nanoseconds interval, ::timer_t event);

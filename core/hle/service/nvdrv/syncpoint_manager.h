@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "common/common_types.h"
+#include "core/hle/service/service.h"
 #include "core/hle/service/nvdrv/nvdata.h"
 
 namespace Tegra {
@@ -16,9 +17,11 @@ class GPU;
 
 namespace Service::Nvidia {
 
+class Module;
+
 class SyncpointManager final {
 public:
-    explicit SyncpointManager(Tegra::GPU& gpu_);
+    explicit SyncpointManager();
     ~SyncpointManager();
 
     /**
@@ -54,7 +57,7 @@ public:
      * @param syncpoint_id Syncpoint ID to be refreshed.
      * @returns The new syncpoint minimum value.
      */
-    u32 RefreshSyncpoint(u32 syncpoint_id);
+    u32 RefreshSyncpoint(u32 syncpoint_id, Shared<Tegra::GPU>& gpu);
 
     /**
      * Allocates a new syncoint.
@@ -79,7 +82,7 @@ private:
 
     std::array<Syncpoint, MaxSyncPoints> syncpoints{};
 
-    Tegra::GPU& gpu;
+    std::shared_ptr<Shared<Nvidia::Module>> nvdrv;
 };
 
 } // namespace Service::Nvidia

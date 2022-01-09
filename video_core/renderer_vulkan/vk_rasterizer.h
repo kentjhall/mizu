@@ -31,10 +31,6 @@
 #include "video_core/vulkan_common/vulkan_memory_allocator.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
 
-namespace Core {
-class System;
-}
-
 namespace Core::Frontend {
 class EmuWindow;
 }
@@ -64,7 +60,7 @@ private:
 class RasterizerVulkan final : public VideoCore::RasterizerAccelerated {
 public:
     explicit RasterizerVulkan(Core::Frontend::EmuWindow& emu_window_, Tegra::GPU& gpu_,
-                              Tegra::MemoryManager& gpu_memory_, Core::Memory::Memory& cpu_memory_,
+                              Tegra::MemoryManager& gpu_memory_,
                               VKScreenInfo& screen_info_, const Device& device_,
                               MemoryAllocator& memory_allocator_, StateTracker& state_tracker_,
                               VKScheduler& scheduler_);

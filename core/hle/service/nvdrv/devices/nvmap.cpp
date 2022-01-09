@@ -11,7 +11,7 @@
 
 namespace Service::Nvidia::Devices {
 
-nvmap::nvmap(Core::System& system_) : nvdevice{system_} {
+nvmap::nvmap() : nvdevice_locked<nvmap>{} {
     // Handle 0 appears to be used when remapping, so we create a placeholder empty nvmap object to
     // represent this.
     CreateObject(0);
@@ -20,7 +20,7 @@ nvmap::nvmap(Core::System& system_) : nvdevice{system_} {
 nvmap::~nvmap() = default;
 
 NvResult nvmap::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                       std::vector<u8>& output) {
+                       std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     switch (command.group) {
     case 0x1:
         switch (command.cmd) {
@@ -49,19 +49,19 @@ NvResult nvmap::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
 }
 
 NvResult nvmap::Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                       const std::vector<u8>& inline_input, std::vector<u8>& output) {
+                       const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl={:08X}", command.raw);
     return NvResult::NotImplemented;
 }
 
 NvResult nvmap::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                       std::vector<u8>& output, std::vector<u8>& inline_output) {
+                       std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl={:08X}", command.raw);
     return NvResult::NotImplemented;
 }
 
-void nvmap::OnOpen(DeviceFD fd) {}
-void nvmap::OnClose(DeviceFD fd) {}
+void nvmap::OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
+void nvmap::OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
 
 VAddr nvmap::GetObjectAddress(u32 handle) const {
     auto object = GetObject(handle);

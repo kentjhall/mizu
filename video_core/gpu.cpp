@@ -13,9 +13,9 @@
 #include "common/microprofile.h"
 #include "common/settings.h"
 #include "core/core.h"
-#include "core/core_timing.h"
 #include "core/frontend/emu_window.h"
 #include "core/hardware_interrupt_manager.h"
+#include "core/hle/service/service.h"
 #include "core/hle/service/nvdrv/nvdata.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
 #include "core/perf_stats.h"
@@ -31,23 +31,23 @@
 #include "video_core/memory_manager.h"
 #include "video_core/renderer_base.h"
 #include "video_core/shader_notify.h"
+#include "video_core/render_window.h"
 
 namespace Tegra {
 
 MICROPROFILE_DEFINE(GPU_wait, "GPU", "Wait for the GPU", MP_RGB(128, 128, 192));
 
 struct GPU::Impl {
-    explicit Impl(GPU& gpu_, Core::System& system_, bool is_async_, bool use_nvdec_)
-        : gpu{gpu_}, system{system_}, memory_manager{std::make_unique<Tegra::MemoryManager>(
-                                          system)},
-          dma_pusher{std::make_unique<Tegra::DmaPusher>(system, gpu)}, use_nvdec{use_nvdec_},
-          maxwell_3d{std::make_unique<Engines::Maxwell3D>(system, *memory_manager)},
+    explicit Impl(GPU& gpu_, bool is_async_, bool use_nvdec_)
+        : gpu{gpu_}, memory_manager{std::make_unique<Tegra::MemoryManager>()},
+          dma_pusher{std::make_unique<Tegra::DmaPusher>(gpu)}, use_nvdec{use_nvdec_},
+          maxwell_3d{std::make_unique<Engines::Maxwell3D>(gpu_, *memory_manager)},
           fermi_2d{std::make_unique<Engines::Fermi2D>()},
-          kepler_compute{std::make_unique<Engines::KeplerCompute>(system, *memory_manager)},
-          maxwell_dma{std::make_unique<Engines::MaxwellDMA>(system, *memory_manager)},
-          kepler_memory{std::make_unique<Engines::KeplerMemory>(system, *memory_manager)},
+          kepler_compute{std::make_unique<Engines::KeplerCompute>(*memory_manager)},
+          maxwell_dma{std::make_unique<Engines::MaxwellDMA>(*memory_manager)},
+          kepler_memory{std::make_unique<Engines::KeplerMemory>(*memory_manager)},
           shader_notify{std::make_unique<VideoCore::ShaderNotify>()}, is_async{is_async_},
-          gpu_thread{system_, is_async_} {}
+          gpu_thread{gpu_, is_async_}, perf_stats{Service::GetTitleID()}, render_window{gpu_} {}
 
     ~Impl() = default;
 
@@ -292,7 +292,7 @@ struct GPU::Impl {
         constexpr u64 gpu_ticks_num = 384;
         constexpr u64 gpu_ticks_den = 625;
 
-        u64 nanoseconds = system.CoreTiming().GetGlobalTimeNs().count();
+        u64 nanoseconds = Service::GetGlobalTimeNs().count();
         if (Settings::values.use_fast_gpu_time.GetValue()) {
             nanoseconds /= 256;
         }
@@ -310,7 +310,7 @@ struct GPU::Impl {
     }
 
     void RendererFrameEndNotify() {
-        system.GetPerfStats().EndGameFrame();
+        perf_stats.EndGameFrame();
     }
 
     /// Performs any additional setup necessary in order to begin GPU emulation.
@@ -380,8 +380,7 @@ struct GPU::Impl {
     }
 
     void TriggerCpuInterrupt(u32 syncpoint_id, u32 value) const {
-        auto& interrupt_manager = system.InterruptManager();
-        interrupt_manager.GPUInterruptSyncpt(syncpoint_id, value);
+        Service::SharedWriter(Service::interrupt_manager)->GPUInterruptSyncpt(syncpoint_id, value);
     }
 
     void ProcessBindMethod(const GPU::MethodCall& method_call) {
@@ -656,7 +655,6 @@ struct GPU::Impl {
     } regs{};
 
     GPU& gpu;
-    Core::System& system;
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
     std::unique_ptr<Tegra::DmaPusher> dma_pusher;
     std::unique_ptr<Tegra::CDmaPusher> cdma_pusher;
@@ -708,6 +706,12 @@ struct GPU::Impl {
     VideoCommon::GPUThread::ThreadManager gpu_thread;
     std::unique_ptr<Core::Frontend::GraphicsContext> cpu_context;
 
+    Core::TelemetrySession telemetry_session;
+    Core::PerfStats perf_stats;
+    Core::SpeedLimiter speed_limiter;
+
+    GRenderWindow render_window;
+
 #define ASSERT_REG_POSITION(field_name, position)                                                  \
     static_assert(offsetof(Regs, field_name) == position * 4,                                      \
                   "Field " #field_name " has invalid position")
@@ -737,10 +741,30 @@ struct GPU::Impl {
     };
 };
 
-GPU::GPU(Core::System& system, bool is_async, bool use_nvdec)
-    : impl{std::make_unique<Impl>(*this, system, is_async, use_nvdec)} {}
+GPU::GPU(bool is_async, bool use_nvdec)
+    : impl{std::make_unique<Impl>(*this, is_async, use_nvdec)} {
+    impl->telemetry_session.AddInitialInfo();
+    // Reset counters and set time origin to current frame
+    impl->perf_stats.GetAndResetStats(Service::GetGlobalTimeUs());
+    impl->perf_stats.BeginSystemFrame();
+}
 
-GPU::~GPU() = default;
+GPU::GPU(GPU&& gpu)
+    : impl{std::move(gpu.impl)} {}
+
+GPU::~GPU() {
+    const auto perf_results = impl->perf_stats.GetAndResetStats(Service::GetGlobalTimeUs());
+    constexpr auto performance = Common::Telemetry::FieldType::Performance;
+
+    impl->telemetry_session.AddField(performance, "Shutdown_EmulationSpeed",
+                                     perf_results.emulation_speed * 100.0);
+    impl->telemetry_session.AddField(performance, "Shutdown_Framerate",
+                                     perf_results.average_game_fps);
+    impl->telemetry_session.AddField(performance, "Shutdown_Frametime",
+                                     perf_results.frametime * 1000.0);
+    impl->telemetry_session.AddField(performance, "Mean_Frametime_MS",
+                                     impl->perf_stats.GetMeanFrametime());
+}
 
 void GPU::BindRenderer(std::unique_ptr<VideoCore::RendererBase> renderer) {
     impl->BindRenderer(std::move(renderer));
@@ -909,6 +933,38 @@ void GPU::InvalidateRegion(VAddr addr, u64 size) {
 
 void GPU::FlushAndInvalidateRegion(VAddr addr, u64 size) {
     impl->FlushAndInvalidateRegion(addr, size);
+}
+
+Core::TelemetrySession& GPU::TelemetrySession() {
+    return impl->telemetry_session;
+};
+
+const Core::TelemetrySession& GPU::TelemetrySession() const {
+    return impl->telemetry_session;
+};
+
+Core::PerfStats& GPU::GetPerfStats() {
+    return impl->perf_stats;
+};
+
+const Core::PerfStats& GPU::GetPerfStats() const {
+    return impl->perf_stats;
+};
+
+Core::SpeedLimiter& GPU::SpeedLimiter() {
+    return impl->speed_limiter;
+};
+
+const Core::SpeedLimiter& GPU::SpeedLimiter() const {
+    return impl->speed_limiter;
+};
+
+Core::Frontend::EmuWindow& GPU::RenderWindow() {
+    return impl->render_window;
+}
+
+const Core::Frontend::EmuWindow& GPU::RenderWindow() const {
+    return impl->render_window;
 }
 
 } // namespace Tegra

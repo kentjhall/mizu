@@ -120,8 +120,7 @@ public:
     explicit BufferCache(VideoCore::RasterizerInterface& rasterizer_,
                          Tegra::Engines::Maxwell3D& maxwell3d_,
                          Tegra::Engines::KeplerCompute& kepler_compute_,
-                         Tegra::MemoryManager& gpu_memory_, Core::Memory::Memory& cpu_memory_,
-                         Runtime& runtime_);
+                         Tegra::MemoryManager& gpu_memory_, Runtime& runtime_);
 
     void TickFrame();
 
@@ -370,7 +369,6 @@ private:
     Tegra::Engines::Maxwell3D& maxwell3d;
     Tegra::Engines::KeplerCompute& kepler_compute;
     Tegra::MemoryManager& gpu_memory;
-    Core::Memory::Memory& cpu_memory;
 
     SlotVector<Buffer> slot_buffers;
     DelayedDestructionRing<Buffer, 8> delayed_destruction_ring;
@@ -444,10 +442,9 @@ template <class P>
 BufferCache<P>::BufferCache(VideoCore::RasterizerInterface& rasterizer_,
                             Tegra::Engines::Maxwell3D& maxwell3d_,
                             Tegra::Engines::KeplerCompute& kepler_compute_,
-                            Tegra::MemoryManager& gpu_memory_, Core::Memory::Memory& cpu_memory_,
-                            Runtime& runtime_)
+                            Tegra::MemoryManager& gpu_memory_, Runtime& runtime_)
     : runtime{runtime_}, rasterizer{rasterizer_}, maxwell3d{maxwell3d_},
-      kepler_compute{kepler_compute_}, gpu_memory{gpu_memory_}, cpu_memory{cpu_memory_} {
+      kepler_compute{kepler_compute_}, gpu_memory{gpu_memory_} {
     // Ensure the first slot is used for the null buffer
     void(slot_buffers.insert(runtime, NullBufferParams{}));
     common_ranges.clear();
@@ -579,8 +576,8 @@ bool BufferCache<P>::DMACopy(GPUVAddr src_address, GPUVAddr dest_address, u64 am
         dest_buffer.MarkRegionAsGpuModified(*cpu_dest_address, amount);
     }
     std::vector<u8> tmp_buffer(amount);
-    cpu_memory.ReadBlockUnsafe(*cpu_src_address, tmp_buffer.data(), amount);
-    cpu_memory.WriteBlockUnsafe(*cpu_dest_address, tmp_buffer.data(), amount);
+    mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)*cpu_src_address, (long)tmp_buffer.data(), (long)amount);
+    mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)*cpu_dest_address, (long)tmp_buffer.data(), (long)amount);
     return true;
 }
 
@@ -866,7 +863,7 @@ void BufferCache<P>::CommitAsyncFlushesHigh() {
             // Undo the modified offset
             const u64 dst_offset = copy.dst_offset - download_staging.offset;
             const u8* read_mapped_memory = download_staging.mapped_span.data() + dst_offset;
-            cpu_memory.WriteBlockUnsafe(cpu_addr, read_mapped_memory, copy.size);
+            mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)cpu_addr, (long)read_mapped_memory, (long)copy.size);
         }
     } else {
         const std::span<u8> immediate_buffer = ImmediateBuffer(largest_copy);
@@ -874,7 +871,7 @@ void BufferCache<P>::CommitAsyncFlushesHigh() {
             Buffer& buffer = slot_buffers[buffer_id];
             buffer.ImmediateDownload(copy.src_offset, immediate_buffer.subspan(0, copy.size));
             const VAddr cpu_addr = buffer.CpuAddr() + copy.src_offset;
-            cpu_memory.WriteBlockUnsafe(cpu_addr, immediate_buffer.data(), copy.size);
+            mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)cpu_addr, (long)immediate_buffer.data(), (long)copy.size);
         }
     }
 }
@@ -1039,7 +1036,7 @@ void BufferCache<P>::BindHostGraphicsUniformBuffer(size_t stage, u32 index, u32 
         }
         // Stream buffer path to avoid stalling on non-Nvidia drivers or Vulkan
         const std::span<u8> span = runtime.BindMappedUniformBuffer(stage, binding_index, size);
-        cpu_memory.ReadBlockUnsafe(cpu_addr, span.data(), size);
+        mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)cpu_addr, (long)span.data(), (long)size);
         return;
     }
     // Classic cached path
@@ -1610,17 +1607,20 @@ void BufferCache<P>::ImmediateUploadMemory(Buffer& buffer, u64 largest_copy,
     for (const BufferCopy& copy : copies) {
         std::span<const u8> upload_span;
         const VAddr cpu_addr = buffer.CpuAddr() + copy.dst_offset;
+#if 0
         if (IsRangeGranular(cpu_addr, copy.size)) {
             upload_span = std::span(cpu_memory.GetPointer(cpu_addr), copy.size);
         } else {
+#endif
             if (immediate_buffer.empty()) {
                 immediate_buffer = ImmediateBuffer(largest_copy);
             }
-            cpu_memory.ReadBlockUnsafe(cpu_addr, immediate_buffer.data(), copy.size);
+            mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)cpu_addr, (long)immediate_buffer.data(), (long)copy.size);
             upload_span = immediate_buffer.subspan(0, copy.size);
-        }
+        /* } */
         buffer.ImmediateUpload(copy.dst_offset, upload_span);
     }
+    LOG_CRITICAL(HW_GPU, "mizu TODO GetPointer");
 }
 
 template <class P>
@@ -1631,7 +1631,7 @@ void BufferCache<P>::MappedUploadMemory(Buffer& buffer, u64 total_size_bytes,
     for (BufferCopy& copy : copies) {
         u8* const src_pointer = staging_pointer.data() + copy.src_offset;
         const VAddr cpu_addr = buffer.CpuAddr() + copy.dst_offset;
-        cpu_memory.ReadBlockUnsafe(cpu_addr, src_pointer, copy.size);
+        mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)cpu_addr, (long)src_pointer, (long)copy.size);
 
         // Apply the staging offset
         copy.src_offset += upload_staging.offset;
@@ -1693,14 +1693,14 @@ void BufferCache<P>::DownloadBufferMemory(Buffer& buffer, VAddr cpu_addr, u64 si
             // Undo the modified offset
             const u64 dst_offset = copy.dst_offset - download_staging.offset;
             const u8* copy_mapped_memory = mapped_memory + dst_offset;
-            cpu_memory.WriteBlockUnsafe(copy_cpu_addr, copy_mapped_memory, copy.size);
+            mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)copy_cpu_addr, (long)copy_mapped_memory, (long)copy.size);
         }
     } else {
         const std::span<u8> immediate_buffer = ImmediateBuffer(largest_copy);
         for (const BufferCopy& copy : copies) {
             buffer.ImmediateDownload(copy.src_offset, immediate_buffer.subspan(0, copy.size));
             const VAddr copy_cpu_addr = buffer.CpuAddr() + copy.src_offset;
-            cpu_memory.WriteBlockUnsafe(copy_cpu_addr, immediate_buffer.data(), copy.size);
+            mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)copy_cpu_addr, (long)immediate_buffer.data(), (long)copy.size);
         }
     }
 }
@@ -1787,15 +1787,18 @@ typename BufferCache<P>::TextureBufferBinding BufferCache<P>::GetTextureBufferBi
 
 template <class P>
 std::span<const u8> BufferCache<P>::ImmediateBufferWithData(VAddr cpu_addr, size_t size) {
+#if 0 // mizu TEMP
     u8* const base_pointer = cpu_memory.GetPointer(cpu_addr);
     if (IsRangeGranular(cpu_addr, size) ||
         base_pointer + size == cpu_memory.GetPointer(cpu_addr + size)) {
         return std::span(base_pointer, size);
     } else {
+#endif
         const std::span<u8> span = ImmediateBuffer(size);
-        cpu_memory.ReadBlockUnsafe(cpu_addr, span.data(), size);
+        mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)cpu_addr, (long)span.data(), (long)size);
         return span;
-    }
+    /* } */
+    LOG_CRITICAL(HW_GPU, "mizu TODO GetPointer");
 }
 
 template <class P>

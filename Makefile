@@ -1,23 +1,69 @@
 CXX := g++
-INCLUDES := -I ~/mizu-services -I ~/yuzu/src -I ~/yuzu/externals/dynarmic/externals/fmt/include -I ~/yuzu/src/externals/opus/opus/include -I ~/yuzu/externals/cubeb/include -I ~/yuzu/externals/soundtouch/include -I ~/yuzu/src/exports -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/microprofile -I ~/yuzu/externals/opus/opus/include
-CXXFLAGS := -DYUZU_UNIX -DFMT_HEADER_ONLY -std=gnu++2a $(INCLUDES)
-LDFLAGS := -L ~/mbedtls/library/
-LDLIBS := -lmbedcrypto -lrt -pthread
+CC := g++
+INCLUDES := -I ~/mizu-services -I ~/mizu-services/glad/include -I ~/yuzu/src -I ~/yuzu/externals/dynarmic/externals/fmt/include -I ~/yuzu/src/externals/opus/opus/include -I ~/yuzu/externals/cubeb/include -I ~/yuzu/externals/soundtouch/include -I ~/yuzu/src/exports -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/microprofile -I ~/yuzu/externals/opus/opus/include -I ~/yuzu/externals/ffmpeg -I ~/yuzu/build/externals/ffmpeg -I ~/yuzu/externals/Vulkan-Headers/include -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/sirit/externals/SPIRV-Headers/include -I ~/yuzu/externals/sirit/include
+DEBUG-y := -O0 -ggdb
+CXXFLAGS := -DYUZU_UNIX -DFMT_HEADER_ONLY -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui $(DEBUG-$(DEBUG))
+CFLAGS := $(CXXFLAGS)
+LDFLAGS := -L ~/mbedtls/library -L ~/sirit/build/src
+LDLIBS := -lmbedcrypto -lsirit -lrt -ldl -pthread $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 sdl2 libavutil libavcodec libswscale)
 
-services := sm set apm am acc bcat glue hid ns filesystem
+services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv
+
+shader_headers := astc_decoder_comp.h \
+                  block_linear_unswizzle_2d_comp.h \
+                  block_linear_unswizzle_3d_comp.h \
+                  convert_depth_to_float_frag.h \
+                  convert_float_to_depth_frag.h \
+                  full_screen_triangle_vert.h \
+                  opengl_copy_bc4_comp.h \
+                  opengl_present_frag.h \
+                  opengl_present_vert.h \
+                  pitch_unswizzle_comp.h \
+                  astc_decoder_comp_spv.h \
+                  block_linear_unswizzle_2d_comp_spv.h \
+                  block_linear_unswizzle_3d_comp_spv.h \
+                  convert_depth_to_float_frag_spv.h \
+                  convert_float_to_depth_frag_spv.h \
+                  full_screen_triangle_vert_spv.h \
+                  pitch_unswizzle_comp_spv.h \
+                  vulkan_blit_color_float_frag_spv.h \
+                  vulkan_blit_depth_stencil_frag_spv.h \
+                  vulkan_present_frag_spv.h \
+                  vulkan_present_vert_spv.h \
+                  vulkan_quad_indexed_comp_spv.h \
+                  vulkan_uint8_comp_spv.h
 
 subdirs := common common/fs common/logging \
 	   core core/file_sys core/file_sys/system_archive core/file_sys/system_archive/data core/crypto \
-	   core/frontend/applets core/hle core/hle/kernel \
+	   core/frontend core/frontend/applets core/hle core/hle/kernel \
+	   $(shell find video_core -type d) $(shell find shader_recompiler -type d) \
+	   input_common $(shell find input_common -type d)  \
 	   core/hle/service $(shell find $(addprefix core/hle/service/,$(services)) -type d)
-sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs)))
-headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) mizu_servctl.h
-objects := $(patsubst %.cpp,%.o,$(sources))
+sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs))) video_core/render_window.moc.cpp
+headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/host_shaders/,$(shader_headers)) \
+	   mizu_servctl.h
+objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
 
 mizu_service_pack: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(objects): $(headers)
+
+video_core/render_window.moc.cpp: video_core/render_window.h
+	moc $< -o $@
+
+video_core/host_shaders/%_comp.h: video_core/host_shaders/%.comp video_core/host_shaders/source_shader.h.in
+	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
+video_core/host_shaders/%_frag.h: video_core/host_shaders/%.frag video_core/host_shaders/source_shader.h.in
+	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
+video_core/host_shaders/%_vert.h: video_core/host_shaders/%.vert video_core/host_shaders/source_shader.h.in
+	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
+video_core/host_shaders/%_comp_spv.h: video_core/host_shaders/%.comp
+	glslangValidator -V --quiet --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
+video_core/host_shaders/%_frag_spv.h: video_core/host_shaders/%.frag video_core/host_shaders/source_shader.h.in
+	glslangValidator -V --quiet --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
+video_core/host_shaders/%_vert_spv.h: video_core/host_shaders/%.vert video_core/host_shaders/source_shader.h.in
+	glslangValidator -V --quiet --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
 
 .PHONY: missing
 missing: missing_syms.txt
@@ -31,3 +77,8 @@ ld_err.txt: $(objects)
 clean:
 	rm -f mizu_service_pack
 	find . -name '*.o' -exec rm {} \;
+	find video_core -name '*.moc.cpp' -exec rm {} \;
+	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;
+	find video_core/host_shaders -name '*_frag.h' -exec rm {} \;
+	find video_core/host_shaders -name '*_vert.h' -exec rm {} \;
+	find video_core/host_shaders -name '*_spv.h' -exec rm {} \;

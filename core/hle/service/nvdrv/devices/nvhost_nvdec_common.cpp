@@ -45,9 +45,9 @@ std::size_t WriteVectors(std::vector<u8>& dst, const std::vector<T>& src, std::s
 }
 } // Anonymous namespace
 
-nvhost_nvdec_common::nvhost_nvdec_common(Core::System& system_, std::shared_ptr<nvmap> nvmap_dev_,
+nvhost_nvdec_common::nvhost_nvdec_common(std::shared_ptr<nvmap> nvmap_dev_,
                                          SyncpointManager& syncpoint_manager_)
-    : nvdevice{system_}, nvmap_dev{std::move(nvmap_dev_)}, syncpoint_manager{syncpoint_manager_} {}
+    : nvdevice{}, nvmap_dev{std::move(nvmap_dev_)}, syncpoint_manager{syncpoint_manager_} {}
 nvhost_nvdec_common::~nvhost_nvdec_common() = default;
 
 NvResult nvhost_nvdec_common::SetNVMAPfd(const std::vector<u8>& input) {
@@ -59,7 +59,7 @@ NvResult nvhost_nvdec_common::SetNVMAPfd(const std::vector<u8>& input) {
     return NvResult::Success;
 }
 
-NvResult nvhost_nvdec_common::Submit(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_nvdec_common::Submit(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     IoctlSubmit params{};
     std::memcpy(&params, input.data(), sizeof(IoctlSubmit));
     LOG_DEBUG(Service_NVDRV, "called NVDEC Submit, cmd_buffer_count={}", params.cmd_buffer_count);
@@ -79,8 +79,7 @@ NvResult nvhost_nvdec_common::Submit(const std::vector<u8>& input, std::vector<u
     offset += SliceVectors(input, syncpt_increments, params.syncpoint_count, offset);
     offset += SliceVectors(input, fence_thresholds, params.fence_count, offset);
 
-    auto& gpu = system.GPU();
-    if (gpu.UseNvdec()) {
+    if (SharedReader(gpu)->UseNvdec()) {
         for (std::size_t i = 0; i < syncpt_increments.size(); i++) {
             const SyncptIncr& syncpt_incr = syncpt_increments[i];
             fence_thresholds[i] =
@@ -88,12 +87,14 @@ NvResult nvhost_nvdec_common::Submit(const std::vector<u8>& input, std::vector<u
         }
     }
     for (const auto& cmd_buffer : command_buffers) {
-        const auto object = nvmap_dev->GetObject(cmd_buffer.memory_id);
+        const auto object = nvmap_dev->ReadLocked()->GetObject(cmd_buffer.memory_id);
         ASSERT_OR_EXECUTE(object, return NvResult::InvalidState;);
         Tegra::ChCommandHeaderList cmdlist(cmd_buffer.word_count);
-        system.Memory().ReadBlock(object->addr + cmd_buffer.offset, cmdlist.data(),
-                                  cmdlist.size() * sizeof(u32));
-        gpu.PushCommandBuffer(cmdlist);
+        if (mizu_servctl(MIZU_SCTL_READ_BUFFER, object->addr + cmd_buffer.offset,
+                                                cmdlist.data(), cmdlist.size() * sizeof(u32)) == -1) {
+            LOG_CRITICAL(Service_NVDRV, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+        }
+        SharedWriter(gpu)->PushCommandBuffer(cmdlist);
     }
     std::memcpy(output.data(), &params, sizeof(IoctlSubmit));
     // Some games expect command_buffers to be written back
@@ -107,12 +108,12 @@ NvResult nvhost_nvdec_common::Submit(const std::vector<u8>& input, std::vector<u
     return NvResult::Success;
 }
 
-NvResult nvhost_nvdec_common::GetSyncpoint(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_nvdec_common::GetSyncpoint(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     IoctlGetSyncpoint params{};
     std::memcpy(&params, input.data(), sizeof(IoctlGetSyncpoint));
     LOG_DEBUG(Service_NVDRV, "called GetSyncpoint, id={}", params.param);
 
-    if (device_syncpoints[params.param] == 0 && system.GPU().UseNvdec()) {
+    if (device_syncpoints[params.param] == 0 && SharedReader(gpu)->UseNvdec()) {
         device_syncpoints[params.param] = syncpoint_manager.AllocateSyncpoint();
     }
     params.value = device_syncpoints[params.param];
@@ -129,17 +130,15 @@ NvResult nvhost_nvdec_common::GetWaitbase(const std::vector<u8>& input, std::vec
     return NvResult::Success;
 }
 
-NvResult nvhost_nvdec_common::MapBuffer(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_nvdec_common::MapBuffer(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     IoctlMapBuffer params{};
     std::memcpy(&params, input.data(), sizeof(IoctlMapBuffer));
     std::vector<MapBufferEntry> cmd_buffer_handles(params.num_entries);
 
     SliceVectors(input, cmd_buffer_handles, params.num_entries, sizeof(IoctlMapBuffer));
 
-    auto& gpu = system.GPU();
-
     for (auto& cmd_buffer : cmd_buffer_handles) {
-        auto object{nvmap_dev->GetObject(cmd_buffer.map_handle)};
+        auto object{nvmap_dev->ReadLocked()->GetObject(cmd_buffer.map_handle)};
         if (!object) {
             LOG_ERROR(Service_NVDRV, "invalid cmd_buffer nvmap_handle={:X}", cmd_buffer.map_handle);
             std::memcpy(output.data(), &params, output.size());
@@ -148,7 +147,7 @@ NvResult nvhost_nvdec_common::MapBuffer(const std::vector<u8>& input, std::vecto
         if (object->dma_map_addr == 0) {
             // NVDEC and VIC memory is in the 32-bit address space
             // MapAllocate32 will attempt to map a lower 32-bit value in the shared gpu memory space
-            const GPUVAddr low_addr = gpu.MemoryManager().MapAllocate32(object->addr, object->size);
+            const GPUVAddr low_addr = SharedWriter(gpu)->MemoryManager().MapAllocate32(object->addr, object->size);
             object->dma_map_addr = static_cast<u32>(low_addr);
             // Ensure that the dma_map_addr is indeed in the lower 32-bit address space.
             ASSERT(object->dma_map_addr == low_addr);

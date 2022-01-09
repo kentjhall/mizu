@@ -12,11 +12,11 @@
 
 namespace Service::Nvidia::Devices {
 
-nvhost_ctrl_gpu::nvhost_ctrl_gpu(Core::System& system_) : nvdevice{system_} {}
+nvhost_ctrl_gpu::nvhost_ctrl_gpu() : nvdevice{} {}
 nvhost_ctrl_gpu::~nvhost_ctrl_gpu() = default;
 
 NvResult nvhost_ctrl_gpu::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                                 std::vector<u8>& output) {
+                                 std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     switch (command.group) {
     case 'G':
         switch (command.cmd) {
@@ -48,13 +48,13 @@ NvResult nvhost_ctrl_gpu::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u
 }
 
 NvResult nvhost_ctrl_gpu::Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                                 const std::vector<u8>& inline_input, std::vector<u8>& output) {
+                                 const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl={:08X}", command.raw);
     return NvResult::NotImplemented;
 }
 
 NvResult nvhost_ctrl_gpu::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                                 std::vector<u8>& output, std::vector<u8>& inline_output) {
+                                 std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) {
     switch (command.group) {
     case 'G':
         switch (command.cmd) {
@@ -73,8 +73,8 @@ NvResult nvhost_ctrl_gpu::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u
     return NvResult::NotImplemented;
 }
 
-void nvhost_ctrl_gpu::OnOpen(DeviceFD fd) {}
-void nvhost_ctrl_gpu::OnClose(DeviceFD fd) {}
+void nvhost_ctrl_gpu::OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
+void nvhost_ctrl_gpu::OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
 
 NvResult nvhost_ctrl_gpu::GetCharacteristics(const std::vector<u8>& input,
                                              std::vector<u8>& output) {
@@ -283,7 +283,7 @@ NvResult nvhost_ctrl_gpu::GetGpuTime(const std::vector<u8>& input, std::vector<u
 
     IoctlGetGpuTime params{};
     std::memcpy(&params, input.data(), input.size());
-    params.gpu_time = static_cast<u64_le>(system.CoreTiming().GetGlobalTimeNs().count());
+    params.gpu_time = static_cast<u64_le>(GetGlobalTimeNs().count());
     std::memcpy(output.data(), &params, output.size());
     return NvResult::Success;
 }

@@ -16,8 +16,11 @@ namespace Service::Nvidia {
 
 class NVDRV final : public ServiceFramework<NVDRV> {
 public:
-    explicit NVDRV(std::shared_ptr<Module> nvdrv_, const char* name, bool is_main=false);
+    explicit NVDRV(std::shared_ptr<Shared<Module>> nvdrv_, const char* name);
     ~NVDRV() override;
+
+    void SetupSession(::pid_t req_pid) override;
+    void CleanupSession(::pid_t req_pid) override;
 
     void SignalGPUInterruptSyncpt(u32 syncpoint_id, u32 value);
 
@@ -36,13 +39,10 @@ private:
 
     void ServiceError(Kernel::HLERequestContext& ctx, NvResult result);
 
-    std::shared_ptr<Module> nvdrv;
+    std::shared_ptr<Shared<Module>> nvdrv;
 
     u64 pid{};
     bool is_initialized{};
-
-    std::unique_ptr<GRenderWindow> window;
-    std::unique_ptr<Tegra::GPU> gpu;
 };
 
 } // namespace Service::Nvidia

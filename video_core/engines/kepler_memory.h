@@ -35,7 +35,7 @@ namespace Tegra::Engines {
 
 class KeplerMemory final : public EngineInterface {
 public:
-    explicit KeplerMemory(Core::System& system_, MemoryManager& memory_manager);
+    explicit KeplerMemory(MemoryManager& memory_manager);
     ~KeplerMemory() override;
 
     /// Write the value to the register identified by method.
@@ -69,7 +69,7 @@ public:
     } regs{};
 
 private:
-    Core::System& system;
+    ;
     Upload::State upload_state;
 };
 

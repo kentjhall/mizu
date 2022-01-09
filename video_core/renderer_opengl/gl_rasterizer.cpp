@@ -57,16 +57,16 @@ void oglEnable(GLenum cap, bool state) {
 } // Anonymous namespace
 
 RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& emu_window_, Tegra::GPU& gpu_,
-                                   Core::Memory::Memory& cpu_memory_, const Device& device_,
+                                   const Device& device_,
                                    ScreenInfo& screen_info_, ProgramManager& program_manager_,
                                    StateTracker& state_tracker_)
-    : RasterizerAccelerated(cpu_memory_), gpu(gpu_), maxwell3d(gpu.Maxwell3D()),
+    : RasterizerAccelerated(), gpu(gpu_), maxwell3d(gpu.Maxwell3D()),
       kepler_compute(gpu.KeplerCompute()), gpu_memory(gpu.MemoryManager()), device(device_),
       screen_info(screen_info_), program_manager(program_manager_), state_tracker(state_tracker_),
       texture_cache_runtime(device, program_manager, state_tracker),
       texture_cache(texture_cache_runtime, *this, maxwell3d, kepler_compute, gpu_memory),
       buffer_cache_runtime(device),
-      buffer_cache(*this, maxwell3d, kepler_compute, gpu_memory, cpu_memory_, buffer_cache_runtime),
+      buffer_cache(*this, maxwell3d, kepler_compute, gpu_memory, buffer_cache_runtime),
       shader_cache(*this, emu_window_, maxwell3d, kepler_compute, gpu_memory, device, texture_cache,
                    buffer_cache, program_manager, state_tracker, gpu.ShaderNotify()),
       query_cache(*this, maxwell3d, gpu_memory), accelerate_dma(buffer_cache),

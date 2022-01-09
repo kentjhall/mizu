@@ -25,9 +25,18 @@ SessionRequestHandler::SessionRequestHandler(const char* service_name_) {}
 
 SessionRequestHandler::~SessionRequestHandler() = default;
 
-SessionRequestManager::SessionRequestManager() {}
+SessionRequestManager::SessionRequestManager() {
+    requester_pid = mizu_servctl(MIZU_SCTL_GET_PROCESS_ID);
+    ASSERT_MSG(requester_pid != -1,
+               "MIZU_SCTL_GET_PROCESS_ID failed: {}",
+               ResultCode(errno).description.Value());
+}
 
-SessionRequestManager::~SessionRequestManager() = default;
+SessionRequestManager::~SessionRequestManager() {
+    if (session_handler) {
+        session_handler->CleanupSession(requester_pid);
+    }
+}
 
 bool SessionRequestManager::HasSessionRequestHandler(const HLERequestContext& context) const {
     if (IsDomain() && context.HasDomainMessageHeader()) {

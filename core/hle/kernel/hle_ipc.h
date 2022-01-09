@@ -12,6 +12,7 @@
 #include <type_traits>
 #include <vector>
 #include <unordered_set>
+#include <sys/types.h>
 
 #include "common/assert.h"
 #include "common/common_types.h"
@@ -49,7 +50,8 @@ public:
     SessionRequestHandler(const char* service_name_);
     virtual ~SessionRequestHandler();
 
-    virtual void SetupSession() {}
+    virtual void SetupSession(::pid_t requester_pid) {}
+    virtual void CleanupSession(::pid_t requester_pid) {}
 
     /**
      * Handles a sync request from the emulated application.
@@ -73,6 +75,14 @@ class SessionRequestManager final {
 public:
     explicit SessionRequestManager();
     ~SessionRequestManager();
+
+    unsigned long GetId() const {
+        return reinterpret_cast<unsigned long>(this);
+    }
+
+    ::pid_t GetRequesterPid() const {
+        return requester_pid;
+    }
 
     bool IsDomain() const {
         return is_domain;
@@ -117,7 +127,11 @@ public:
     }
 
     void SetSessionHandler(SessionRequestHandlerPtr&& handler) {
+        if (session_handler) {
+            session_handler->CleanupSession(requester_pid);
+	}
         session_handler = std::move(handler);
+        session_handler->SetupSession(requester_pid);
     }
 
     bool HasSessionRequestHandler(const HLERequestContext& context) const;
@@ -126,6 +140,7 @@ private:
     bool is_domain{};
     SessionRequestHandlerPtr session_handler;
     std::vector<SessionRequestHandlerPtr> domain_handlers;
+    ::pid_t requester_pid;
 };
 
 /**
@@ -158,7 +173,11 @@ public:
     }
 
     unsigned long GetSessionId() {
-	    return (unsigned long)manager;
+	    return manager->GetId();
+    }
+
+    ::pid_t GetRequesterPid() {
+	    return manager->GetRequesterPid();
     }
 
     /// Adds a new domain request handler to the collection of request handlers within

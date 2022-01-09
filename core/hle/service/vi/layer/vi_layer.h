@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <sys/types.h>
 #include "common/common_types.h"
+#include "core/hle/service/service.h"
+#include "video_core/gpu.h"
 
 namespace Service::NVFlinger {
 class BufferQueue;
@@ -19,8 +22,9 @@ public:
     ///
     /// @param id    The ID to assign to this layer.
     /// @param queue The buffer queue for this layer to use.
+    /// @param pid   The PID of the requesting thread.
     ///
-    Layer(u64 id, NVFlinger::BufferQueue& queue);
+    Layer(u64 id, NVFlinger::BufferQueue& queue, ::pid_t pid);
     ~Layer();
 
     Layer(const Layer&) = delete;
@@ -29,7 +33,7 @@ public:
     Layer(Layer&&) = default;
     Layer& operator=(Layer&&) = delete;
 
-    /// Gets the ID for this layer.
+    /// Gets the id for this layer.
     u64 GetID() const {
         return layer_id;
     }
@@ -37,6 +41,11 @@ public:
     /// Gets a reference to the buffer queue this layer is using.
     NVFlinger::BufferQueue& GetBufferQueue() {
         return buffer_queue;
+    }
+
+    /// Gets the GPU for this layer.
+    Shared<Tegra::GPU>& GPU() {
+        return Service::GPU(requester_pid);
     }
 
     /// Gets a const reference to the buffer queue this layer is using.
@@ -47,6 +56,7 @@ public:
 private:
     u64 layer_id;
     NVFlinger::BufferQueue& buffer_queue;
+    ::pid_t requester_pid;
 };
 
 } // namespace Service::VI

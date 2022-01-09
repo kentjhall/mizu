@@ -18,14 +18,13 @@
 
 namespace Service::VI {
 
-Display::Display(u64 id, std::string name_, KernelHelpers::ServiceContext& service_context_,
-                 Core::System& system_)
-    : display_id{id}, name{std::move(name_)}, service_context{service_context_} {
-    vsync_event = service_context.CreateEvent(fmt::format("Display VSync Event {}", id));
+Display::Display(u64 id, std::string name_)
+    : display_id{id}, name{std::move(name_)} {
+    vsync_event = KernelHelpers::CreateEvent(fmt::format("Display VSync Event {}", id));
 }
 
 Display::~Display() {
-    service_context.CloseEvent(vsync_event);
+    KernelHelpers::CloseEvent(vsync_event);
 }
 
 Layer& Display::GetLayer(std::size_t index) {
@@ -36,19 +35,19 @@ const Layer& Display::GetLayer(std::size_t index) const {
     return *layers.at(index);
 }
 
-Kernel::KReadableEvent& Display::GetVSyncEvent() {
-    return vsync_event->GetReadableEvent();
+int Display::GetVSyncEvent() const {
+    return vsync_event;
 }
 
 void Display::SignalVSyncEvent() {
-    vsync_event->GetWritableEvent().Signal();
+    KernelHelpers::SignalEvent(vsync_event);
 }
 
-void Display::CreateLayer(u64 layer_id, NVFlinger::BufferQueue& buffer_queue) {
+void Display::CreateLayer(u64 layer_id, NVFlinger::BufferQueue& buffer_queue, ::pid_t pid) {
     // TODO(Subv): Support more than 1 layer.
     ASSERT_MSG(layers.empty(), "Only one layer is supported per display at the moment");
 
-    layers.emplace_back(std::make_shared<Layer>(layer_id, buffer_queue));
+    layers.emplace_back(std::make_shared<Layer>(layer_id, buffer_queue, pid));
 }
 
 void Display::CloseLayer(u64 layer_id) {

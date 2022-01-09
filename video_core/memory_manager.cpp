@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
+#include <unistd.h>
 
 #include "common/alignment.h"
 #include "common/assert.h"
@@ -15,11 +16,14 @@
 #include "video_core/memory_manager.h"
 #include "video_core/rasterizer_interface.h"
 #include "video_core/renderer_base.h"
+#include "mizu_servctl.h"
+
+const size_t PAGE_SIZE = ::sysconf(_SC_PAGESIZE);
 
 namespace Tegra {
 
-MemoryManager::MemoryManager(Core::System& system_)
-    : system{system_}, page_table(page_table_size) {}
+MemoryManager::MemoryManager()
+    : page_table(page_table_size) {}
 
 MemoryManager::~MemoryManager() = default;
 
@@ -99,25 +103,11 @@ GPUVAddr MemoryManager::Allocate(std::size_t size, std::size_t align) {
 }
 
 void MemoryManager::TryLockPage(PageEntry page_entry, std::size_t size) {
-    if (!page_entry.IsValid()) {
-        return;
-    }
-
-    ASSERT(system.CurrentProcess()
-               ->PageTable()
-               .LockForDeviceAddressSpace(page_entry.ToAddress(), size)
-               .IsSuccess());
+    LOG_ERROR(HW_GPU, "mizu UNIMPLEMENTED TryLockPage");
 }
 
 void MemoryManager::TryUnlockPage(PageEntry page_entry, std::size_t size) {
-    if (!page_entry.IsValid()) {
-        return;
-    }
-
-    ASSERT(system.CurrentProcess()
-               ->PageTable()
-               .UnlockForDeviceAddressSpace(page_entry.ToAddress(), size)
-               .IsSuccess());
+    LOG_ERROR(HW_GPU, "mizu UNIMPLEMENTED TryUnlockPage");
 }
 
 PageEntry MemoryManager::GetPageEntry(GPUVAddr gpu_addr) const {
@@ -201,27 +191,14 @@ std::optional<VAddr> MemoryManager::GpuToCpuAddress(GPUVAddr addr, std::size_t s
 
 template <typename T>
 T MemoryManager::Read(GPUVAddr addr) const {
-    if (auto page_pointer{GetPointer(addr)}; page_pointer) {
-        // NOTE: Avoid adding any extra logic to this fast-path block
-        T value;
-        std::memcpy(&value, page_pointer, sizeof(T));
-        return value;
-    }
-
-    UNREACHABLE();
-
-    return {};
+    T value;
+    ReadBlockUnsafe(addr, &value, sizeof(T));
+    return value;
 }
 
 template <typename T>
 void MemoryManager::Write(GPUVAddr addr, T data) {
-    if (auto page_pointer{GetPointer(addr)}; page_pointer) {
-        // NOTE: Avoid adding any extra logic to this fast-path block
-        std::memcpy(page_pointer, &data, sizeof(T));
-        return;
-    }
-
-    UNREACHABLE();
+    WriteBlockUnsafe(addr, &data, sizeof(T));
 }
 
 template u8 MemoryManager::Read<u8>(GPUVAddr addr) const;
@@ -233,7 +210,7 @@ template void MemoryManager::Write<u16>(GPUVAddr addr, u16 data);
 template void MemoryManager::Write<u32>(GPUVAddr addr, u32 data);
 template void MemoryManager::Write<u64>(GPUVAddr addr, u64 data);
 
-u8* MemoryManager::GetPointer(GPUVAddr gpu_addr) {
+MemoryManager::Pointer MemoryManager::GetPointer(GPUVAddr gpu_addr) {
     if (!GetPageEntry(gpu_addr).IsValid()) {
         return {};
     }
@@ -243,10 +220,18 @@ u8* MemoryManager::GetPointer(GPUVAddr gpu_addr) {
         return {};
     }
 
-    return system.Memory().GetPointer(*address);
+    LOG_WARNING(HW_GPU, "mizu TODO implement GetPointer with shared mapping");
+    u8 *buf = new u8[PAGE_SIZE];
+    if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)*address, (long)buf, PAGE_SIZE) == -1) {
+        LOG_CRITICAL(HW_GPU, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+        delete[] buf;
+        return {};
+    }
+
+    return Pointer(buf, PointerDeleter{*address});
 }
 
-const u8* MemoryManager::GetPointer(GPUVAddr gpu_addr) const {
+MemoryManager::ConstPointer MemoryManager::GetPointer(GPUVAddr gpu_addr) const {
     if (!GetPageEntry(gpu_addr).IsValid()) {
         return {};
     }
@@ -256,7 +241,15 @@ const u8* MemoryManager::GetPointer(GPUVAddr gpu_addr) const {
         return {};
     }
 
-    return system.Memory().GetPointer(*address);
+    LOG_WARNING(HW_GPU, "mizu TODO implement GetPointer with shared mapping");
+    u8 *buf = new u8[PAGE_SIZE];
+    if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)*address, (long)buf, PAGE_SIZE) == -1) {
+        LOG_CRITICAL(HW_GPU, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+        delete[] buf;
+        return {};
+    }
+
+    return ConstPointer(buf, PointerDeleter{*address});
 }
 
 size_t MemoryManager::BytesToMapEnd(GPUVAddr gpu_addr) const noexcept {
@@ -280,7 +273,9 @@ void MemoryManager::ReadBlock(GPUVAddr gpu_src_addr, void* dest_buffer, std::siz
             // Flush must happen on the rasterizer interface, such that memory is always synchronous
             // when it is read (even when in asynchronous GPU mode). Fixes Dead Cells title menu.
             rasterizer->FlushRegion(src_addr, copy_amount);
-            system.Memory().ReadBlockUnsafe(src_addr, dest_buffer, copy_amount);
+            if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)src_addr, (long)dest_buffer, (long)copy_amount) == -1) {
+                LOG_CRITICAL(HW_GPU, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+            }
         }
 
         page_index++;
@@ -302,7 +297,9 @@ void MemoryManager::ReadBlockUnsafe(GPUVAddr gpu_src_addr, void* dest_buffer,
 
         if (const auto page_addr{GpuToCpuAddress(page_index << page_bits)}; page_addr) {
             const auto src_addr{*page_addr + page_offset};
-            system.Memory().ReadBlockUnsafe(src_addr, dest_buffer, copy_amount);
+            if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)src_addr, (long)dest_buffer, (long)copy_amount) == -1) {
+                LOG_CRITICAL(HW_GPU, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+            }
         } else {
             std::memset(dest_buffer, 0, copy_amount);
         }
@@ -329,7 +326,9 @@ void MemoryManager::WriteBlock(GPUVAddr gpu_dest_addr, const void* src_buffer, s
             // Invalidate must happen on the rasterizer interface, such that memory is always
             // synchronous when it is written (even when in asynchronous GPU mode).
             rasterizer->InvalidateRegion(dest_addr, copy_amount);
-            system.Memory().WriteBlockUnsafe(dest_addr, src_buffer, copy_amount);
+            if (mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)dest_addr, (long)src_buffer, (long)copy_amount) == -1) {
+                LOG_CRITICAL(HW_GPU, "MIZU_SCTL_WRITE_BUFFER failed: {}", ResultCode(errno).description.Value());
+            }
         }
 
         page_index++;
@@ -351,7 +350,9 @@ void MemoryManager::WriteBlockUnsafe(GPUVAddr gpu_dest_addr, const void* src_buf
 
         if (const auto page_addr{GpuToCpuAddress(page_index << page_bits)}; page_addr) {
             const auto dest_addr{*page_addr + page_offset};
-            system.Memory().WriteBlockUnsafe(dest_addr, src_buffer, copy_amount);
+            if (mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)dest_addr, (long)src_buffer, (long)copy_amount) == -1) {
+                LOG_CRITICAL(HW_GPU, "MIZU_SCTL_WRITE_BUFFER failed: {}", ResultCode(errno).description.Value());
+            }
         }
 
         page_index++;

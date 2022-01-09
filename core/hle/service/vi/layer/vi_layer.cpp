@@ -6,8 +6,13 @@
 
 namespace Service::VI {
 
-Layer::Layer(u64 id, NVFlinger::BufferQueue& queue) : layer_id{id}, buffer_queue{queue} {}
+Layer::Layer(u64 id, NVFlinger::BufferQueue& queue, ::pid_t pid)
+    : layer_id{id}, buffer_queue{queue}, requester_pid{pid} {
+    GrabGPU(requester_pid);
+}
 
-Layer::~Layer() = default;
+Layer::~Layer() {
+    PutGPU(requester_pid);
+}
 
 } // namespace Service::VI

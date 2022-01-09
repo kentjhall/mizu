@@ -18,7 +18,7 @@ class nvmap;
 
 class nvhost_nvdec_common : public nvdevice {
 public:
-    explicit nvhost_nvdec_common(Core::System& system_, std::shared_ptr<nvmap> nvmap_dev_,
+    explicit nvhost_nvdec_common(std::shared_ptr<nvmap> nvmap_dev_,
                                  SyncpointManager& syncpoint_manager_);
     ~nvhost_nvdec_common() override;
 
@@ -105,10 +105,10 @@ protected:
 
     /// Ioctl command implementations
     NvResult SetNVMAPfd(const std::vector<u8>& input);
-    NvResult Submit(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult GetSyncpoint(const std::vector<u8>& input, std::vector<u8>& output);
+    NvResult Submit(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu);
+    NvResult GetSyncpoint(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu);
     NvResult GetWaitbase(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult MapBuffer(const std::vector<u8>& input, std::vector<u8>& output);
+    NvResult MapBuffer(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu);
     NvResult UnmapBuffer(const std::vector<u8>& input, std::vector<u8>& output);
     NvResult SetSubmitTimeout(const std::vector<u8>& input, std::vector<u8>& output);
 

@@ -22,19 +22,19 @@ namespace Service::Nvidia::Devices {
 class nvmap;
 class nvhost_gpu final : public nvdevice {
 public:
-    explicit nvhost_gpu(Core::System& system_, std::shared_ptr<nvmap> nvmap_dev_,
+    explicit nvhost_gpu(std::shared_ptr<nvmap> nvmap_dev_,
                         SyncpointManager& syncpoint_manager_);
     ~nvhost_gpu() override;
 
     NvResult Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output) override;
+                    std::vector<u8>& output, Shared<Tegra::GPU>& gpu) override;
     NvResult Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    const std::vector<u8>& inline_input, std::vector<u8>& output) override;
+                    const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) override;
     NvResult Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output, std::vector<u8>& inline_output) override;
+                    std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) override;
 
-    void OnOpen(DeviceFD fd) override;
-    void OnClose(DeviceFD fd) override;
+    void OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) override;
+    void OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) override;
 
 private:
     enum class CtxObjects : u32_le {
@@ -179,14 +179,15 @@ private:
     NvResult ZCullBind(const std::vector<u8>& input, std::vector<u8>& output);
     NvResult SetErrorNotifier(const std::vector<u8>& input, std::vector<u8>& output);
     NvResult SetChannelPriority(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult AllocGPFIFOEx2(const std::vector<u8>& input, std::vector<u8>& output);
+    NvResult AllocGPFIFOEx2(const std::vector<u8>& input, std::vector<u8>& output,
+		            Shared<Tegra::GPU>& gpu);
     NvResult AllocateObjectContext(const std::vector<u8>& input, std::vector<u8>& output);
     NvResult SubmitGPFIFOImpl(IoctlSubmitGpfifo& params, std::vector<u8>& output,
-                              Tegra::CommandList&& entries);
-    NvResult SubmitGPFIFOBase(const std::vector<u8>& input, std::vector<u8>& output,
-                              bool kickoff = false);
+                              Tegra::CommandList&& entries, Shared<Tegra::GPU>& gpu);
+    NvResult SubmitGPFIFOBase(const std::vector<u8>& input, std::vector<u8>& output, 
+                              bool kickoff, Shared<Tegra::GPU>& gpu);
     NvResult SubmitGPFIFOBase(const std::vector<u8>& input, const std::vector<u8>& input_inline,
-                              std::vector<u8>& output);
+                              std::vector<u8>& output, Shared<Tegra::GPU>& gpu);
     NvResult GetWaitbase(const std::vector<u8>& input, std::vector<u8>& output);
     NvResult ChannelSetTimeout(const std::vector<u8>& input, std::vector<u8>& output);
     NvResult ChannelSetTimeslice(const std::vector<u8>& input, std::vector<u8>& output);

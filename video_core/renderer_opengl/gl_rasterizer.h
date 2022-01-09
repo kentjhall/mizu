@@ -33,10 +33,6 @@
 #include "video_core/renderer_opengl/gl_texture_cache.h"
 #include "video_core/textures/texture.h"
 
-namespace Core::Memory {
-class Memory;
-}
-
 namespace Core::Frontend {
 class EmuWindow;
 }
@@ -72,7 +68,7 @@ private:
 class RasterizerOpenGL : public VideoCore::RasterizerAccelerated {
 public:
     explicit RasterizerOpenGL(Core::Frontend::EmuWindow& emu_window_, Tegra::GPU& gpu_,
-                              Core::Memory::Memory& cpu_memory_, const Device& device_,
+                              const Device& device_,
                               ScreenInfo& screen_info_, ProgramManager& program_manager_,
                               StateTracker& state_tracker_);
     ~RasterizerOpenGL() override;

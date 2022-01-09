@@ -22,17 +22,16 @@ Tegra::CommandHeader BuildFenceAction(Tegra::GPU::FenceOperation op, u32 syncpoi
 }
 } // namespace
 
-nvhost_gpu::nvhost_gpu(Core::System& system_, std::shared_ptr<nvmap> nvmap_dev_,
+nvhost_gpu::nvhost_gpu(std::shared_ptr<nvmap> nvmap_dev_,
                        SyncpointManager& syncpoint_manager_)
-    : nvdevice{system_}, nvmap_dev{std::move(nvmap_dev_)}, syncpoint_manager{syncpoint_manager_} {
+    : nvdevice{}, nvmap_dev{std::move(nvmap_dev_)}, syncpoint_manager{syncpoint_manager_} {
     channel_fence.id = syncpoint_manager_.AllocateSyncpoint();
-    channel_fence.value = system_.GPU().GetSyncpointValue(channel_fence.id);
 }
 
 nvhost_gpu::~nvhost_gpu() = default;
 
 NvResult nvhost_gpu::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                            std::vector<u8>& output) {
+                            std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     switch (command.group) {
     case 0x0:
         switch (command.cmd) {
@@ -49,7 +48,7 @@ NvResult nvhost_gpu::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& i
         case 0x3:
             return ChannelSetTimeout(input, output);
         case 0x8:
-            return SubmitGPFIFOBase(input, output, false);
+            return SubmitGPFIFOBase(input, output, false, gpu);
         case 0x9:
             return AllocateObjectContext(input, output);
         case 0xb:
@@ -59,9 +58,9 @@ NvResult nvhost_gpu::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& i
         case 0xd:
             return SetChannelPriority(input, output);
         case 0x1a:
-            return AllocGPFIFOEx2(input, output);
+            return AllocGPFIFOEx2(input, output, gpu);
         case 0x1b:
-            return SubmitGPFIFOBase(input, output, true);
+            return SubmitGPFIFOBase(input, output, true, gpu);
         case 0x1d:
             return ChannelSetTimeslice(input, output);
         default:
@@ -84,12 +83,12 @@ NvResult nvhost_gpu::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& i
 };
 
 NvResult nvhost_gpu::Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                            const std::vector<u8>& inline_input, std::vector<u8>& output) {
+                            const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     switch (command.group) {
     case 'H':
         switch (command.cmd) {
         case 0x1b:
-            return SubmitGPFIFOBase(input, inline_input, output);
+            return SubmitGPFIFOBase(input, inline_input, output, gpu);
         }
         break;
     }
@@ -98,13 +97,13 @@ NvResult nvhost_gpu::Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& i
 }
 
 NvResult nvhost_gpu::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                            std::vector<u8>& output, std::vector<u8>& inline_output) {
+                            std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl={:08X}", command.raw);
     return NvResult::NotImplemented;
 }
 
-void nvhost_gpu::OnOpen(DeviceFD fd) {}
-void nvhost_gpu::OnClose(DeviceFD fd) {}
+void nvhost_gpu::OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
+void nvhost_gpu::OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
 
 NvResult nvhost_gpu::SetNVMAPfd(const std::vector<u8>& input, std::vector<u8>& output) {
     IoctlSetNvmapFD params{};
@@ -160,7 +159,8 @@ NvResult nvhost_gpu::SetChannelPriority(const std::vector<u8>& input, std::vecto
     return NvResult::Success;
 }
 
-NvResult nvhost_gpu::AllocGPFIFOEx2(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_gpu::AllocGPFIFOEx2(const std::vector<u8>& input, std::vector<u8>& output,
+                                    Shared<Tegra::GPU>& gpu) {
     IoctlAllocGpfifoEx2 params{};
     std::memcpy(&params, input.data(), input.size());
     LOG_WARNING(Service_NVDRV,
@@ -169,7 +169,7 @@ NvResult nvhost_gpu::AllocGPFIFOEx2(const std::vector<u8>& input, std::vector<u8
                 params.num_entries, params.flags, params.unk0, params.unk1, params.unk2,
                 params.unk3);
 
-    channel_fence.value = system.GPU().GetSyncpointValue(channel_fence.id);
+    channel_fence.value = SharedReader(gpu)->GetSyncpointValue(channel_fence.id);
 
     params.fence_out = channel_fence;
 
@@ -228,18 +228,16 @@ static std::vector<Tegra::CommandHeader> BuildIncrementWithWfiCommandList(Fence 
     return result;
 }
 
-NvResult nvhost_gpu::SubmitGPFIFOImpl(IoctlSubmitGpfifo& params, std::vector<u8>& output,
-                                      Tegra::CommandList&& entries) {
+NvResult nvhost_gpu::SubmitGPFIFOImpl(IoctlSubmitGpfifo& params, std::vector<u8>& output, Tegra::CommandList&& entries,
+                                      Shared<Tegra::GPU>& gpu) {
     LOG_TRACE(Service_NVDRV, "called, gpfifo={:X}, num_entries={:X}, flags={:X}", params.address,
               params.num_entries, params.flags.raw);
-
-    auto& gpu = system.GPU();
 
     params.fence_out.id = channel_fence.id;
 
     if (params.flags.add_wait.Value() &&
         !syncpoint_manager.IsSyncpointExpired(params.fence_out.id, params.fence_out.value)) {
-        gpu.PushGPUEntries(Tegra::CommandList{BuildWaitCommandList(params.fence_out)});
+        SharedUnlocked(gpu)->PushGPUEntries(Tegra::CommandList{BuildWaitCommandList(params.fence_out)});
     }
 
     if (params.flags.add_increment.Value() || params.flags.increment.Value()) {
@@ -250,14 +248,14 @@ NvResult nvhost_gpu::SubmitGPFIFOImpl(IoctlSubmitGpfifo& params, std::vector<u8>
         params.fence_out.value = syncpoint_manager.GetSyncpointMax(params.fence_out.id);
     }
 
-    gpu.PushGPUEntries(std::move(entries));
+    SharedUnlocked(gpu)->PushGPUEntries(std::move(entries));
 
     if (params.flags.add_increment.Value()) {
         if (params.flags.suppress_wfi) {
-            gpu.PushGPUEntries(Tegra::CommandList{
+            SharedUnlocked(gpu)->PushGPUEntries(Tegra::CommandList{
                 BuildIncrementCommandList(params.fence_out, params.AddIncrementValue())});
         } else {
-            gpu.PushGPUEntries(Tegra::CommandList{
+            SharedUnlocked(gpu)->PushGPUEntries(Tegra::CommandList{
                 BuildIncrementWithWfiCommandList(params.fence_out, params.AddIncrementValue())});
         }
     }
@@ -266,8 +264,8 @@ NvResult nvhost_gpu::SubmitGPFIFOImpl(IoctlSubmitGpfifo& params, std::vector<u8>
     return NvResult::Success;
 }
 
-NvResult nvhost_gpu::SubmitGPFIFOBase(const std::vector<u8>& input, std::vector<u8>& output,
-                                      bool kickoff) {
+NvResult nvhost_gpu::SubmitGPFIFOBase(const std::vector<u8>& input, std::vector<u8>& output, bool kickoff,
+                                      Shared<Tegra::GPU>& gpu) {
     if (input.size() < sizeof(IoctlSubmitGpfifo)) {
         UNIMPLEMENTED();
         return NvResult::InvalidSize;
@@ -277,19 +275,21 @@ NvResult nvhost_gpu::SubmitGPFIFOBase(const std::vector<u8>& input, std::vector<
     Tegra::CommandList entries(params.num_entries);
 
     if (kickoff) {
-        system.Memory().ReadBlock(params.address, entries.command_lists.data(),
-                                  params.num_entries * sizeof(Tegra::CommandListHeader));
+        if (mizu_servctl(MIZU_SCTL_READ_BUFFER, params.address, entries.command_lists.data(),
+                                                params.num_entries * sizeof(Tegra::CommandListHeader)) == -1) {
+            LOG_CRITICAL(Service_NVDRV, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+        }
     } else {
         std::memcpy(entries.command_lists.data(), &input[sizeof(IoctlSubmitGpfifo)],
                     params.num_entries * sizeof(Tegra::CommandListHeader));
     }
 
-    return SubmitGPFIFOImpl(params, output, std::move(entries));
+    return SubmitGPFIFOImpl(params, output, std::move(entries), gpu);
 }
 
 NvResult nvhost_gpu::SubmitGPFIFOBase(const std::vector<u8>& input,
                                       const std::vector<u8>& input_inline,
-                                      std::vector<u8>& output) {
+                                      std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     if (input.size() < sizeof(IoctlSubmitGpfifo)) {
         UNIMPLEMENTED();
         return NvResult::InvalidSize;
@@ -298,7 +298,7 @@ NvResult nvhost_gpu::SubmitGPFIFOBase(const std::vector<u8>& input,
     std::memcpy(&params, input.data(), sizeof(IoctlSubmitGpfifo));
     Tegra::CommandList entries(params.num_entries);
     std::memcpy(entries.command_lists.data(), input_inline.data(), input_inline.size());
-    return SubmitGPFIFOImpl(params, output, std::move(entries));
+    return SubmitGPFIFOImpl(params, output, std::move(entries), gpu);
 }
 
 NvResult nvhost_gpu::GetWaitbase(const std::vector<u8>& input, std::vector<u8>& output) {

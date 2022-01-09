@@ -20,8 +20,8 @@ using VideoCore::QueryType;
 /// First register id that is actually a Macro call.
 constexpr u32 MacroRegistersStart = 0xE00;
 
-Maxwell3D::Maxwell3D(Core::System& system_, MemoryManager& memory_manager_)
-    : system{system_}, memory_manager{memory_manager_}, macro_engine{GetMacroEngine(*this)},
+Maxwell3D::Maxwell3D(GPU& gpu_, MemoryManager& memory_manager_)
+    : gpu{gpu_}, memory_manager{memory_manager_}, macro_engine{GetMacroEngine(*this)},
       upload_state{memory_manager, regs.upload} {
     dirty.flags.flip();
     InitializeRegisterDefaults();
@@ -418,7 +418,7 @@ void Maxwell3D::StampQueryResult(u64 payload, bool long_query) {
         // Write the 128-bit result structure in long mode. Note: We emulate an infinitely fast
         // GPU, this command may actually take a while to complete in real hardware due to GPU
         // wait queues.
-        LongQueryResult query_result{payload, system.GPU().GetTicks()};
+        LongQueryResult query_result{payload, gpu.GetTicks()};
         memory_manager.WriteBlock(sequence_address, &query_result, sizeof(query_result));
     } else {
         memory_manager.Write<u32>(sequence_address, static_cast<u32>(payload));
@@ -559,7 +559,7 @@ std::optional<u64> Maxwell3D::GetQueryResult() {
     case Regs::QuerySelect::SamplesPassed:
         // Deferred.
         rasterizer->Query(regs.query.QueryAddress(), QueryType::SamplesPassed,
-                          system.GPU().GetTicks());
+                          gpu.GetTicks());
         return std::nullopt;
     default:
         LOG_DEBUG(HW_GPU, "Unimplemented query select type {}",

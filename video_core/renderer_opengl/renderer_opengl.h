@@ -15,7 +15,6 @@
 #include "video_core/renderer_opengl/gl_state_tracker.h"
 
 namespace Core {
-class System;
 class TelemetrySession;
 } // namespace Core
 
@@ -57,9 +56,7 @@ struct ScreenInfo {
 
 class RendererOpenGL final : public VideoCore::RendererBase {
 public:
-    explicit RendererOpenGL(Core::TelemetrySession& telemetry_session_,
-                            Core::Frontend::EmuWindow& emu_window_,
-                            Core::Memory::Memory& cpu_memory_, Tegra::GPU& gpu_,
+    explicit RendererOpenGL(Tegra::GPU& gpu_,
                             std::unique_ptr<Core::Frontend::GraphicsContext> context_);
     ~RendererOpenGL() override;
 
@@ -99,7 +96,6 @@ private:
 
     Core::TelemetrySession& telemetry_session;
     Core::Frontend::EmuWindow& emu_window;
-    Core::Memory::Memory& cpu_memory;
     Tegra::GPU& gpu;
 
     Device device;

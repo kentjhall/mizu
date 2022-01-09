@@ -12,10 +12,6 @@
 #include "common/common_types.h"
 #include "video_core/engines/engine_interface.h"
 
-namespace Core {
-class System;
-}
-
 namespace Tegra {
 
 class GPU;
@@ -103,7 +99,7 @@ struct CommandList final {
  */
 class DmaPusher final {
 public:
-    explicit DmaPusher(Core::System& system_, GPU& gpu_);
+    explicit DmaPusher(GPU& gpu_);
     ~DmaPusher();
 
     void Push(CommandList&& entries) {
@@ -148,7 +144,7 @@ private:
     std::array<Engines::EngineInterface*, max_subchannels> subchannels{};
 
     GPU& gpu;
-    Core::System& system;
+    ;
 };
 
 } // namespace Tegra

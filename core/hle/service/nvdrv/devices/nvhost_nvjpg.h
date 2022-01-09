@@ -13,18 +13,18 @@ namespace Service::Nvidia::Devices {
 
 class nvhost_nvjpg final : public nvdevice {
 public:
-    explicit nvhost_nvjpg(Core::System& system_);
+    explicit nvhost_nvjpg();
     ~nvhost_nvjpg() override;
 
     NvResult Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output) override;
+                    std::vector<u8>& output, Shared<Tegra::GPU>& gpu) override;
     NvResult Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    const std::vector<u8>& inline_input, std::vector<u8>& output) override;
+                    const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) override;
     NvResult Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output, std::vector<u8>& inline_output) override;
+                    std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) override;
 
-    void OnOpen(DeviceFD fd) override;
-    void OnClose(DeviceFD fd) override;
+    void OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) override;
+    void OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) override;
 
 private:
     struct IoctlSetNvmapFD {

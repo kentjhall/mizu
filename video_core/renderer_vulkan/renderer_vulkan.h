@@ -23,10 +23,6 @@ namespace Core {
 class TelemetrySession;
 }
 
-namespace Core::Memory {
-class Memory;
-}
-
 namespace Tegra {
 class GPU;
 }
@@ -35,9 +31,7 @@ namespace Vulkan {
 
 class RendererVulkan final : public VideoCore::RendererBase {
 public:
-    explicit RendererVulkan(Core::TelemetrySession& telemtry_session,
-                            Core::Frontend::EmuWindow& emu_window,
-                            Core::Memory::Memory& cpu_memory_, Tegra::GPU& gpu_,
+    explicit RendererVulkan(Tegra::GPU& gpu_,
                             std::unique_ptr<Core::Frontend::GraphicsContext> context_);
     ~RendererVulkan() override;
 
@@ -57,7 +51,6 @@ private:
     void RenderScreenshot(const Tegra::FramebufferConfig& framebuffer, bool use_accelerated);
 
     Core::TelemetrySession& telemetry_session;
-    Core::Memory::Memory& cpu_memory;
     Tegra::GPU& gpu;
 
     Common::DynamicLibrary library;

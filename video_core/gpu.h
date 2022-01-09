@@ -8,6 +8,8 @@
 
 #include "common/bit_field.h"
 #include "common/common_types.h"
+#include "core/telemetry_session.h"
+#include "core/perf_stats.h"
 #include "video_core/cdma_pusher.h"
 #include "video_core/framebuffer_config.h"
 
@@ -136,7 +138,8 @@ public:
         BitField<8, 24, u32> syncpoint_id;
     };
 
-    explicit GPU(Core::System& system, bool is_async, bool use_nvdec);
+    explicit GPU(bool is_async, bool use_nvdec);
+    GPU(GPU&& gpu);
     ~GPU();
 
     /// Binds a renderer to the GPU.
@@ -257,6 +260,22 @@ public:
 
     /// Notify rasterizer that any caches of the specified region should be flushed and invalidated
     void FlushAndInvalidateRegion(VAddr addr, u64 size);
+
+    Core::PerfStats& GetPerfStats();
+
+    const Core::PerfStats& GetPerfStats() const;
+
+    Core::SpeedLimiter& SpeedLimiter();
+
+    const Core::SpeedLimiter& SpeedLimiter() const;
+
+    Core::TelemetrySession& TelemetrySession();
+
+    const Core::TelemetrySession& TelemetrySession() const;
+
+    Core::Frontend::EmuWindow& RenderWindow();
+
+    const Core::Frontend::EmuWindow& RenderWindow() const;
 
 private:
     struct Impl;

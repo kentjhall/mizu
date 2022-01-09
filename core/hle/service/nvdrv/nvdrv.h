@@ -9,18 +9,11 @@
 #include <vector>
 
 #include "common/common_types.h"
+#include "video_core/gpu.h"
 #include "core/hle/service/kernel_helpers.h"
 #include "core/hle/service/nvdrv/nvdata.h"
 #include "core/hle/service/nvdrv/syncpoint_manager.h"
 #include "core/hle/service/service.h"
-
-namespace Core {
-class System;
-}
-
-namespace Kernel {
-class KEvent;
-}
 
 namespace Service::NVFlinger {
 class NVFlinger;
@@ -107,41 +100,41 @@ struct EventInterface {
 
 class Module final {
 public:
-    explicit Module(Core::System& system_);
+    explicit Module();
     ~Module();
 
     /// Returns a pointer to one of the available devices, identified by its name.
     template <typename T>
-    std::shared_ptr<T> GetDevice(const std::string& name) {
+    std::shared_ptr<T> GetDevice(const std::string& name) const {
         auto itr = devices.find(name);
         if (itr == devices.end())
             return nullptr;
         return std::static_pointer_cast<T>(itr->second);
     }
 
-    NvResult VerifyFD(DeviceFD fd) const;
+    NvResult VerifyFD(DeviceFD fd, Shared<Tegra::GPU>& gpu) const;
 
     /// Opens a device node and returns a file descriptor to it.
-    DeviceFD Open(const std::string& device_name);
+    DeviceFD Open(const std::string& device_name, Shared<Tegra::GPU>& gpu);
 
     /// Sends an ioctl command to the specified file descriptor.
     NvResult Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output);
+                    std::vector<u8>& output, Shared<Tegra::GPU>& gpu) const;
 
     NvResult Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    const std::vector<u8>& inline_input, std::vector<u8>& output);
+                    const std::vector<u8>& inline_input, std::vector<u8>& output,
+		    Shared<Tegra::GPU>& gpu) const;
 
     NvResult Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output, std::vector<u8>& inline_output);
+                    std::vector<u8>& output, std::vector<u8>& inline_output,
+		    Shared<Tegra::GPU>& gpu) const;
 
     /// Closes a device file descriptor and returns operation success.
-    NvResult Close(DeviceFD fd);
+    NvResult Close(DeviceFD fd, Shared<Tegra::GPU>& gpu);
 
     void SignalSyncpt(const u32 syncpoint_id, const u32 value);
 
-    Kernel::KReadableEvent& GetEvent(u32 event_id);
-
-    Kernel::KWritableEvent& GetEventWriteable(u32 event_id);
+    int GetEvent(u32 event_id);
 
 private:
     /// Manages syncpoints on the host
@@ -156,11 +149,10 @@ private:
     /// Mapping of device node names to their implementation.
     std::unordered_map<std::string, std::shared_ptr<Devices::nvdevice>> devices;
 
-    EventInterface events_interface;
+    Shared<EventInterface> events_interface;
 };
 
-/// Registers all NVDRV services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager, NVFlinger::NVFlinger& nvflinger,
-                       Core::System& system);
+/// Registers all NVDRV services with the service manager.
+void InstallInterfaces();
 
 } // namespace Service::Nvidia

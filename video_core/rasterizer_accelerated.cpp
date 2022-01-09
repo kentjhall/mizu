@@ -14,11 +14,12 @@ namespace VideoCore {
 
 using namespace Core::Memory;
 
-RasterizerAccelerated::RasterizerAccelerated(Memory& cpu_memory_) : cpu_memory{cpu_memory_} {}
+RasterizerAccelerated::RasterizerAccelerated() {}
 
 RasterizerAccelerated::~RasterizerAccelerated() = default;
 
 void RasterizerAccelerated::UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
+#if 0 // mizu TEMP
     u64 uncache_begin = 0;
     u64 cache_begin = 0;
     u64 uncache_bytes = 0;
@@ -66,6 +67,8 @@ void RasterizerAccelerated::UpdatePagesCachedCount(VAddr addr, u64 size, int del
     if (cache_bytes > 0) {
         cpu_memory.RasterizerMarkRegionCached(cache_begin << PAGE_BITS, cache_bytes, true);
     }
+#endif
+    LOG_CRITICAL(HW_GPU, "mizu TODO RasterizerMarkRegionCached");
 }
 
 } // namespace VideoCore

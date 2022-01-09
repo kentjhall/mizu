@@ -14,19 +14,19 @@ namespace Service::Nvidia::Devices {
 
 class nvhost_ctrl final : public nvdevice {
 public:
-    explicit nvhost_ctrl(Core::System& system_, EventInterface& events_interface_,
+    explicit nvhost_ctrl(Shared<EventInterface>& events_interface_,
                          SyncpointManager& syncpoint_manager_);
     ~nvhost_ctrl() override;
 
     NvResult Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output) override;
+                    std::vector<u8>& output, Shared<Tegra::GPU>& gpu) override;
     NvResult Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    const std::vector<u8>& inline_input, std::vector<u8>& output) override;
+                    const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) override;
     NvResult Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output, std::vector<u8>& inline_output) override;
+                    std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) override;
 
-    void OnOpen(DeviceFD fd) override;
-    void OnClose(DeviceFD fd) override;
+    void OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) override;
+    void OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) override;
 
 private:
     struct IocSyncptReadParams {
@@ -125,12 +125,14 @@ private:
     static_assert(sizeof(IocCtrlEventKill) == 8, "IocCtrlEventKill is incorrect size");
 
     NvResult NvOsGetConfigU32(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult IocCtrlEventWait(const std::vector<u8>& input, std::vector<u8>& output, bool is_async);
+    NvResult IocCtrlEventWait(const std::vector<u8>& input, std::vector<u8>& output, bool is_async,
+		              Shared<Tegra::GPU>& gpu);
     NvResult IocCtrlEventRegister(const std::vector<u8>& input, std::vector<u8>& output);
     NvResult IocCtrlEventUnregister(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult IocCtrlClearEventWait(const std::vector<u8>& input, std::vector<u8>& output);
+    NvResult IocCtrlClearEventWait(const std::vector<u8>& input, std::vector<u8>& output,
+		                   Shared<Tegra::GPU>& gpu);
 
-    EventInterface& events_interface;
+    Shared<EventInterface>& events_interface;
     SyncpointManager& syncpoint_manager;
 };
 

@@ -6,10 +6,6 @@
 
 #include "common/common_types.h"
 
-namespace Core {
-class System;
-}
-
 namespace Kernel {
 class HLERequestContext;
 }
@@ -46,12 +42,10 @@ enum class Policy {
 };
 
 namespace detail {
-void GetDisplayServiceImpl(Kernel::HLERequestContext& ctx, Core::System& system,
-                           NVFlinger::NVFlinger& nv_flinger, Permission permission);
+void GetDisplayServiceImpl(Kernel::HLERequestContext& ctx, Permission permission);
 } // namespace detail
 
-/// Registers all VI services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system,
-                       NVFlinger::NVFlinger& nv_flinger);
+/// Registers all VI services with specified service manager.
+void InstallInterfaces();
 
 } // namespace Service::VI

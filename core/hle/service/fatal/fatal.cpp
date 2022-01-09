@@ -68,13 +68,13 @@ static void GenerateErrorReport(Core::System& system, ResultCode error_code,
                                 const FatalInfo& info) {
     const auto title_id = system.CurrentProcess()->GetTitleID();
     std::string crash_report = fmt::format(
-        "Yuzu {}-{} crash report\n"
+        "Mizu crash report\n"
         "Title ID:                        {:016x}\n"
         "Result:                          0x{:X} ({:04}-{:04d})\n"
         "Set flags:                       0x{:16X}\n"
         "Program entry point:             0x{:16X}\n"
         "\n",
-        Common::g_scm_branch, Common::g_scm_desc, title_id, error_code.raw,
+        title_id, error_code.raw,
         2000 + static_cast<u32>(error_code.module.Value()),
         static_cast<u32>(error_code.description.Value()), info.set_flags, info.program_entry_point);
     if (info.backtrace_size != 0x0) {

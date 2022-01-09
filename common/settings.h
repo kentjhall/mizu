@@ -394,6 +394,13 @@ public:
         }
         return custom;
     }
+    void SetValue(Type&& val, bool set_global = false) {
+        std::shared_lock guard(this->mtx);
+        if (use_global || set_global) {
+            global = std::move(val);
+        }
+        custom = std::move(val);
+    }
 
 private:
     std::shared_mutex mtx;

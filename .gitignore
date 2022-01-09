@@ -1,3 +1,9 @@
+mizu_service_pack
 *.o
+video_core/*.moc.cpp
+video_core/host_shaders/*_comp.h
+video_core/host_shaders/*_frag.h
+video_core/host_shaders/*_vert.h
+video_core/host_shaders/*_spv.h
 ld_err.txt
 missing_syms.txt

@@ -28,6 +28,7 @@
 #include "video_core/renderer_opengl/gl_shader_util.h"
 #include "video_core/renderer_opengl/renderer_opengl.h"
 #include "video_core/textures/decoders.h"
+#include "mizu_servctl.h"
 
 namespace OpenGL {
 namespace {
@@ -125,14 +126,12 @@ void APIENTRY DebugHandler(GLenum source, GLenum type, GLuint id, GLenum severit
 }
 } // Anonymous namespace
 
-RendererOpenGL::RendererOpenGL(Core::TelemetrySession& telemetry_session_,
-                               Core::Frontend::EmuWindow& emu_window_,
-                               Core::Memory::Memory& cpu_memory_, Tegra::GPU& gpu_,
+RendererOpenGL::RendererOpenGL(Tegra::GPU& gpu_,
                                std::unique_ptr<Core::Frontend::GraphicsContext> context_)
-    : RendererBase{emu_window_, std::move(context_)}, telemetry_session{telemetry_session_},
-      emu_window{emu_window_}, cpu_memory{cpu_memory_}, gpu{gpu_}, state_tracker{gpu},
+    : RendererBase{gpu_.RenderWindow(), std::move(context_)}, telemetry_session{gpu_.TelemetrySession()},
+      emu_window{gpu_.RenderWindow()}, gpu{gpu_}, state_tracker{gpu},
       program_manager{device},
-      rasterizer(emu_window, gpu, cpu_memory, device, screen_info, program_manager, state_tracker) {
+      rasterizer(gpu_.RenderWindow(), gpu, device, screen_info, program_manager, state_tracker) {
     if (Settings::values.renderer_debug && GLAD_GL_KHR_debug) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -222,8 +221,13 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
     const u32 bytes_per_pixel{VideoCore::Surface::BytesPerBlock(pixel_format)};
     const u64 size_in_bytes{Tegra::Texture::CalculateSize(
         true, bytes_per_pixel, framebuffer.stride, framebuffer.height, 1, block_height_log2, 0)};
-    const u8* const host_ptr{cpu_memory.GetPointer(framebuffer_addr)};
-    const std::span<const u8> input_data(host_ptr, size_in_bytes);
+    u8 host_data[size_in_bytes];
+    if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)framebuffer_addr, (long)(u8 *)host_data, size_in_bytes) == -1) {
+        LOG_CRITICAL(Render_OpenGL,
+                     "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+        return;
+    }
+    const std::span<const u8> input_data(host_data, size_in_bytes);
     Tegra::Texture::UnswizzleTexture(gl_framebuffer_data, input_data, bytes_per_pixel,
                                      framebuffer.width, framebuffer.height, 1, block_height_log2,
                                      0);

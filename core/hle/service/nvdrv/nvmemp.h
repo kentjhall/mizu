@@ -14,7 +14,7 @@ namespace Service::Nvidia {
 
 class NVMEMP final : public ServiceFramework<NVMEMP> {
 public:
-    explicit NVMEMP(Core::System& system_);
+    explicit NVMEMP();
     ~NVMEMP() override;
 
 private:

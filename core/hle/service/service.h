@@ -16,7 +16,12 @@
 #include <sys/syscall.h>
 #include "common/common_types.h"
 #include "common/spin_lock.h"
+#include "video_core/gpu.h"
+#include "video_core/video_core.h"
+#include "input_common/main.h"
 #include "core/reporter.h"
+#include "core/hardware_interrupt_manager.h"
+#include "core/perf_stats.h"
 #include "core/loader/loader.h"
 #include "core/file_sys/registered_cache.h"
 #include "core/file_sys/vfs_real.h"
@@ -88,14 +93,28 @@ private:
 };
 
 template <typename T>
+class SharedUnlocked {
+public:
+    SharedUnlocked(Shared<T>& shared)
+        : data(shared.data) {}
+    T *operator->() { return &data; }
+    T& operator*() { return data; }
+private:
+    T& data;
+};
+
+template <typename T>
 class Shared {
 public:
+    Shared(Shared&& shared)
+        : data(std::move(shared.data)) {}
     template <typename... Args>
     Shared(Args&&... args)
         : data(std::forward<Args>(args)...) {}
 private:
     friend class SharedReader<T>;
     friend class SharedWriter<T>;
+    friend class SharedUnlocked<T>;
     std::shared_mutex mtx;
     T data;
 };
@@ -108,7 +127,36 @@ extern Shared<APM::Controller> apm_controller;
 extern Shared<AM::Applets::AppletManager> applet_manager;
 extern Shared<NVFlinger::NVFlinger> nv_flinger;
 extern Shared<Glue::ARPManager> arp_manager;
+extern Shared<InputCommon::InputSubsystem> input_subsystem;
+extern Shared<Core::Hardware::InterruptManager> interrupt_manager;
+extern Shared<std::unordered_map<::pid_t, std::pair<size_t, Shared<Tegra::GPU>>>> gpus;
 extern const Core::Reporter reporter;
+
+inline void GrabGPU(::pid_t req_pid) {
+    SharedWriter gpus_locked(gpus);
+    auto it = gpus_locked->find(req_pid);
+    if (it == gpus_locked->end()) {
+        gpus_locked->emplace(req_pid, std::make_pair(1, VideoCore::CreateGPU()));
+    } else {
+        ++it->second.first; // increment ref count
+    }
+}
+
+inline void PutGPU(::pid_t req_pid) {
+    SharedWriter gpus_locked(gpus);
+    auto it = gpus_locked->find(req_pid);
+    if (it == gpus_locked->end()) {
+        LOG_ERROR(Service_NVDRV, "PutGPU on non-existent or already-erased entry at {}", req_pid);
+        return;
+    }
+    if (--it->second.first == 0) {
+        gpus_locked->erase(it);
+    }
+}
+
+inline Shared<Tegra::GPU>& GPU(::pid_t req_pid) {
+    return const_cast<Service::Shared<Tegra::GPU>&>(SharedReader(gpus)->at(req_pid).second);
+}
 
 inline u64 GetProcessID()
 {
@@ -119,19 +167,19 @@ inline u64 GetProcessID()
     }
     return pid; // TODO TEMP
 }
+
 inline u64 GetTitleID()
 {
     LOG_CRITICAL(Service, "mizu TODO GetTitleId");
     return 0; // TODO TEMP
 }
+
 using CurrentBuildProcessID = std::array<u8, 0x20>;
 inline const CurrentBuildProcessID& GetCurrentProcessBuildID() {
     static CurrentBuildProcessID build_id = { 0 }; // TODO TEMP
     LOG_CRITICAL(Service, "mizu TODO GetCurrentProcessBuildID");
     return build_id;
 }
-
-extern thread_local std::unordered_set<std::shared_ptr<Kernel::SessionRequestManager>> session_managers;
 
 inline std::chrono::nanoseconds GetGlobalTimeNs() {
     ::timespec ts;
@@ -142,6 +190,11 @@ inline std::chrono::nanoseconds GetGlobalTimeNs() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::seconds{ts.tv_sec} + std::chrono::nanoseconds{ts.tv_nsec});
 }
+inline std::chrono::microseconds GetGlobalTimeUs() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(GetGlobalTimeNs());
+}
+
+extern thread_local std::unordered_set<std::shared_ptr<Kernel::SessionRequestManager>> session_managers;
 
 inline unsigned long AddSessionManager(std::shared_ptr<Kernel::SessionRequestManager> manager) {
     return (unsigned long)&**session_managers.insert(std::move(manager)).first;
@@ -344,14 +397,14 @@ void StartServices();
 /// Creates service thread and regisers with the ServiceManager.
 template <class T, typename... Args>
 void MakeService(Args&&... args) {
-    std::thread service([&]() {
+    std::thread service([... args = std::forward<Args>(args)]() {
         pid_t tid = syscall(__NR_gettid);
         if (tid == -1) {
             LOG_CRITICAL(Service, "gettid failed: %s", ::strerror(errno));
             ::exit(1);
         }
         auto handler = std::static_pointer_cast<Service::ServiceFrameworkBase>(
-                std::make_shared<T>(std::forward<Args>(args)...));
+                std::make_shared<T>(args...));
         if (SharedWriter(service_manager)->RegisterService(handler, tid) != ResultSuccess) {
             LOG_CRITICAL(Service, "RegisterService failed");
 	    ::exit(1);

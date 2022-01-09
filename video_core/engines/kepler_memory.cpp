@@ -14,8 +14,8 @@
 
 namespace Tegra::Engines {
 
-KeplerMemory::KeplerMemory(Core::System& system_, MemoryManager& memory_manager)
-    : system{system_}, upload_state{memory_manager, regs.upload} {}
+KeplerMemory::KeplerMemory(MemoryManager& memory_manager)
+    : upload_state{memory_manager, regs.upload} {}
 
 KeplerMemory::~KeplerMemory() = default;
 

@@ -7,6 +7,7 @@
 #include "common/logging/log.h"
 #include "common/settings.h"
 #include "core/core.h"
+#include "core/hle/service/service.h"
 #include "video_core/renderer_base.h"
 #include "video_core/renderer_opengl/renderer_opengl.h"
 #include "video_core/renderer_vulkan/renderer_vulkan.h"
@@ -15,18 +16,12 @@
 namespace {
 
 std::unique_ptr<VideoCore::RendererBase> CreateRenderer(
-    Core::System& system, Core::Frontend::EmuWindow& emu_window, Tegra::GPU& gpu,
-    std::unique_ptr<Core::Frontend::GraphicsContext> context) {
-    auto& telemetry_session = system.TelemetrySession();
-    auto& cpu_memory = system.Memory();
-
+    Tegra::GPU& gpu, std::unique_ptr<Core::Frontend::GraphicsContext> context) {
     switch (Settings::values.renderer_backend.GetValue()) {
     case Settings::RendererBackend::OpenGL:
-        return std::make_unique<OpenGL::RendererOpenGL>(telemetry_session, emu_window, cpu_memory,
-                                                        gpu, std::move(context));
+        return std::make_unique<OpenGL::RendererOpenGL>(gpu, std::move(context));
     case Settings::RendererBackend::Vulkan:
-        return std::make_unique<Vulkan::RendererVulkan>(telemetry_session, emu_window, cpu_memory,
-                                                        gpu, std::move(context));
+        return std::make_unique<Vulkan::RendererVulkan>(gpu, std::move(context));
     default:
         return nullptr;
     }
@@ -36,21 +31,21 @@ std::unique_ptr<VideoCore::RendererBase> CreateRenderer(
 
 namespace VideoCore {
 
-std::unique_ptr<Tegra::GPU> CreateGPU(Core::Frontend::EmuWindow& emu_window, Core::System& system) {
+Service::Shared<Tegra::GPU> CreateGPU() {
     const auto nvdec_value = Settings::values.nvdec_emulation.GetValue();
     const bool use_nvdec = nvdec_value != Settings::NvdecEmulation::Off;
     const bool use_async = Settings::values.use_asynchronous_gpu_emulation.GetValue();
-    auto gpu = std::make_unique<Tegra::GPU>(system, use_async, use_nvdec);
-    auto context = emu_window.CreateSharedContext();
+    auto shared_gpu = Service::Shared<Tegra::GPU>(use_async, use_nvdec);
+    auto& gpu = *Service::SharedUnlocked(shared_gpu);
+    auto context = gpu.RenderWindow().CreateSharedContext();
     auto scope = context->Acquire();
     try {
-        auto renderer = CreateRenderer(system, emu_window, *gpu, std::move(context));
-        gpu->BindRenderer(std::move(renderer));
-        return gpu;
+        auto renderer = CreateRenderer(gpu, std::move(context));
+        gpu.BindRenderer(std::move(renderer));
     } catch (const std::runtime_error& exception) {
         LOG_ERROR(HW_GPU, "Failed to initialize GPU: {}", exception.what());
-        return nullptr;
     }
+    return std::move(shared_gpu);
 }
 
 u16 GetResolutionScaleFactor(const RendererBase& renderer) {

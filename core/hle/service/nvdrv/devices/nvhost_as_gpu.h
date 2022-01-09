@@ -30,18 +30,18 @@ DECLARE_ENUM_FLAG_OPERATORS(AddressSpaceFlags);
 
 class nvhost_as_gpu final : public nvdevice {
 public:
-    explicit nvhost_as_gpu(Core::System& system_, std::shared_ptr<nvmap> nvmap_dev_);
+    explicit nvhost_as_gpu(std::shared_ptr<nvmap> nvmap_dev_);
     ~nvhost_as_gpu() override;
 
     NvResult Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output) override;
+                    std::vector<u8>& output, Shared<Tegra::GPU>& gpu) override;
     NvResult Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    const std::vector<u8>& inline_input, std::vector<u8>& output) override;
+                    const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) override;
     NvResult Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                    std::vector<u8>& output, std::vector<u8>& inline_output) override;
+                    std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) override;
 
-    void OnOpen(DeviceFD fd) override;
-    void OnClose(DeviceFD fd) override;
+    void OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) override;
+    void OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) override;
 
 private:
     class BufferMap final {
@@ -166,11 +166,16 @@ private:
     u32 big_page_size{DEFAULT_BIG_PAGE_SIZE};
 
     NvResult AllocAsEx(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult AllocateSpace(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult Remap(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult MapBufferEx(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult UnmapBuffer(const std::vector<u8>& input, std::vector<u8>& output);
-    NvResult FreeSpace(const std::vector<u8>& input, std::vector<u8>& output);
+    NvResult AllocateSpace(const std::vector<u8>& input, std::vector<u8>& output,
+		           Shared<Tegra::GPU>& gpu);
+    NvResult Remap(const std::vector<u8>& input, std::vector<u8>& output,
+		   Shared<Tegra::GPU>& gpu);
+    NvResult MapBufferEx(const std::vector<u8>& input, std::vector<u8>& output,
+		         Shared<Tegra::GPU>& gpu);
+    NvResult UnmapBuffer(const std::vector<u8>& input, std::vector<u8>& output,
+		         Shared<Tegra::GPU>& gpu);
+    NvResult FreeSpace(const std::vector<u8>& input, std::vector<u8>& output,
+		       Shared<Tegra::GPU>& gpu);
     NvResult BindChannel(const std::vector<u8>& input, std::vector<u8>& output);
 
     NvResult GetVARegions(const std::vector<u8>& input, std::vector<u8>& output);

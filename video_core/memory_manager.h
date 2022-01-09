@@ -9,13 +9,13 @@
 #include <vector>
 
 #include "common/common_types.h"
+#include "core/hle/result.h"
+#include "mizu_servctl.h"
+
+extern const size_t PAGE_SIZE;
 
 namespace VideoCore {
 class RasterizerInterface;
-}
-
-namespace Core {
-class System;
 }
 
 namespace Tegra {
@@ -68,7 +68,7 @@ static_assert(sizeof(PageEntry) == 4, "PageEntry is too large");
 
 class MemoryManager final {
 public:
-    explicit MemoryManager(Core::System& system_);
+    explicit MemoryManager();
     ~MemoryManager();
 
     /// Binds a renderer to the memory manager.
@@ -84,8 +84,30 @@ public:
     template <typename T>
     void Write(GPUVAddr addr, T data);
 
-    [[nodiscard]] u8* GetPointer(GPUVAddr addr);
-    [[nodiscard]] const u8* GetPointer(GPUVAddr addr) const;
+    /*
+     * GetPointer() is really supposed to get a pointer directly into the user
+     * process, but this is not as easy to do in an actual multi-process
+     * environment; instead, we simulate the mechanism by copying a page in and
+     * out.
+     */
+    struct PointerDeleter {
+        VAddr addr;
+	void operator()(u8 *buf) {
+            if (mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)addr, (long)buf, PAGE_SIZE) == -1) {
+                LOG_CRITICAL(Service_NVDRV, "MIZU_SCTL_WRITE_BUFFER failed: {}", ResultCode(errno).description.Value());
+            }
+            delete[] buf;
+	}
+	void operator()(const u8 *buf) {
+            operator()(const_cast<u8 *>(buf));
+	}
+    };
+
+    using Pointer = std::unique_ptr<u8[], PointerDeleter>;
+    using ConstPointer = std::unique_ptr<const u8[], PointerDeleter>;
+
+    [[nodiscard]] Pointer GetPointer(GPUVAddr addr);
+    [[nodiscard]] ConstPointer GetPointer(GPUVAddr addr) const;
 
     /// Returns the number of bytes until the end of the memory map containing the given GPU address
     [[nodiscard]] size_t BytesToMapEnd(GPUVAddr gpu_addr) const noexcept;
@@ -168,8 +190,6 @@ private:
     static constexpr u64 page_table_bits{24};
     static constexpr u64 page_table_size{1 << page_table_bits};
     static constexpr u64 page_table_mask{page_table_size - 1};
-
-    Core::System& system;
 
     VideoCore::RasterizerInterface* rasterizer = nullptr;
 

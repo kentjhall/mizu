@@ -19,7 +19,7 @@ namespace VideoCore {
 /// Implements the shared part in GPU accelerated rasterizers in RasterizerInterface.
 class RasterizerAccelerated : public RasterizerInterface {
 public:
-    explicit RasterizerAccelerated(Core::Memory::Memory& cpu_memory_);
+    explicit RasterizerAccelerated();
     ~RasterizerAccelerated() override;
 
     void UpdatePagesCachedCount(VAddr addr, u64 size, int delta) override;
@@ -43,7 +43,6 @@ private:
     static_assert(sizeof(CacheEntry) == 8, "CacheEntry should be 8 bytes!");
 
     std::array<CacheEntry, 0x2000000> cached_pages;
-    Core::Memory::Memory& cpu_memory;
 };
 
 } // namespace VideoCore

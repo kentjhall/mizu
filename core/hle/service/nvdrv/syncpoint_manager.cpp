@@ -8,12 +8,12 @@
 
 namespace Service::Nvidia {
 
-SyncpointManager::SyncpointManager(Tegra::GPU& gpu_) : gpu{gpu_} {}
+SyncpointManager::SyncpointManager() {}
 
 SyncpointManager::~SyncpointManager() = default;
 
-u32 SyncpointManager::RefreshSyncpoint(u32 syncpoint_id) {
-    syncpoints[syncpoint_id].min = gpu.GetSyncpointValue(syncpoint_id);
+u32 SyncpointManager::RefreshSyncpoint(u32 syncpoint_id, Shared<Tegra::GPU>& gpu) {
+    syncpoints[syncpoint_id].min = SharedReader(gpu)->GetSyncpointValue(syncpoint_id);
     return GetSyncpointMin(syncpoint_id);
 }
 

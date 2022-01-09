@@ -17,31 +17,31 @@
 
 namespace Service::Nvidia::Devices {
 
-nvhost_as_gpu::nvhost_as_gpu(Core::System& system_, std::shared_ptr<nvmap> nvmap_dev_)
-    : nvdevice{system_}, nvmap_dev{std::move(nvmap_dev_)} {}
+nvhost_as_gpu::nvhost_as_gpu(std::shared_ptr<nvmap> nvmap_dev_)
+    : nvdevice{}, nvmap_dev{std::move(nvmap_dev_)} {}
 nvhost_as_gpu::~nvhost_as_gpu() = default;
 
 NvResult nvhost_as_gpu::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                               std::vector<u8>& output) {
+                               std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     switch (command.group) {
     case 'A':
         switch (command.cmd) {
         case 0x1:
             return BindChannel(input, output);
         case 0x2:
-            return AllocateSpace(input, output);
+            return AllocateSpace(input, output, gpu);
         case 0x3:
-            return FreeSpace(input, output);
+            return FreeSpace(input, output, gpu);
         case 0x5:
-            return UnmapBuffer(input, output);
+            return UnmapBuffer(input, output, gpu);
         case 0x6:
-            return MapBufferEx(input, output);
+            return MapBufferEx(input, output, gpu);
         case 0x8:
             return GetVARegions(input, output);
         case 0x9:
             return AllocAsEx(input, output);
         case 0x14:
-            return Remap(input, output);
+            return Remap(input, output, gpu);
         default:
             break;
         }
@@ -55,13 +55,13 @@ NvResult nvhost_as_gpu::Ioctl1(DeviceFD fd, Ioctl command, const std::vector<u8>
 }
 
 NvResult nvhost_as_gpu::Ioctl2(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                               const std::vector<u8>& inline_input, std::vector<u8>& output) {
+                               const std::vector<u8>& inline_input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl={:08X}", command.raw);
     return NvResult::NotImplemented;
 }
 
 NvResult nvhost_as_gpu::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>& input,
-                               std::vector<u8>& output, std::vector<u8>& inline_output) {
+                              std::vector<u8>& output, std::vector<u8>& inline_output, Shared<Tegra::GPU>& gpu) {
     switch (command.group) {
     case 'A':
         switch (command.cmd) {
@@ -78,8 +78,8 @@ NvResult nvhost_as_gpu::Ioctl3(DeviceFD fd, Ioctl command, const std::vector<u8>
     return NvResult::NotImplemented;
 }
 
-void nvhost_as_gpu::OnOpen(DeviceFD fd) {}
-void nvhost_as_gpu::OnClose(DeviceFD fd) {}
+void nvhost_as_gpu::OnOpen(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
+void nvhost_as_gpu::OnClose(DeviceFD fd, Shared<Tegra::GPU>& gpu) {}
 
 NvResult nvhost_as_gpu::AllocAsEx(const std::vector<u8>& input, std::vector<u8>& output) {
     IoctlAllocAsEx params{};
@@ -95,7 +95,7 @@ NvResult nvhost_as_gpu::AllocAsEx(const std::vector<u8>& input, std::vector<u8>&
     return NvResult::Success;
 }
 
-NvResult nvhost_as_gpu::AllocateSpace(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_as_gpu::AllocateSpace(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     IoctlAllocSpace params{};
     std::memcpy(&params, input.data(), input.size());
 
@@ -104,9 +104,9 @@ NvResult nvhost_as_gpu::AllocateSpace(const std::vector<u8>& input, std::vector<
 
     const auto size{static_cast<u64>(params.pages) * static_cast<u64>(params.page_size)};
     if ((params.flags & AddressSpaceFlags::FixedOffset) != AddressSpaceFlags::None) {
-        params.offset = *system.GPU().MemoryManager().AllocateFixed(params.offset, size);
+        params.offset = *SharedWriter(gpu)->MemoryManager().AllocateFixed(params.offset, size);
     } else {
-        params.offset = system.GPU().MemoryManager().Allocate(size, params.align);
+        params.offset = SharedWriter(gpu)->MemoryManager().Allocate(size, params.align);
     }
 
     auto result = NvResult::Success;
@@ -119,21 +119,21 @@ NvResult nvhost_as_gpu::AllocateSpace(const std::vector<u8>& input, std::vector<
     return result;
 }
 
-NvResult nvhost_as_gpu::FreeSpace(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_as_gpu::FreeSpace(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     IoctlFreeSpace params{};
     std::memcpy(&params, input.data(), input.size());
 
     LOG_DEBUG(Service_NVDRV, "called, offset={:X}, pages={:X}, page_size={:X}", params.offset,
               params.pages, params.page_size);
 
-    system.GPU().MemoryManager().Unmap(params.offset,
-                                       static_cast<std::size_t>(params.pages) * params.page_size);
+    SharedWriter(gpu)->MemoryManager().Unmap(params.offset,
+                                             static_cast<std::size_t>(params.pages) * params.page_size);
 
     std::memcpy(output.data(), &params, output.size());
     return NvResult::Success;
 }
 
-NvResult nvhost_as_gpu::Remap(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_as_gpu::Remap(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     const auto num_entries = input.size() / sizeof(IoctlRemapEntry);
 
     LOG_DEBUG(Service_NVDRV, "called, num_entries=0x{:X}", num_entries);
@@ -146,7 +146,7 @@ NvResult nvhost_as_gpu::Remap(const std::vector<u8>& input, std::vector<u8>& out
         LOG_DEBUG(Service_NVDRV, "remap entry, offset=0x{:X} handle=0x{:X} pages=0x{:X}",
                   entry.offset, entry.nvmap_handle, entry.pages);
 
-        const auto object{nvmap_dev->GetObject(entry.nvmap_handle)};
+        const auto object{nvmap_dev->ReadLocked()->GetObject(entry.nvmap_handle)};
         if (!object) {
             LOG_CRITICAL(Service_NVDRV, "invalid nvmap_handle={:X}", entry.nvmap_handle);
             result = NvResult::InvalidState;
@@ -156,7 +156,7 @@ NvResult nvhost_as_gpu::Remap(const std::vector<u8>& input, std::vector<u8>& out
         const auto offset{static_cast<GPUVAddr>(entry.offset) << 0x10};
         const auto size{static_cast<u64>(entry.pages) << 0x10};
         const auto map_offset{static_cast<u64>(entry.map_offset) << 0x10};
-        const auto addr{system.GPU().MemoryManager().Map(object->addr + map_offset, offset, size)};
+        const auto addr{SharedWriter(gpu)->MemoryManager().Map(object->addr + map_offset, offset, size)};
 
         if (!addr) {
             LOG_CRITICAL(Service_NVDRV, "map returned an invalid address!");
@@ -169,7 +169,7 @@ NvResult nvhost_as_gpu::Remap(const std::vector<u8>& input, std::vector<u8>& out
     return result;
 }
 
-NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     IoctlMapBufferEx params{};
     std::memcpy(&params, input.data(), input.size());
 
@@ -179,7 +179,7 @@ NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8
               params.flags, params.nvmap_handle, params.buffer_offset, params.mapping_size,
               params.offset);
 
-    const auto object{nvmap_dev->GetObject(params.nvmap_handle)};
+    const auto object{nvmap_dev->ReadLocked()->GetObject(params.nvmap_handle)};
     if (!object) {
         LOG_CRITICAL(Service_NVDRV, "invalid nvmap_handle={:X}", params.nvmap_handle);
         std::memcpy(output.data(), &params, output.size());
@@ -190,7 +190,6 @@ NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8
     // object can only have one handle and it will be the same as its id. Assert that this is the
     // case to prevent unexpected behavior.
     ASSERT(object->id == params.nvmap_handle);
-    auto& gpu = system.GPU();
 
     u64 page_size{params.page_size};
     if (!page_size) {
@@ -202,7 +201,7 @@ NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8
             const auto cpu_addr{static_cast<VAddr>(buffer_map->CpuAddr() + params.buffer_offset)};
             const auto gpu_addr{static_cast<GPUVAddr>(params.offset + params.buffer_offset)};
 
-            if (!gpu.MemoryManager().Map(cpu_addr, gpu_addr, params.mapping_size)) {
+            if (!SharedWriter(gpu)->MemoryManager().Map(cpu_addr, gpu_addr, params.mapping_size)) {
                 LOG_CRITICAL(Service_NVDRV,
                              "remap failed, flags={:X}, nvmap_handle={:X}, buffer_offset={}, "
                              "mapping_size = {}, offset={}",
@@ -234,9 +233,9 @@ NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8
 
     const bool is_alloc{(params.flags & AddressSpaceFlags::FixedOffset) == AddressSpaceFlags::None};
     if (is_alloc) {
-        params.offset = gpu.MemoryManager().MapAllocate(physical_address, size, page_size);
+        params.offset = SharedWriter(gpu)->MemoryManager().MapAllocate(physical_address, size, page_size);
     } else {
-        params.offset = gpu.MemoryManager().Map(physical_address, params.offset, size);
+        params.offset = SharedWriter(gpu)->MemoryManager().Map(physical_address, params.offset, size);
     }
 
     auto result = NvResult::Success;
@@ -251,14 +250,14 @@ NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8
     return result;
 }
 
-NvResult nvhost_as_gpu::UnmapBuffer(const std::vector<u8>& input, std::vector<u8>& output) {
+NvResult nvhost_as_gpu::UnmapBuffer(const std::vector<u8>& input, std::vector<u8>& output, Shared<Tegra::GPU>& gpu) {
     IoctlUnmapBuffer params{};
     std::memcpy(&params, input.data(), input.size());
 
     LOG_DEBUG(Service_NVDRV, "called, offset=0x{:X}", params.offset);
 
     if (const auto size{RemoveBufferMap(params.offset)}; size) {
-        system.GPU().MemoryManager().Unmap(params.offset, *size);
+        SharedWriter(gpu)->MemoryManager().Unmap(params.offset, *size);
     } else {
         LOG_ERROR(Service_NVDRV, "invalid offset=0x{:X}", params.offset);
     }
