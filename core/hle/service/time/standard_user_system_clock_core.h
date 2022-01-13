@@ -8,30 +8,21 @@
 #include "core/hle/service/time/clock_types.h"
 #include "core/hle/service/time/system_clock_core.h"
 
-namespace Core {
-class System;
-}
-
-namespace Kernel {
-class KEvent;
-}
-
 namespace Service::Time::Clock {
 
 class StandardLocalSystemClockCore;
 class StandardNetworkSystemClockCore;
 
-class StandardUserSystemClockCore final : public SystemClockCore {
+class StandardUserSystemClockCore final : public SystemClockCoreLocked<StandardUserSystemClockCore> {
 public:
     StandardUserSystemClockCore(StandardLocalSystemClockCore& local_system_clock_core_,
-                                StandardNetworkSystemClockCore& network_system_clock_core_,
-                                Core::System& system_);
+                                StandardNetworkSystemClockCore& network_system_clock_core_);
 
     ~StandardUserSystemClockCore() override;
 
-    ResultCode SetAutomaticCorrectionEnabled(Core::System& system, bool value);
+    ResultCode SetAutomaticCorrectionEnabled(bool value);
 
-    ResultCode GetClockContext(Core::System& system, SystemClockContext& ctx) const override;
+    ResultCode GetClockContext(SystemClockContext& ctx) const override;
 
     bool IsAutomaticCorrectionEnabled() const {
         return auto_correction_enabled;
@@ -46,7 +37,7 @@ protected:
 
     ResultCode SetClockContext(const SystemClockContext&) override;
 
-    ResultCode ApplyAutomaticCorrection(Core::System& system, bool value) const;
+    ResultCode ApplyAutomaticCorrection(bool value) const;
 
     const SteadyClockTimePoint& GetAutomaticCorrectionUpdatedTime() const {
         return auto_correction_time;
@@ -57,8 +48,7 @@ private:
     StandardNetworkSystemClockCore& network_system_clock_core;
     bool auto_correction_enabled{};
     SteadyClockTimePoint auto_correction_time;
-    KernelHelpers::ServiceContext service_context;
-    Kernel::KEvent* auto_correction_event;
+    int auto_correction_event;
 };
 
 } // namespace Service::Time::Clock

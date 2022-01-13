@@ -6,8 +6,6 @@
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "core/core.h"
-#include "core/core_timing.h"
-#include "core/core_timing_util.h"
 #include "core/hle/service/nvdrv/devices/nvhost_ctrl_gpu.h"
 
 namespace Service::Nvidia::Devices {

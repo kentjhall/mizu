@@ -9,6 +9,8 @@
 #include "core/hle/kernel/hle_ipc.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/result.h"
+#include "core/hle/service/service.h"
+#include "core/hle/service/nvflinger/nvflinger.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/hle/service/sm/sm_controller.h"
 #include "mizu_servctl.h"
@@ -83,6 +85,10 @@ ResultVal<Kernel::Handle> ServiceManager::GetServicePort(const std::string& name
     }
 
     return MakeResult(Kernel::Handle(port));
+}
+
+void SM::CleanupSession(::pid_t req_pid) {
+    SharedUnlocked(nv_flinger)->CloseSessionLayers(req_pid);
 }
 
 /**

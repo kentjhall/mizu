@@ -8,10 +8,10 @@
 
 namespace Service::Time::Clock {
 
-class EphemeralNetworkSystemClockCore final : public SystemClockCore {
+class EphemeralNetworkSystemClockCore final : public SystemClockCoreLocked<EphemeralNetworkSystemClockCore> {
 public:
     explicit EphemeralNetworkSystemClockCore(SteadyClockCore& steady_clock_core_)
-        : SystemClockCore{steady_clock_core_} {}
+        : SystemClockCoreLocked<EphemeralNetworkSystemClockCore>{steady_clock_core_} {}
 };
 
 } // namespace Service::Time::Clock

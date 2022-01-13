@@ -7,11 +7,8 @@
 #include <memory>
 
 #include "common/common_types.h"
+#include "core/hle/service/service.h"
 #include "core/hle/service/time/clock_types.h"
-
-namespace Core {
-class System;
-}
 
 namespace Service::Time::Clock {
 
@@ -30,12 +27,11 @@ public:
         return steady_clock_core;
     }
 
-    ResultCode GetCurrentTime(Core::System& system, s64& posix_time) const;
+    ResultCode GetCurrentTime(s64& posix_time) const;
 
-    ResultCode SetCurrentTime(Core::System& system, s64 posix_time);
+    ResultCode SetCurrentTime(s64 posix_time);
 
-    virtual ResultCode GetClockContext([[maybe_unused]] Core::System& system,
-                                       SystemClockContext& value) const {
+    virtual ResultCode GetClockContext(SystemClockContext& value) const {
         value = context;
         return ResultSuccess;
     }
@@ -61,13 +57,29 @@ public:
         is_initialized = true;
     }
 
-    bool IsClockSetup(Core::System& system) const;
+    bool IsClockSetup() const;
+
+    auto ReadLocked() { return Service::SharedReader(mtx, *this); };
+    auto WriteLocked() { return Service::SharedWriter(mtx, *this); };
+
+protected:
+    std::shared_mutex mtx;
 
 private:
     SteadyClockCore& steady_clock_core;
     SystemClockContext context{};
     bool is_initialized{};
     std::shared_ptr<SystemClockContextUpdateCallback> system_clock_context_update_callback;
+};
+
+template <class Derived>
+class SystemClockCoreLocked : public SystemClockCore {
+public:
+    explicit SystemClockCoreLocked(SteadyClockCore& steady_clock_core_)
+        : SystemClockCore(steady_clock_core_) {}
+
+    auto ReadLocked() { return Service::SharedReader(mtx, *static_cast<const Derived *>(this)); };
+    auto WriteLocked() { return Service::SharedWriter(mtx, *static_cast<Derived *>(this)); };
 };
 
 } // namespace Service::Time::Clock

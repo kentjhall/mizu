@@ -21,8 +21,8 @@ namespace Service::Time::TimeZone {
 
 constexpr u64 time_zone_binary_titleid{0x010000000000080E};
 
-static FileSys::VirtualDir GetTimeZoneBinary(Core::System& system) {
-    const auto* nand{system.GetFileSystemController().GetSystemNANDContents()};
+static FileSys::VirtualDir GetTimeZoneBinary() {
+    const auto* nand{SharedReader(filesystem_controller)->GetSystemNANDContents()};
     const auto nca{nand->GetEntry(time_zone_binary_titleid, FileSys::ContentRecordType::Data)};
 
     FileSys::VirtualFile romfs;
@@ -42,8 +42,8 @@ static FileSys::VirtualDir GetTimeZoneBinary(Core::System& system) {
     return FileSys::ExtractRomFS(romfs);
 }
 
-static std::vector<std::string> BuildLocationNameCache(Core::System& system) {
-    const FileSys::VirtualDir extracted_romfs{GetTimeZoneBinary(system)};
+static std::vector<std::string> BuildLocationNameCache() {
+    const FileSys::VirtualDir extracted_romfs{GetTimeZoneBinary()};
     if (!extracted_romfs) {
         LOG_ERROR(Service_Time, "Failed to extract RomFS for {:016X}!", time_zone_binary_titleid);
         return {};
@@ -68,10 +68,8 @@ static std::vector<std::string> BuildLocationNameCache(Core::System& system) {
     return location_name_cache;
 }
 
-TimeZoneContentManager::TimeZoneContentManager(Core::System& system_)
-    : system{system_}, location_name_cache{BuildLocationNameCache(system)} {}
-
-void TimeZoneContentManager::Initialize(TimeManager& time_manager) {
+TimeZoneContentManager::TimeZoneContentManager(TimeManager& time_manager)
+    : location_name_cache{BuildLocationNameCache()} {
     std::string location_name;
     const auto timezone_setting = Settings::GetTimeZoneString();
     if (timezone_setting == "auto" || timezone_setting == "default") {
@@ -83,9 +81,18 @@ void TimeZoneContentManager::Initialize(TimeManager& time_manager) {
     if (FileSys::VirtualFile vfs_file;
         GetTimeZoneInfoFile(location_name, vfs_file) == ResultSuccess) {
         const auto time_point{
-            time_manager.GetStandardSteadyClockCore().GetCurrentTimePoint(system)};
-        time_manager.SetupTimeZoneManager(location_name, time_point, location_name_cache.size(), {},
-                                          vfs_file);
+            time_manager.GetStandardSteadyClockCore().WriteLocked()->GetCurrentTimePoint()};
+        if (time_zone_manager.SetDeviceLocationNameWithTimeZoneRule(
+                location_name, vfs_file) != ResultSuccess) {
+            UNREACHABLE();
+            return;
+        }
+
+        time_zone_manager.SetUpdatedTime(time_point);
+        time_zone_manager.SetTotalLocationNameCount(
+            location_name_cache.size());
+        time_zone_manager.SetTimeZoneRuleVersion({});
+        time_zone_manager.MarkAsInitialized();
     } else {
         time_zone_manager.MarkAsInitialized();
     }
@@ -113,7 +120,7 @@ ResultCode TimeZoneContentManager::GetTimeZoneInfoFile(const std::string& locati
         return ERROR_TIME_NOT_FOUND;
     }
 
-    const FileSys::VirtualDir extracted_romfs{GetTimeZoneBinary(system)};
+    const FileSys::VirtualDir extracted_romfs{GetTimeZoneBinary()};
     if (!extracted_romfs) {
         LOG_ERROR(Service_Time, "Failed to extract RomFS for {:016X}!", time_zone_binary_titleid);
         return ERROR_TIME_NOT_FOUND;

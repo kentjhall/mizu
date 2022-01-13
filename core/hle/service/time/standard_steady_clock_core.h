@@ -13,10 +13,10 @@ class System;
 
 namespace Service::Time::Clock {
 
-class StandardSteadyClockCore final : public SteadyClockCore {
+class StandardSteadyClockCore final : public SteadyClockCoreLocked<StandardSteadyClockCore> {
 public:
-    SteadyClockTimePoint GetTimePoint(Core::System& system) override {
-        return {GetCurrentRawTimePoint(system).ToSeconds(), GetClockSourceId()};
+    SteadyClockTimePoint GetTimePoint() override {
+        return {GetCurrentRawTimePoint().ToSeconds(), GetClockSourceId()};
     }
 
     TimeSpanType GetInternalOffset() const override {
@@ -27,7 +27,7 @@ public:
         internal_offset = value;
     }
 
-    TimeSpanType GetCurrentRawTimePoint(Core::System& system) override;
+    TimeSpanType GetCurrentRawTimePoint() override;
 
     void SetSetupValue(TimeSpanType value) {
         setup_value = value;

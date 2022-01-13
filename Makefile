@@ -2,12 +2,12 @@ CXX := g++
 CC := g++
 INCLUDES := -I ~/mizu-services -I ~/mizu-services/glad/include -I ~/yuzu/src -I ~/yuzu/externals/dynarmic/externals/fmt/include -I ~/yuzu/src/externals/opus/opus/include -I ~/yuzu/externals/cubeb/include -I ~/yuzu/externals/soundtouch/include -I ~/yuzu/src/exports -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/microprofile -I ~/yuzu/externals/opus/opus/include -I ~/yuzu/externals/ffmpeg -I ~/yuzu/build/externals/ffmpeg -I ~/yuzu/externals/Vulkan-Headers/include -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/sirit/externals/SPIRV-Headers/include -I ~/yuzu/externals/sirit/include
 DEBUG-y := -O0 -ggdb
-CXXFLAGS := -DYUZU_UNIX -DFMT_HEADER_ONLY -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui $(DEBUG-$(DEBUG))
+CXXFLAGS := -DYUZU_UNIX -DHAS_OPENGL -DFMT_HEADER_ONLY -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale INIReader) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
 LDFLAGS := -L ~/mbedtls/library -L ~/sirit/build/src
-LDLIBS := -lmbedcrypto -lsirit -lrt -ldl -pthread $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 sdl2 libavutil libavcodec libswscale)
+LDLIBS := -lmbedcrypto -lsirit -lrt -ldl -pthread $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 sdl2 libavutil libavcodec libswscale INIReader)
 
-services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv
+services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time
 
 shader_headers := astc_decoder_comp.h \
                   block_linear_unswizzle_2d_comp.h \
@@ -33,7 +33,7 @@ shader_headers := astc_decoder_comp.h \
                   vulkan_quad_indexed_comp_spv.h \
                   vulkan_uint8_comp_spv.h
 
-subdirs := common common/fs common/logging \
+subdirs := common common/fs common/logging config \
 	   core core/file_sys core/file_sys/system_archive core/file_sys/system_archive/data core/crypto \
 	   core/frontend core/frontend/applets core/hle core/hle/kernel \
 	   $(shell find video_core -type d) $(shell find shader_recompiler -type d) \

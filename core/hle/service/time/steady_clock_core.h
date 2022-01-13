@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <shared_mutex>
 #include "common/uuid.h"
+#include "core/hle/service/service.h"
 #include "core/hle/service/time/clock_types.h"
 
 namespace Core {
@@ -30,12 +32,12 @@ public:
 
     virtual void SetInternalOffset(TimeSpanType internal_offset) = 0;
 
-    virtual SteadyClockTimePoint GetTimePoint(Core::System& system) = 0;
+    virtual SteadyClockTimePoint GetTimePoint() = 0;
 
-    virtual TimeSpanType GetCurrentRawTimePoint(Core::System& system) = 0;
+    virtual TimeSpanType GetCurrentRawTimePoint() = 0;
 
-    SteadyClockTimePoint GetCurrentTimePoint(Core::System& system) {
-        SteadyClockTimePoint result{GetTimePoint(system)};
+    SteadyClockTimePoint GetCurrentTimePoint() {
+        SteadyClockTimePoint result{GetTimePoint()};
         result.time_point += GetInternalOffset().ToSeconds();
         return result;
     }
@@ -48,9 +50,22 @@ public:
         is_initialized = true;
     }
 
+    auto ReadLocked() { return Service::SharedReader(mtx, *this); };
+    auto WriteLocked() { return Service::SharedWriter(mtx, *this); };
+
+protected:
+    std::shared_mutex mtx;
+
 private:
     Common::UUID clock_source_id{Common::UUID::Generate()};
     bool is_initialized{};
+};
+
+template <class Derived>
+class SteadyClockCoreLocked : public SteadyClockCore {
+public:
+    auto ReadLocked() { return Service::SharedReader(mtx, *static_cast<const Derived *>(this)); };
+    auto WriteLocked() { return Service::SharedWriter(mtx, *static_cast<Derived *>(this)); };
 };
 
 } // namespace Service::Time::Clock

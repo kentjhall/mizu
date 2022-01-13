@@ -18,7 +18,7 @@ class ServiceManager;
 
 namespace Service::HID {
 
-constexpr std::size_t SHARED_MEMORY_SIZE = 0x40000;
+constexpr std::size_t SHARED_MEMORY_SIZE{0x40000};
 
 enum class HidController : std::size_t {
     DebugPad,
@@ -73,7 +73,7 @@ private:
         controllers{};
 
     static constexpr auto shared_mem_deleter = std::bind(::munmap, std::placeholders::_1, SHARED_MEMORY_SIZE);
-    int shared_mem_fd;
+    int shared_mem_fd = -1;
     std::unique_ptr<u8, decltype(shared_mem_deleter)> shared_mem;
 };
 

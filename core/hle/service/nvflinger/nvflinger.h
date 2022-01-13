@@ -49,6 +49,9 @@ public:
     /// Closes a layer on all displays for the given layer ID.
     void CloseLayer(u64 layer_id);
 
+    /// Closes any layers for the specified session (by requester PID).
+    void CloseSessionLayers(::pid_t pid);
+
     /// Finds the buffer queue ID of the specified layer in the specified display.
     ///
     /// If an invalid display ID or layer ID is provided, then an empty optional is returned.

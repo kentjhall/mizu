@@ -13,7 +13,7 @@ class System;
 
 namespace Service::Time::Clock {
 
-class TickBasedSteadyClockCore final : public SteadyClockCore {
+class TickBasedSteadyClockCore final : public SteadyClockCoreLocked<TickBasedSteadyClockCore> {
 public:
     TimeSpanType GetInternalOffset() const override {
         return {};
@@ -21,9 +21,9 @@ public:
 
     void SetInternalOffset(TimeSpanType internal_offset) override {}
 
-    SteadyClockTimePoint GetTimePoint(Core::System& system) override;
+    SteadyClockTimePoint GetTimePoint() override;
 
-    TimeSpanType GetCurrentRawTimePoint(Core::System& system) override;
+    TimeSpanType GetCurrentRawTimePoint() override;
 };
 
 } // namespace Service::Time::Clock

@@ -53,10 +53,7 @@ public:
     }
 
     /// Gets a layer for this display based off an index.
-    Layer& GetLayer(std::size_t index);
-
-    /// Gets a layer for this display based off an index.
-    const Layer& GetLayer(std::size_t index) const;
+    std::shared_ptr<Layer> GetLayer(std::size_t index);
 
     /// Gets the readable vsync event.
     int GetVSyncEvent() const;
@@ -77,6 +74,12 @@ public:
     /// @param layer_id The ID assigned to the layer to close.
     ///
     void CloseLayer(u64 layer_id);
+
+    /// Closes/removes any layers from this display with the specified session.
+    ///
+    /// @param pid The PID of the session requester.
+    ///
+    void CloseSessionLayers(::pid_t pid);
 
     /// Attempts to find a layer with the given ID.
     ///

@@ -229,7 +229,7 @@ struct GPU::Impl {
         MICROPROFILE_SCOPE(GPU_wait);
         std::unique_lock lock{sync_mutex};
         sync_cv.wait(lock, [=, this] {
-            if (shutting_down.load(std::memory_order_relaxed)) {
+            if (shutting_down) {
                 // We're shutting down, ensure no threads continue to wait for the next syncpoint
                 return true;
             }
@@ -255,6 +255,12 @@ struct GPU::Impl {
                 it++;
             }
         }
+    }
+
+    void NotifySessionClose() {
+        std::unique_lock lock{sync_mutex};
+        shutting_down = true;
+        sync_cv.notify_all();
     }
 
     [[nodiscard]] u32 GetSyncpointValue(u32 syncpoint_id) const {
@@ -677,7 +683,7 @@ struct GPU::Impl {
     /// Shader build notifier
     std::unique_ptr<VideoCore::ShaderNotify> shader_notify;
     /// When true, we are about to shut down emulation session, so terminate outstanding tasks
-    std::atomic_bool shutting_down{};
+    bool shutting_down = false;
 
     std::array<std::atomic<u32>, Service::Nvidia::MaxSyncPoints> syncpoints{};
 
@@ -753,6 +759,10 @@ GPU::GPU(GPU&& gpu)
     : impl{std::move(gpu.impl)} {}
 
 GPU::~GPU() {
+    if (!impl) {
+        return;
+    }
+
     const auto perf_results = impl->perf_stats.GetAndResetStats(Service::GetGlobalTimeUs());
     constexpr auto performance = Common::Telemetry::FieldType::Performance;
 
@@ -865,6 +875,10 @@ void GPU::WaitFence(u32 syncpoint_id, u32 value) {
 
 void GPU::IncrementSyncPoint(u32 syncpoint_id) {
     impl->IncrementSyncPoint(syncpoint_id);
+}
+
+void GPU::NotifySessionClose() {
+    impl->NotifySessionClose();
 }
 
 u32 GPU::GetSyncpointValue(u32 syncpoint_id) const {

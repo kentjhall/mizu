@@ -7,8 +7,6 @@
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "core/core.h"
-#include "core/hle/kernel/k_writable_event.h"
-#include "core/hle/kernel/kernel.h"
 #include "core/hle/service/kernel_helpers.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
 

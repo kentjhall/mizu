@@ -18,8 +18,7 @@ class TimeZoneContentManager;
 
 class ITimeZoneService final : public ServiceFramework<ITimeZoneService> {
 public:
-    explicit ITimeZoneService(Core::System& system_,
-                              TimeZone::TimeZoneContentManager& time_zone_manager_);
+    explicit ITimeZoneService(const TimeZone::TimeZoneContentManager& time_zone_manager_);
 
 private:
     void GetDeviceLocationName(Kernel::HLERequestContext& ctx);
@@ -30,7 +29,7 @@ private:
     void ToPosixTimeWithMyRule(Kernel::HLERequestContext& ctx);
 
 private:
-    TimeZone::TimeZoneContentManager& time_zone_content_manager;
+    const TimeZone::TimeZoneContentManager& time_zone_content_manager;
 };
 
 } // namespace Service::Time

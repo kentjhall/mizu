@@ -4,17 +4,19 @@
 
 #pragma once
 
+#include <mutex>
+#include <sys/mman.h>
 #include "common/common_types.h"
 #include "common/uuid.h"
-#include "core/hle/kernel/k_shared_memory.h"
-#include "core/hle/kernel/k_thread.h"
 #include "core/hle/service/time/clock_types.h"
 
 namespace Service::Time {
 
+constexpr std::size_t SHARED_MEMORY_SIZE{0x1000};
+
 class SharedMemory final {
 public:
-    explicit SharedMemory(Core::System& system_);
+    explicit SharedMemory();
     ~SharedMemory();
 
     // TODO(ogniK): We have to properly simulate memory barriers, how are we going to do this?
@@ -53,6 +55,8 @@ public:
     };
     static_assert(sizeof(Format) == 0xd8, "Format is an invalid size");
 
+    int GetFd() const { return shared_mem_fd; }
+
     void SetupStandardSteadyClock(const Common::UUID& clock_source_id,
                                   Clock::TimeSpanType current_time_point);
     void UpdateLocalSystemClockContext(const Clock::SystemClockContext& context);
@@ -60,8 +64,12 @@ public:
     void SetAutomaticCorrectionEnabled(bool is_enabled);
 
 private:
-    Core::System& system;
     Format shared_memory_format{};
+
+    static constexpr auto shared_mem_deleter = std::bind(::munmap, std::placeholders::_1, SHARED_MEMORY_SIZE);
+    const int shared_mem_fd;
+    std::mutex shared_mem_mtx;
+    std::unique_ptr<u8, decltype(shared_mem_deleter)> shared_mem;
 };
 
 } // namespace Service::Time

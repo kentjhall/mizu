@@ -12,8 +12,6 @@
 #include "common/settings.h"
 #include "common/thread.h"
 #include "core/core.h"
-#include "core/core_timing.h"
-#include "core/hle/kernel/k_readable_event.h"
 #include "core/hle/service/nvdrv/devices/nvdisp_disp0.h"
 #include "core/hle/service/nvdrv/nvdrv.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
@@ -143,6 +141,14 @@ void NVFlinger::CloseLayer(u64 layer_id) {
     }
 }
 
+void NVFlinger::CloseSessionLayers(::pid_t pid) {
+    const auto lock_guard = Lock();
+
+    for (auto& display : displays) {
+        display.CloseSessionLayers(pid);
+    }
+}
+
 std::optional<u32> NVFlinger::FindBufferQueueId(u64 display_id, u64 layer_id, ::pid_t pid) {
     const auto lock_guard = Lock();
     const auto* const layer = FindOrCreateLayer(display_id, layer_id, pid);
@@ -249,8 +255,8 @@ void NVFlinger::Compose() {
             continue;
 
         // TODO(Subv): Support more than 1 layer.
-        VI::Layer& layer = display.GetLayer(0);
-        auto& buffer_queue = layer.GetBufferQueue();
+        std::shared_ptr<VI::Layer> layer = display.GetLayer(0);
+        auto& buffer_queue = layer->GetBufferQueue();
 
         // Search for a queued buffer and acquire it
         auto buffer = buffer_queue.AcquireBuffer();
@@ -261,7 +267,8 @@ void NVFlinger::Compose() {
 
         const auto& igbp_buffer = buffer->get().igbp_buffer;
 
-        auto& gpu = layer.GPU();
+        // gpu is kept alive by layer's shared_ptr reference
+        auto& gpu = layer->GPU();
         const auto& multi_fence = buffer->get().multi_fence;
         guard->unlock();
         for (u32 fence_id = 0; fence_id < multi_fence.num_fences; fence_id++) {

@@ -5,7 +5,6 @@
 #include <cstring>
 #include "common/common_types.h"
 #include "common/settings.h"
-#include "core/core_timing.h"
 #include "core/hle/service/hid/controllers/keyboard.h"
 
 namespace Service::HID {

@@ -4,8 +4,6 @@
 
 #include "core/core.h"
 #include "core/hle/ipc_helpers.h"
-#include "core/hle/kernel/k_process.h"
-#include "core/hle/kernel/kernel.h"
 #include "core/hle/service/pm/pm.h"
 #include "core/hle/service/service.h"
 

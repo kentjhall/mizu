@@ -25,6 +25,8 @@ class SM final : public ServiceFramework<SM> {
 public:
     explicit SM();
 
+    void CleanupSession(::pid_t req_pid) override;
+
 private:
     void Initialize(Kernel::HLERequestContext& ctx);
     void GetService(Kernel::HLERequestContext& ctx);

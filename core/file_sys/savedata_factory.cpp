@@ -9,7 +9,6 @@
 #include "core/core.h"
 #include "core/file_sys/savedata_factory.h"
 #include "core/file_sys/vfs.h"
-#include "core/hle/kernel/k_process.h"
 #include "core/hle/service/service.h"
 
 namespace FileSys {

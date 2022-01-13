@@ -16,7 +16,6 @@
 #include "common/settings.h"
 #include "common/telemetry.h"
 #include "core/core.h"
-#include "core/core_timing.h"
 #include "core/frontend/emu_window.h"
 #include "core/memory.h"
 #include "core/perf_stats.h"

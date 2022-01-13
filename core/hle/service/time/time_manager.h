@@ -30,10 +30,8 @@ class NetworkSystemClockContextWriter;
 
 class TimeManager final {
 public:
-    explicit TimeManager(Core::System& system_);
+    explicit TimeManager();
     ~TimeManager();
-
-    void Initialize();
 
     Clock::StandardSteadyClockCore& GetStandardSteadyClockCore();
 
@@ -51,8 +49,6 @@ public:
 
     const Clock::StandardUserSystemClockCore& GetStandardUserSystemClockCore() const;
 
-    TimeZone::TimeZoneContentManager& GetTimeZoneContentManager();
-
     const TimeZone::TimeZoneContentManager& GetTimeZoneContentManager() const;
 
     void UpdateLocalSystemClockTime(s64 posix_time);
@@ -63,18 +59,15 @@ public:
 
     void Shutdown();
 
-    void SetupTimeZoneManager(std::string location_name,
-                              Clock::SteadyClockTimePoint time_zone_updated_time_point,
-                              std::size_t total_location_name_count, u128 time_zone_rule_version,
-                              FileSys::VirtualFile& vfs_file);
-
     static s64 GetExternalTimeZoneOffset();
 
 private:
-    Core::System& system;
+    ;
 
     struct Impl;
     std::unique_ptr<Impl> impl;
+    // time zones can only be initialized after impl is valid
+    const TimeZone::TimeZoneContentManager time_zone_content_manager;
 };
 
 } // namespace Service::Time

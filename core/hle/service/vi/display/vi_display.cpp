@@ -9,9 +9,6 @@
 
 #include "common/assert.h"
 #include "core/core.h"
-#include "core/hle/kernel/k_event.h"
-#include "core/hle/kernel/k_readable_event.h"
-#include "core/hle/kernel/k_writable_event.h"
 #include "core/hle/service/kernel_helpers.h"
 #include "core/hle/service/vi/display/vi_display.h"
 #include "core/hle/service/vi/layer/vi_layer.h"
@@ -27,12 +24,8 @@ Display::~Display() {
     KernelHelpers::CloseEvent(vsync_event);
 }
 
-Layer& Display::GetLayer(std::size_t index) {
-    return *layers.at(index);
-}
-
-const Layer& Display::GetLayer(std::size_t index) const {
-    return *layers.at(index);
+std::shared_ptr<Layer> Display::GetLayer(std::size_t index) {
+    return layers.at(index);
 }
 
 int Display::GetVSyncEvent() const {
@@ -52,6 +45,16 @@ void Display::CreateLayer(u64 layer_id, NVFlinger::BufferQueue& buffer_queue, ::
 
 void Display::CloseLayer(u64 layer_id) {
     std::erase_if(layers, [layer_id](const auto& layer) { return layer->GetID() == layer_id; });
+}
+
+void Display::CloseSessionLayers(::pid_t pid) {
+    std::erase_if(layers, [pid](const auto& layer) {
+        if (layer->GetRequesterPid() == pid) {
+            SharedUnlocked(layer->GPU())->NotifySessionClose(); // in case waiting on WaitFence
+            return true;
+        }
+        return false;
+    });
 }
 
 Layer* Display::FindLayer(u64 layer_id) {

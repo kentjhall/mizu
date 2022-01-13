@@ -14,24 +14,24 @@ class System;
 
 namespace Service::Time::Clock {
 
-class StandardNetworkSystemClockCore final : public SystemClockCore {
+class StandardNetworkSystemClockCore final : public SystemClockCoreLocked<StandardNetworkSystemClockCore> {
 public:
     explicit StandardNetworkSystemClockCore(SteadyClockCore& steady_clock_core_)
-        : SystemClockCore{steady_clock_core_} {}
+        : SystemClockCoreLocked<StandardNetworkSystemClockCore>{steady_clock_core_} {}
 
     void SetStandardNetworkClockSufficientAccuracy(TimeSpanType value) {
         standard_network_clock_sufficient_accuracy = value;
     }
 
-    bool IsStandardNetworkSystemClockAccuracySufficient(Core::System& system) const {
+    bool IsStandardNetworkSystemClockAccuracySufficient() const {
         SystemClockContext clock_ctx{};
-        if (GetClockContext(system, clock_ctx) != ResultSuccess) {
+        if (GetClockContext(clock_ctx) != ResultSuccess) {
             return {};
         }
 
         s64 span{};
         if (clock_ctx.steady_time_point.GetSpanBetween(
-                GetSteadyClockCore().GetCurrentTimePoint(system), span) != ResultSuccess) {
+                GetSteadyClockCore().WriteLocked()->GetCurrentTimePoint(), span) != ResultSuccess) {
             return {};
         }
 

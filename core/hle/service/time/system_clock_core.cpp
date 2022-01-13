@@ -10,18 +10,18 @@ namespace Service::Time::Clock {
 
 SystemClockCore::SystemClockCore(SteadyClockCore& steady_clock_core_)
     : steady_clock_core{steady_clock_core_} {
-    context.steady_time_point.clock_source_id = steady_clock_core.GetClockSourceId();
+    context.steady_time_point.clock_source_id = steady_clock_core.ReadLocked()->GetClockSourceId();
 }
 
 SystemClockCore::~SystemClockCore() = default;
 
-ResultCode SystemClockCore::GetCurrentTime(Core::System& system, s64& posix_time) const {
+ResultCode SystemClockCore::GetCurrentTime(s64& posix_time) const {
     posix_time = 0;
 
-    const SteadyClockTimePoint current_time_point{steady_clock_core.GetCurrentTimePoint(system)};
+    const SteadyClockTimePoint current_time_point{steady_clock_core.WriteLocked()->GetCurrentTimePoint()};
 
     SystemClockContext clock_context{};
-    if (const ResultCode result{GetClockContext(system, clock_context)}; result != ResultSuccess) {
+    if (const ResultCode result{GetClockContext(clock_context)}; result != ResultSuccess) {
         return result;
     }
 
@@ -34,8 +34,8 @@ ResultCode SystemClockCore::GetCurrentTime(Core::System& system, s64& posix_time
     return ResultSuccess;
 }
 
-ResultCode SystemClockCore::SetCurrentTime(Core::System& system, s64 posix_time) {
-    const SteadyClockTimePoint current_time_point{steady_clock_core.GetCurrentTimePoint(system)};
+ResultCode SystemClockCore::SetCurrentTime(s64 posix_time) {
+    const SteadyClockTimePoint current_time_point{steady_clock_core.WriteLocked()->GetCurrentTimePoint()};
     const SystemClockContext clock_context{posix_time - current_time_point.time_point,
                                            current_time_point};
 
@@ -59,11 +59,11 @@ ResultCode SystemClockCore::SetSystemClockContext(const SystemClockContext& cloc
     return Flush(clock_context);
 }
 
-bool SystemClockCore::IsClockSetup(Core::System& system) const {
+bool SystemClockCore::IsClockSetup() const {
     SystemClockContext value{};
-    if (GetClockContext(system, value) == ResultSuccess) {
+    if (GetClockContext(value) == ResultSuccess) {
         const SteadyClockTimePoint steady_clock_time_point{
-            steady_clock_core.GetCurrentTimePoint(system)};
+            steady_clock_core.WriteLocked()->GetCurrentTimePoint()};
         return steady_clock_time_point.clock_source_id == value.steady_time_point.clock_source_id;
     }
     return {};

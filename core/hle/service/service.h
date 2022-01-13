@@ -127,7 +127,6 @@ extern Shared<APM::Controller> apm_controller;
 extern Shared<AM::Applets::AppletManager> applet_manager;
 extern Shared<NVFlinger::NVFlinger> nv_flinger;
 extern Shared<Glue::ARPManager> arp_manager;
-extern Shared<InputCommon::InputSubsystem> input_subsystem;
 extern Shared<Core::Hardware::InterruptManager> interrupt_manager;
 extern Shared<std::unordered_map<::pid_t, std::pair<size_t, Shared<Tegra::GPU>>>> gpus;
 extern const Core::Reporter reporter;
@@ -160,12 +159,11 @@ inline Shared<Tegra::GPU>& GPU(::pid_t req_pid) {
 
 inline u64 GetProcessID()
 {
-    LOG_CRITICAL(Service, "mizu TODO GetProcessID");
     pid_t pid = mizu_servctl(MIZU_SCTL_GET_PROCESS_ID);
     if (pid == -1) {
         LOG_CRITICAL(Service, "MIZU_SCTL_GET_PROCESS_ID failed: {}", ResultCode(errno).description.Value());
     }
-    return pid; // TODO TEMP
+    return pid;
 }
 
 inline u64 GetTitleID()

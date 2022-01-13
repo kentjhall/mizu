@@ -4,6 +4,7 @@
 
 #include <array>
 #include <csignal>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include "common/common_types.h"
 #include "common/logging/log.h"
@@ -12,11 +13,6 @@
 #include "core/frontend/emu_window.h"
 #include "core/frontend/input.h"
 #include "core/hle/ipc_helpers.h"
-#include "core/hle/kernel/k_readable_event.h"
-#include "core/hle/kernel/k_shared_memory.h"
-#include "core/hle/kernel/k_transfer_memory.h"
-#include "core/hle/kernel/k_writable_event.h"
-#include "core/hle/kernel/kernel.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/hle/service/hid/errors.h"
 #include "core/hle/service/hid/hid.h"
@@ -50,16 +46,21 @@ IAppletResource::IAppletResource()
     };
     RegisterHandlers(functions);
 
-    shared_mem_fd = ::memfd_create("mizu_hid", 0);
+    shared_mem_fd = ::memfd_create("mizu_hid", MFD_ALLOW_SEALING);
     if (shared_mem_fd == -1) {
         LOG_CRITICAL(Service_HID, "memfd_create failed: {}", ::strerror(errno));
     } else {
-        u8 *shared_mapping = static_cast<u8 *>(::mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE,
-                                                      MAP_SHARED, shared_mem_fd, 0));
-        if (shared_mapping == MAP_FAILED) {
-            LOG_CRITICAL(Service_HID, "mmap failed: {}", ::strerror(errno));
+        if (::ftruncate(shared_mem_fd, SHARED_MEMORY_SIZE) == -1 ||
+            ::fcntl(shared_mem_fd, F_ADD_SEALS, F_SEAL_SHRINK) == -1) {
+            LOG_CRITICAL(Service_HID, "memfd setup failed: {}", ::strerror(errno));
         } else {
-            shared_mem.reset(shared_mapping);
+            u8 *shared_mapping = static_cast<u8 *>(::mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE,
+                                                          MAP_SHARED, shared_mem_fd, 0));
+            if (shared_mapping == MAP_FAILED) {
+                LOG_CRITICAL(Service_HID, "mmap failed: {}", ::strerror(errno));
+            } else {
+                shared_mem.reset(shared_mapping);
+            }
         }
     }
 
@@ -122,6 +123,9 @@ void IAppletResource::DeactivateController(HidController controller) {
 IAppletResource::~IAppletResource() {
     KernelHelpers::CloseTimerEvent(pad_update_event);
     KernelHelpers::CloseTimerEvent(motion_update_event);
+    if (shared_mem_fd != -1) {
+        ::close(shared_mem_fd);
+    }
 }
 
 void IAppletResource::GetSharedMemoryHandle(Kernel::HLERequestContext& ctx) {

@@ -10,9 +10,8 @@
 
 namespace Service::Time {
 
-ITimeZoneService::ITimeZoneService(Core::System& system_,
-                                   TimeZone::TimeZoneContentManager& time_zone_manager_)
-    : ServiceFramework{system_, "ITimeZoneService"}, time_zone_content_manager{time_zone_manager_} {
+ITimeZoneService::ITimeZoneService(const TimeZone::TimeZoneContentManager& time_zone_manager_)
+    : ServiceFramework{"ITimeZoneService"}, time_zone_content_manager{time_zone_manager_} {
     static const FunctionInfo functions[] = {
         {0, &ITimeZoneService::GetDeviceLocationName, "GetDeviceLocationName"},
         {1, nullptr, "SetDeviceLocationName"},
@@ -157,7 +156,7 @@ void ITimeZoneService::ToPosixTimeWithMyRule(Kernel::HLERequestContext& ctx) {
     s64 posix_time{};
     if (const ResultCode result{
             time_zone_content_manager.GetTimeZoneManager().ToPosixTimeWithMyRule(calendar_time,
-                                                                                 posix_time)};
+                                                                                                posix_time)};
         result != ResultSuccess) {
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(result);

@@ -7,7 +7,6 @@
 #include "common/uuid.h"
 #include "core/core.h"
 #include "core/hle/ipc_helpers.h"
-#include "core/hle/kernel/k_event.h"
 #include "core/hle/service/friend/errors.h"
 #include "core/hle/service/friend/friend.h"
 #include "core/hle/service/friend/friend_interface.h"

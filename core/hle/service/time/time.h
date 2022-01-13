@@ -6,20 +6,18 @@
 
 #include "core/hle/service/service.h"
 #include "core/hle/service/time/clock_types.h"
-
-namespace Core {
-class System;
-}
+#include "core/hle/service/time/time_manager.h"
 
 namespace Service::Time {
 
 class Module final {
 public:
-    Module() = default;
+    Module()
+        : time_manager{} {}
 
     class Interface : public ServiceFramework<Interface> {
     public:
-        explicit Interface(std::shared_ptr<Module> module_, Core::System& system_,
+        explicit Interface(std::shared_ptr<Module> module_,
                            const char* name);
         ~Interface() override;
 
@@ -38,16 +36,18 @@ public:
 
     private:
         ResultCode GetClockSnapshotFromSystemClockContextInternal(
-            Kernel::KThread* thread, Clock::SystemClockContext user_context,
+            Clock::SystemClockContext user_context,
             Clock::SystemClockContext network_context, Clock::TimeType type,
             Clock::ClockSnapshot& cloc_snapshot);
 
     protected:
         std::shared_ptr<Module> module;
     };
+
+    TimeManager time_manager;
 };
 
 /// Registers all Time services with the specified service manager.
-void InstallInterfaces(Core::System& system);
+void InstallInterfaces();
 
 } // namespace Service::Time

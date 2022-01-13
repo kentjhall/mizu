@@ -48,6 +48,10 @@ public:
         return Service::GPU(requester_pid);
     }
 
+    ::pid_t GetRequesterPid() {
+	    return requester_pid;
+    }
+
     /// Gets a const reference to the buffer queue this layer is using.
     const NVFlinger::BufferQueue& GetBufferQueue() const {
         return buffer_queue;

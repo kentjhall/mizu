@@ -69,7 +69,7 @@
 /* #include "core/hle/service/sockets/sockets.h" */
 /* #include "core/hle/service/spl/spl_module.h" */
 /* #include "core/hle/service/ssl/ssl.h" */
-/* #include "core/hle/service/time/time.h" */
+#include "core/hle/service/time/time.h"
 /* #include "core/hle/service/usb/usb.h" */
 #include "core/hle/service/vi/vi.h"
 /* #include "core/hle/service/wlan/wlan.h" */
@@ -86,7 +86,6 @@ Shared<APM::Controller> apm_controller;
 Shared<AM::Applets::AppletManager> applet_manager;
 Shared<NVFlinger::NVFlinger> nv_flinger;
 Shared<Glue::ARPManager> arp_manager;
-Shared<InputCommon::InputSubsystem> input_subsystem;
 Shared<Core::Hardware::InterruptManager> interrupt_manager;
 Shared<std::unordered_map<::pid_t, std::pair<size_t, Shared<Tegra::GPU>>>> gpus;
 const Core::Reporter reporter;
@@ -275,7 +274,7 @@ void StartServices() {
     /* Sockets::InstallInterfaces(*sm, system); */
     /* SPL::InstallInterfaces(*sm, system); */
     /* SSL::InstallInterfaces(*sm, system); */
-    /* Time::InstallInterfaces(system); */
+    Time::InstallInterfaces();
     /* USB::InstallInterfaces(*sm, system); */
     VI::InstallInterfaces();
     /* WLAN::InstallInterfaces(*sm, system); */
@@ -297,6 +296,8 @@ void StartServices() {
         }
 	if (cmdptr == 0) {
                 auto it = FindSessionManager(session_id);
+                char name[20];
+                pthread_getname_np(pthread_self(), name, sizeof(name));
                 if (it == session_managers.end()) {
                     LOG_WARNING(Service,
                                 "Unexpected session ID from MIZU_SCTL_GET_CMD close request: {}",

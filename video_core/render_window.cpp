@@ -30,7 +30,6 @@
 #include "common/settings.h"
 #include "core/core.h"
 #include "core/frontend/framebuffer_layout.h"
-#include "core/hle/kernel/k_process.h"
 #include "input_common/keyboard.h"
 #include "input_common/main.h"
 #include "input_common/mouse/mouse_input.h"
@@ -206,7 +205,12 @@ GRenderWindow::GRenderWindow(Tegra::GPU& gpu_)
     setLayout(layout);
     input_subsystem.Initialize();
 
+    InitRenderTarget();
+
+    this->resize(1600, 900);
     this->setMouseTracking(true);
+    this->setFocus();
+    this->show();
 }
 
 void GRenderWindow::ExecuteProgram(std::size_t program_index) {
@@ -603,14 +607,14 @@ bool GRenderWindow::LoadOpenGL() {
     const QString renderer =
         QString::fromUtf8(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
 
-    if (!GLAD_GL_VERSION_4_6) {
-        LOG_ERROR(Frontend, "GPU does not support OpenGL 4.6: {}", renderer.toStdString());
-        QMessageBox::warning(this, tr("Error while initializing OpenGL 4.6!"),
-                             tr("Your GPU may not support OpenGL 4.6, or you do not have the "
-                                "latest graphics driver.<br><br>GL Renderer:<br>%1")
-                                 .arg(renderer));
-        return false;
-    }
+    /* if (!GLAD_GL_VERSION_4_6) { */
+    /*     LOG_ERROR(Frontend, "GPU does not support OpenGL 4.6: {}", renderer.toStdString()); */
+    /*     QMessageBox::warning(this, tr("Error while initializing OpenGL 4.6!"), */
+    /*                          tr("Your GPU may not support OpenGL 4.6, or you do not have the " */
+    /*                             "latest graphics driver.<br><br>GL Renderer:<br>%1") */
+    /*                              .arg(renderer)); */
+    /*     return false; */
+    /* } */
 
     QStringList unsupported_gl_extensions = GetUnsupportedGLExtensions();
     if (!unsupported_gl_extensions.empty()) {

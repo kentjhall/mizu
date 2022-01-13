@@ -4,7 +4,6 @@
 
 #include <csignal>
 #include "core/core.h"
-#include "core/core_timing.h"
 #include "core/hardware_interrupt_manager.h"
 #include "core/hle/service/kernel_helpers.h"
 #include "core/hle/service/nvdrv/nvdrv_interface.h"

@@ -9,10 +9,6 @@
 
 #include "core/hle/service/time/clock_types.h"
 
-namespace Kernel {
-class KWritableEvent;
-}
-
 namespace Service::Time::Clock {
 
 // Parts of this implementation were based on Ryujinx (https://github.com/Ryujinx/Ryujinx/pull/783).
@@ -25,7 +21,7 @@ public:
 
     bool NeedUpdate(const SystemClockContext& value) const;
 
-    void RegisterOperationEvent(std::shared_ptr<Kernel::KWritableEvent>&& writable_event);
+    void RegisterOperationEvent(int writable_event);
 
     void BroadcastOperationEvent();
 
@@ -38,7 +34,7 @@ protected:
 
 private:
     bool has_context{};
-    std::vector<std::shared_ptr<Kernel::KWritableEvent>> operation_event_list;
+    std::vector<int> operation_event_list;
 };
 
 } // namespace Service::Time::Clock

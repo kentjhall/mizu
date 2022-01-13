@@ -17,7 +17,6 @@ namespace Core {
 namespace Frontend {
 class EmuWindow;
 }
-class System;
 } // namespace Core
 
 namespace VideoCore {
@@ -214,6 +213,8 @@ public:
     void WaitFence(u32 syncpoint_id, u32 value);
 
     void IncrementSyncPoint(u32 syncpoint_id);
+
+    void NotifySessionClose();
 
     [[nodiscard]] u32 GetSyncpointValue(u32 syncpoint_id) const;
 

@@ -17,7 +17,6 @@
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/hle_ipc.h"
 #include "core/hle/kernel/svc_results.h"
-#include "core/hle/kernel/time_manager.h"
 
 namespace Kernel {
 

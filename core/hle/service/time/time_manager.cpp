@@ -28,29 +28,28 @@ s64 GetExternalRtcValue() {
 } // Anonymous namespace
 
 struct TimeManager::Impl final {
-    explicit Impl(Core::System& system)
-        : shared_memory{system}, standard_local_system_clock_core{standard_steady_clock_core},
+    explicit Impl()
+        : shared_memory{}, standard_local_system_clock_core{standard_steady_clock_core},
           standard_network_system_clock_core{standard_steady_clock_core},
           standard_user_system_clock_core{standard_local_system_clock_core,
-                                          standard_network_system_clock_core, system},
+                                          standard_network_system_clock_core},
           ephemeral_network_system_clock_core{tick_based_steady_clock_core},
           local_system_clock_context_writer{
               std::make_shared<Clock::LocalSystemClockContextWriter>(shared_memory)},
           network_system_clock_context_writer{
               std::make_shared<Clock::NetworkSystemClockContextWriter>(shared_memory)},
           ephemeral_network_system_clock_context_writer{
-              std::make_shared<Clock::EphemeralNetworkSystemClockContextWriter>()},
-          time_zone_content_manager{system} {
+              std::make_shared<Clock::EphemeralNetworkSystemClockContextWriter>()} {
 
         const auto system_time{Clock::TimeSpanType::FromSeconds(GetExternalRtcValue())};
-        SetupStandardSteadyClock(system, Common::UUID::Generate(), system_time, {}, {});
-        SetupStandardLocalSystemClock(system, {}, system_time.ToSeconds());
+        SetupStandardSteadyClock(Common::UUID::Generate(), system_time, {}, {});
+        SetupStandardLocalSystemClock({}, system_time.ToSeconds());
 
         Clock::SystemClockContext clock_context{};
-        standard_local_system_clock_core.GetClockContext(system, clock_context);
+        standard_local_system_clock_core.GetClockContext(clock_context);
 
         SetupStandardNetworkSystemClock(clock_context, standard_network_clock_accuracy);
-        SetupStandardUserSystemClock(system, {}, Clock::SteadyClockTimePoint::GetRandom());
+        SetupStandardUserSystemClock({}, Clock::SteadyClockTimePoint::GetRandom());
         SetupEphemeralNetworkSystemClock();
     }
 
@@ -88,38 +87,12 @@ struct TimeManager::Impl final {
         return standard_user_system_clock_core;
     }
 
-    TimeZone::TimeZoneContentManager& GetTimeZoneContentManager() {
-        return time_zone_content_manager;
-    }
-
-    const TimeZone::TimeZoneContentManager& GetTimeZoneContentManager() const {
-        return time_zone_content_manager;
-    }
-
     SharedMemory& GetSharedMemory() {
         return shared_memory;
     }
 
     const SharedMemory& GetSharedMemory() const {
         return shared_memory;
-    }
-
-    void SetupTimeZoneManager(std::string location_name,
-                              Clock::SteadyClockTimePoint time_zone_updated_time_point,
-                              std::size_t total_location_name_count, u128 time_zone_rule_version,
-                              FileSys::VirtualFile& vfs_file) {
-        if (time_zone_content_manager.GetTimeZoneManager().SetDeviceLocationNameWithTimeZoneRule(
-                location_name, vfs_file) != ResultSuccess) {
-            UNREACHABLE();
-            return;
-        }
-
-        time_zone_content_manager.GetTimeZoneManager().SetUpdatedTime(time_zone_updated_time_point);
-        time_zone_content_manager.GetTimeZoneManager().SetTotalLocationNameCount(
-            total_location_name_count);
-        time_zone_content_manager.GetTimeZoneManager().SetTimeZoneRuleVersion(
-            time_zone_rule_version);
-        time_zone_content_manager.GetTimeZoneManager().MarkAsInitialized();
     }
 
     static s64 GetExternalTimeZoneOffset() {
@@ -130,7 +103,7 @@ struct TimeManager::Impl final {
         return 0;
     }
 
-    void SetupStandardSteadyClock(Core::System& system_, Common::UUID clock_source_id,
+    void SetupStandardSteadyClock(Common::UUID clock_source_id,
                                   Clock::TimeSpanType setup_value,
                                   Clock::TimeSpanType internal_offset, bool is_rtc_reset_detected) {
         standard_steady_clock_core.SetClockSourceId(clock_source_id);
@@ -138,21 +111,20 @@ struct TimeManager::Impl final {
         standard_steady_clock_core.SetInternalOffset(internal_offset);
         standard_steady_clock_core.MarkAsInitialized();
 
-        const auto current_time_point{standard_steady_clock_core.GetCurrentRawTimePoint(system_)};
+        const auto current_time_point{standard_steady_clock_core.GetCurrentRawTimePoint()};
         shared_memory.SetupStandardSteadyClock(clock_source_id, current_time_point);
     }
 
-    void SetupStandardLocalSystemClock(Core::System& system_,
-                                       Clock::SystemClockContext clock_context, s64 posix_time) {
+    void SetupStandardLocalSystemClock(Clock::SystemClockContext clock_context, s64 posix_time) {
         standard_local_system_clock_core.SetUpdateCallbackInstance(
             local_system_clock_context_writer);
 
         const auto current_time_point{
-            standard_local_system_clock_core.GetSteadyClockCore().GetCurrentTimePoint(system_)};
+            standard_local_system_clock_core.GetSteadyClockCore().WriteLocked()->GetCurrentTimePoint()};
         if (current_time_point.clock_source_id == clock_context.steady_time_point.clock_source_id) {
             standard_local_system_clock_core.SetSystemClockContext(clock_context);
         } else {
-            if (standard_local_system_clock_core.SetCurrentTime(system_, posix_time) !=
+            if (standard_local_system_clock_core.SetCurrentTime(posix_time) !=
                 ResultSuccess) {
                 UNREACHABLE();
                 return;
@@ -178,10 +150,10 @@ struct TimeManager::Impl final {
         standard_network_system_clock_core.MarkAsInitialized();
     }
 
-    void SetupStandardUserSystemClock(Core::System& system_, bool is_automatic_correction_enabled,
+    void SetupStandardUserSystemClock(bool is_automatic_correction_enabled,
                                       Clock::SteadyClockTimePoint steady_clock_time_point) {
         if (standard_user_system_clock_core.SetAutomaticCorrectionEnabled(
-                system_, is_automatic_correction_enabled) != ResultSuccess) {
+                is_automatic_correction_enabled) != ResultSuccess) {
             UNREACHABLE();
             return;
         }
@@ -197,10 +169,10 @@ struct TimeManager::Impl final {
         ephemeral_network_system_clock_core.MarkAsInitialized();
     }
 
-    void UpdateLocalSystemClockTime(Core::System& system_, s64 posix_time) {
+    void UpdateLocalSystemClockTime(s64 posix_time) {
         const auto timespan{Clock::TimeSpanType::FromSeconds(posix_time)};
         if (GetStandardLocalSystemClockCore()
-                .SetCurrentTime(system_, timespan.ToSeconds())
+                .SetCurrentTime(timespan.ToSeconds())
                 .IsError()) {
             UNREACHABLE();
             return;
@@ -220,20 +192,12 @@ struct TimeManager::Impl final {
     std::shared_ptr<Clock::NetworkSystemClockContextWriter> network_system_clock_context_writer;
     std::shared_ptr<Clock::EphemeralNetworkSystemClockContextWriter>
         ephemeral_network_system_clock_context_writer;
-
-    TimeZone::TimeZoneContentManager time_zone_content_manager;
 };
 
-TimeManager::TimeManager(Core::System& system_) : system{system_} {}
+TimeManager::TimeManager()
+    : impl{new Impl}, time_zone_content_manager(*this) {}
 
 TimeManager::~TimeManager() = default;
-
-void TimeManager::Initialize() {
-    impl = std::make_unique<Impl>(system);
-
-    // Time zones can only be initialized after impl is valid
-    impl->time_zone_content_manager.Initialize(*this);
-}
 
 Clock::StandardSteadyClockCore& TimeManager::GetStandardSteadyClockCore() {
     return impl->standard_steady_clock_core;
@@ -268,12 +232,8 @@ const Clock::StandardUserSystemClockCore& TimeManager::GetStandardUserSystemCloc
     return impl->standard_user_system_clock_core;
 }
 
-TimeZone::TimeZoneContentManager& TimeManager::GetTimeZoneContentManager() {
-    return impl->time_zone_content_manager;
-}
-
 const TimeZone::TimeZoneContentManager& TimeManager::GetTimeZoneContentManager() const {
-    return impl->time_zone_content_manager;
+    return time_zone_content_manager;
 }
 
 SharedMemory& TimeManager::GetSharedMemory() {
@@ -289,16 +249,7 @@ void TimeManager::Shutdown() {
 }
 
 void TimeManager::UpdateLocalSystemClockTime(s64 posix_time) {
-    impl->UpdateLocalSystemClockTime(system, posix_time);
-}
-
-void TimeManager::SetupTimeZoneManager(std::string location_name,
-                                       Clock::SteadyClockTimePoint time_zone_updated_time_point,
-                                       std::size_t total_location_name_count,
-                                       u128 time_zone_rule_version,
-                                       FileSys::VirtualFile& vfs_file) {
-    impl->SetupTimeZoneManager(location_name, time_zone_updated_time_point,
-                               total_location_name_count, time_zone_rule_version, vfs_file);
+    impl->UpdateLocalSystemClockTime(posix_time);
 }
 
 /*static*/ s64 TimeManager::GetExternalTimeZoneOffset() {

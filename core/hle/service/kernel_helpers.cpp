@@ -4,16 +4,13 @@
 
 #include <chrono>
 #include <ctime>
+#include <cstring>
+#include <unistd.h>
 #include <pthread.h>
 #include <sys/eventfd.h>
 #include "common/thread.h"
+#include "common/logging/log.h"
 #include "core/core.h"
-#include "core/hle/kernel/k_event.h"
-#include "core/hle/kernel/k_process.h"
-#include "core/hle/kernel/k_readable_event.h"
-#include "core/hle/kernel/k_resource_limit.h"
-#include "core/hle/kernel/k_scoped_resource_reservation.h"
-#include "core/hle/kernel/k_writable_event.h"
 #include "core/hle/service/kernel_helpers.h"
 
 namespace Service::KernelHelpers {
@@ -52,6 +49,7 @@ void ClearEvent(int efd) {
     sev.sigev_notify = SIGEV_THREAD;
     sev.sigev_value = { .sival_ptr = val };
     sev.sigev_notify_function = cb;
+    sev.sigev_notify_attributes = NULL;
     ::timer_t timerid;
     if (::timer_create(CLOCK_MONOTONIC, &sev, &timerid) == -1) {
         LOG_CRITICAL(Service, "timer_create failed: %s", ::strerror(errno));
