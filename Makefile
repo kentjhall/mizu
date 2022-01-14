@@ -39,7 +39,7 @@ subdirs := common common/fs common/logging config \
 	   $(shell find video_core -type d) $(shell find shader_recompiler -type d) \
 	   input_common $(shell find input_common -type d)  \
 	   core/hle/service $(shell find $(addprefix core/hle/service/,$(services)) -type d)
-sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs))) video_core/render_window.moc.cpp
+sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs)))
 headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/host_shaders/,$(shader_headers)) \
 	   mizu_servctl.h
 objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
@@ -48,9 +48,6 @@ mizu_service_pack: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(objects): $(headers)
-
-video_core/render_window.moc.cpp: video_core/render_window.h
-	moc $< -o $@
 
 video_core/host_shaders/%_comp.h: video_core/host_shaders/%.comp video_core/host_shaders/source_shader.h.in
 	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
@@ -77,7 +74,6 @@ ld_err.txt: $(objects)
 clean:
 	rm -f mizu_service_pack
 	find . -name '*.o' -exec rm {} \;
-	find video_core -name '*.moc.cpp' -exec rm {} \;
 	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;
 	find video_core/host_shaders -name '*_frag.h' -exec rm {} \;
 	find video_core/host_shaders -name '*_vert.h' -exec rm {} \;

@@ -36,17 +36,23 @@ static void RunThread(std::stop_token stop_token, Tegra::GPU& gpu,
             break;
         }
         if (auto* submit_list = std::get_if<SubmitListCommand>(&next.data)) {
+            ::fprintf(stderr, "GPU command DMA push\n");
             dma_pusher.Push(std::move(submit_list->entries));
             dma_pusher.DispatchCalls();
         } else if (const auto* data = std::get_if<SwapBuffersCommand>(&next.data)) {
+            ::fprintf(stderr, "GPU command SwapBuffers\n");
             renderer.SwapBuffers(data->framebuffer ? &*data->framebuffer : nullptr);
         } else if (std::holds_alternative<OnCommandListEndCommand>(next.data)) {
+            ::fprintf(stderr, "GPU command ReleaseFences\n");
             rasterizer->ReleaseFences();
         } else if (std::holds_alternative<GPUTickCommand>(next.data)) {
+            ::fprintf(stderr, "GPU command TickWork\n");
             gpu.TickWork();
         } else if (const auto* flush = std::get_if<FlushRegionCommand>(&next.data)) {
+            ::fprintf(stderr, "GPU command Flush Region\n");
             rasterizer->FlushRegion(flush->addr, flush->size);
         } else if (const auto* invalidate = std::get_if<InvalidateRegionCommand>(&next.data)) {
+            ::fprintf(stderr, "GPU command ONCPUWrite\n");
             rasterizer->OnCPUWrite(invalidate->addr, invalidate->size);
         } else {
             UNREACHABLE();

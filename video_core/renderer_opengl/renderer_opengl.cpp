@@ -127,10 +127,10 @@ void APIENTRY DebugHandler(GLenum source, GLenum type, GLuint id, GLenum severit
 
 RendererOpenGL::RendererOpenGL(Tegra::GPU& gpu_,
                                std::unique_ptr<Core::Frontend::GraphicsContext> context_)
-    : RendererBase{gpu_.RenderWindow(), std::move(context_)}, telemetry_session{gpu_.TelemetrySession()},
-      emu_window{gpu_.RenderWindow()}, gpu{gpu_}, state_tracker{gpu},
+    : RendererBase{gpu_.EmuWindow(), std::move(context_)}, telemetry_session{gpu_.TelemetrySession()},
+      emu_window{gpu_.EmuWindow()}, gpu{gpu_}, state_tracker{gpu},
       program_manager{device},
-      rasterizer(gpu_.RenderWindow(), gpu, device, screen_info, program_manager, state_tracker) {
+      rasterizer(gpu_.EmuWindow(), gpu, device, screen_info, program_manager, state_tracker) {
     if (Settings::values.renderer_debug && GLAD_GL_KHR_debug) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -166,6 +166,12 @@ void RendererOpenGL::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
     if (!framebuffer) {
         return;
     }
+    ::fprintf(stderr, "renderer SwapBuffers!\n");
+    /* glClearColor(1.0f, 0.0f, 0.0f, 1.f); */
+  /* glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); */
+    /* context->SwapBuffers(); */
+    /* ::fprintf(stderr, "did a swap, error?: %d\n", glGetError()); */
+    /* return; */
     PrepareRendertarget(framebuffer);
     RenderScreenshot();
 
@@ -221,9 +227,9 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
     const u64 size_in_bytes{Tegra::Texture::CalculateSize(
         true, bytes_per_pixel, framebuffer.stride, framebuffer.height, 1, block_height_log2, 0)};
     u8 host_data[size_in_bytes];
-    if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)framebuffer_addr, (long)(u8 *)host_data, size_in_bytes) == -1) {
+    if (mizu_servctl(MIZU_SCTL_READ_BUFFER_FROM, (long)framebuffer_addr, (long)(u8 *)host_data, size_in_bytes, gpu.SessionPid()) == -1) {
         LOG_CRITICAL(Render_OpenGL,
-                     "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
+                     "MIZU_SCTL_READ_BUFFER_FROM failed: {}", ResultCode(errno).description.Value());
         return;
     }
     const std::span<const u8> input_data(host_data, size_in_bytes);
@@ -331,6 +337,7 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
 }
 
 void RendererOpenGL::DrawScreen(const Layout::FramebufferLayout& layout) {
+    ::fprintf(stderr, "DrawScreen width=%d, height=%d\n", layout.width, layout.height);
     // Update background color before drawing
     glClearColor(Settings::values.bg_red.GetValue() / 255.0f,
                  Settings::values.bg_green.GetValue() / 255.0f,

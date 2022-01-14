@@ -31,14 +31,15 @@
 #include "video_core/memory_manager.h"
 #include "video_core/renderer_base.h"
 #include "video_core/shader_notify.h"
-#include "video_core/render_window.h"
+#include "video_core/emu_window/emu_window_sdl2_gl.h"
+#include "video_core/emu_window/emu_window_sdl2_vk.h"
 
 namespace Tegra {
 
 MICROPROFILE_DEFINE(GPU_wait, "GPU", "Wait for the GPU", MP_RGB(128, 128, 192));
 
 struct GPU::Impl {
-    explicit Impl(GPU& gpu_, bool is_async_, bool use_nvdec_)
+    explicit Impl(GPU& gpu_, bool is_async_, bool use_nvdec_, ::pid_t session_pid_)
         : gpu{gpu_}, memory_manager{std::make_unique<Tegra::MemoryManager>()},
           dma_pusher{std::make_unique<Tegra::DmaPusher>(gpu)}, use_nvdec{use_nvdec_},
           maxwell_3d{std::make_unique<Engines::Maxwell3D>(gpu_, *memory_manager)},
@@ -47,7 +48,16 @@ struct GPU::Impl {
           maxwell_dma{std::make_unique<Engines::MaxwellDMA>(*memory_manager)},
           kepler_memory{std::make_unique<Engines::KeplerMemory>(*memory_manager)},
           shader_notify{std::make_unique<VideoCore::ShaderNotify>()}, is_async{is_async_},
-          gpu_thread{gpu_, is_async_}, perf_stats{Service::GetTitleID()}, render_window{gpu_} {}
+          gpu_thread{gpu_, is_async_}, perf_stats{Service::GetTitleID()}, session_pid{session_pid_} {
+        switch (Settings::values.renderer_backend.GetValue()) {
+        case Settings::RendererBackend::OpenGL:
+            emu_window = std::make_unique<EmuWindow_SDL2_GL>(gpu_, true); // mizu TEMP always fullscreen
+            break;
+        case Settings::RendererBackend::Vulkan:
+            emu_window = std::make_unique<EmuWindow_SDL2_VK>(gpu_, true);
+            break;
+        }
+    }
 
     ~Impl() = default;
 
@@ -324,8 +334,7 @@ struct GPU::Impl {
     /// core timing events.
     void Start() {
         gpu_thread.StartThread(*renderer, renderer->Context(), *dma_pusher);
-        cpu_context = renderer->GetRenderWindow().CreateSharedContext();
-        cpu_context->MakeCurrent();
+        cpu_context = renderer->GetEmuWindow().CreateSharedContext();
     }
 
     /// Obtain the CPU Context
@@ -716,7 +725,9 @@ struct GPU::Impl {
     Core::PerfStats perf_stats;
     Core::SpeedLimiter speed_limiter;
 
-    GRenderWindow render_window;
+    std::unique_ptr<EmuWindow_SDL2> emu_window;
+
+    ::pid_t session_pid;
 
 #define ASSERT_REG_POSITION(field_name, position)                                                  \
     static_assert(offsetof(Regs, field_name) == position * 4,                                      \
@@ -747,22 +758,15 @@ struct GPU::Impl {
     };
 };
 
-GPU::GPU(bool is_async, bool use_nvdec)
-    : impl{std::make_unique<Impl>(*this, is_async, use_nvdec)} {
+GPU::GPU(bool is_async, bool use_nvdec, ::pid_t session_pid)
+    : impl{std::make_unique<Impl>(*this, is_async, use_nvdec, session_pid)} {
     impl->telemetry_session.AddInitialInfo();
     // Reset counters and set time origin to current frame
     impl->perf_stats.GetAndResetStats(Service::GetGlobalTimeUs());
     impl->perf_stats.BeginSystemFrame();
 }
 
-GPU::GPU(GPU&& gpu)
-    : impl{std::move(gpu.impl)} {}
-
 GPU::~GPU() {
-    if (!impl) {
-        return;
-    }
-
     const auto perf_results = impl->perf_stats.GetAndResetStats(Service::GetGlobalTimeUs());
     constexpr auto performance = Common::Telemetry::FieldType::Performance;
 
@@ -973,12 +977,16 @@ const Core::SpeedLimiter& GPU::SpeedLimiter() const {
     return impl->speed_limiter;
 };
 
-Core::Frontend::EmuWindow& GPU::RenderWindow() {
-    return impl->render_window;
+EmuWindow_SDL2& GPU::EmuWindow() {
+    return *impl->emu_window;
 }
 
-const Core::Frontend::EmuWindow& GPU::RenderWindow() const {
-    return impl->render_window;
+const EmuWindow_SDL2& GPU::EmuWindow() const {
+    return *impl->emu_window;
+}
+
+::pid_t GPU::SessionPid() const {
+    return impl->session_pid;
 }
 
 } // namespace Tegra

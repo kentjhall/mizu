@@ -87,7 +87,7 @@ Shared<AM::Applets::AppletManager> applet_manager;
 Shared<NVFlinger::NVFlinger> nv_flinger;
 Shared<Glue::ARPManager> arp_manager;
 Shared<Core::Hardware::InterruptManager> interrupt_manager;
-Shared<std::unordered_map<::pid_t, std::pair<size_t, Shared<Tegra::GPU>>>> gpus;
+Shared<std::unordered_map<::pid_t, SharedGPU>> gpus;
 const Core::Reporter reporter;
 
 thread_local std::unordered_set<std::shared_ptr<Kernel::SessionRequestManager>> session_managers;
@@ -289,7 +289,7 @@ void StartServices() {
         long cmdptr = mizu_servctl(MIZU_SCTL_GET_CMD, &session_id);
         if (cmdptr == -1) {
             ResultCode rc(errno);
-            if (rc == Kernel::ResultTerminationRequested) // this means EINTR
+            if (rc == Kernel::ResultCancelled) // this means EINTR
                 continue;
             LOG_CRITICAL(Service, "Unexpected error on MIZU_SCTL_GET_CMD: {}", rc.description.Value());
 	    ::exit(1);

@@ -25,8 +25,8 @@ namespace VideoCore {
 
 class RendererBase;
 
-/// Creates an emulated GPU instance
-Service::Shared<Tegra::GPU> CreateGPU();
+std::unique_ptr<VideoCore::RendererBase> CreateRenderer(
+    Tegra::GPU& gpu, std::unique_ptr<Core::Frontend::GraphicsContext> context);
 
 u16 GetResolutionScaleFactor(const RendererBase& renderer);
 

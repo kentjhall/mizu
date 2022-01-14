@@ -14,6 +14,7 @@
 #include <boost/container/flat_map.hpp>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include "common/settings.h"
 #include "common/common_types.h"
 #include "common/spin_lock.h"
 #include "video_core/gpu.h"
@@ -128,16 +129,40 @@ extern Shared<AM::Applets::AppletManager> applet_manager;
 extern Shared<NVFlinger::NVFlinger> nv_flinger;
 extern Shared<Glue::ARPManager> arp_manager;
 extern Shared<Core::Hardware::InterruptManager> interrupt_manager;
-extern Shared<std::unordered_map<::pid_t, std::pair<size_t, Shared<Tegra::GPU>>>> gpus;
 extern const Core::Reporter reporter;
+
+struct SharedGPU {
+    size_t refcount;
+    Shared<Tegra::GPU> gpu;
+
+    template <typename... Args>
+    SharedGPU(Args&&... args)
+        : gpu(std::forward<Args>(args)...), refcount(1) {}
+};
+extern Shared<std::unordered_map<::pid_t, SharedGPU>> gpus;
 
 inline void GrabGPU(::pid_t req_pid) {
     SharedWriter gpus_locked(gpus);
     auto it = gpus_locked->find(req_pid);
     if (it == gpus_locked->end()) {
-        gpus_locked->emplace(req_pid, std::make_pair(1, VideoCore::CreateGPU()));
+        // create new GPU instance
+        const auto nvdec_value = Settings::values.nvdec_emulation.GetValue();
+        const bool use_nvdec = nvdec_value != Settings::NvdecEmulation::Off;
+        const bool use_async = Settings::values.use_asynchronous_gpu_emulation.GetValue();
+        it = gpus_locked->emplace(std::piecewise_construct,
+                                  std::forward_as_tuple(req_pid),
+				  std::forward_as_tuple(use_async, use_nvdec, req_pid)).first;
+	auto& gpu = *SharedUnlocked(it->second.gpu);
+        auto context = gpu.EmuWindow().CreateSharedContext();
+        try {
+            auto renderer = VideoCore::CreateRenderer(gpu, std::move(context));
+            gpu.BindRenderer(std::move(renderer));
+            gpu.Start();
+        } catch (const std::runtime_error& exception) {
+            LOG_ERROR(HW_GPU, "Failed to initialize GPU: {}", exception.what());
+        }
     } else {
-        ++it->second.first; // increment ref count
+        ++it->second.refcount;
     }
 }
 
@@ -148,13 +173,13 @@ inline void PutGPU(::pid_t req_pid) {
         LOG_ERROR(Service_NVDRV, "PutGPU on non-existent or already-erased entry at {}", req_pid);
         return;
     }
-    if (--it->second.first == 0) {
+    if (--it->second.refcount == 0) {
         gpus_locked->erase(it);
     }
 }
 
 inline Shared<Tegra::GPU>& GPU(::pid_t req_pid) {
-    return const_cast<Service::Shared<Tegra::GPU>&>(SharedReader(gpus)->at(req_pid).second);
+    return const_cast<Service::Shared<Tegra::GPU>&>(SharedReader(gpus)->at(req_pid).gpu);
 }
 
 inline u64 GetProcessID()

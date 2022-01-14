@@ -12,6 +12,7 @@
 #include "core/perf_stats.h"
 #include "video_core/cdma_pusher.h"
 #include "video_core/framebuffer_config.h"
+#include "video_core/emu_window/emu_window_sdl2.h"
 
 namespace Core {
 namespace Frontend {
@@ -137,8 +138,7 @@ public:
         BitField<8, 24, u32> syncpoint_id;
     };
 
-    explicit GPU(bool is_async, bool use_nvdec);
-    GPU(GPU&& gpu);
+    explicit GPU(bool is_async, bool use_nvdec, ::pid_t session_pid);
     ~GPU();
 
     /// Binds a renderer to the GPU.
@@ -274,9 +274,11 @@ public:
 
     const Core::TelemetrySession& TelemetrySession() const;
 
-    Core::Frontend::EmuWindow& RenderWindow();
+    EmuWindow_SDL2& EmuWindow();
 
-    const Core::Frontend::EmuWindow& RenderWindow() const;
+    const EmuWindow_SDL2& EmuWindow() const;
+
+    ::pid_t SessionPid() const;
 
 private:
     struct Impl;

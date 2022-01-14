@@ -60,11 +60,11 @@ public:
         return *context;
     }
 
-    [[nodiscard]] Core::Frontend::EmuWindow& GetRenderWindow() {
+    [[nodiscard]] Core::Frontend::EmuWindow& GetEmuWindow() {
         return render_window;
     }
 
-    [[nodiscard]] const Core::Frontend::EmuWindow& GetRenderWindow() const {
+    [[nodiscard]] const Core::Frontend::EmuWindow& GetEmuWindow() const {
         return render_window;
     }
 

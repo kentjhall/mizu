@@ -218,7 +218,7 @@ MemoryManager::Pointer MemoryManager::GetPointer(GPUVAddr gpu_addr) {
         return {};
     }
 
-    LOG_WARNING(HW_GPU, "mizu TODO implement GetPointer with shared mapping");
+    LOG_CRITICAL(HW_GPU, "mizu TODO implement GetPointer with shared mapping");
     u8 *buf = new u8[PAGE_SIZE];
     if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)*address, (long)buf, PAGE_SIZE) == -1) {
         LOG_CRITICAL(HW_GPU, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
@@ -239,7 +239,7 @@ MemoryManager::ConstPointer MemoryManager::GetPointer(GPUVAddr gpu_addr) const {
         return {};
     }
 
-    LOG_WARNING(HW_GPU, "mizu TODO implement GetPointer with shared mapping");
+    LOG_CRITICAL(HW_GPU, "mizu TODO implement GetPointer with shared mapping");
     u8 *buf = new u8[PAGE_SIZE];
     if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)*address, (long)buf, PAGE_SIZE) == -1) {
         LOG_CRITICAL(HW_GPU, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
