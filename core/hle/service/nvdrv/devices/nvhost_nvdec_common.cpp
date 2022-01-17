@@ -90,10 +90,8 @@ NvResult nvhost_nvdec_common::Submit(const std::vector<u8>& input, std::vector<u
         const auto object = nvmap_dev->ReadLocked()->GetObject(cmd_buffer.memory_id);
         ASSERT_OR_EXECUTE(object, return NvResult::InvalidState;);
         Tegra::ChCommandHeaderList cmdlist(cmd_buffer.word_count);
-        if (mizu_servctl(MIZU_SCTL_READ_BUFFER, object->addr + cmd_buffer.offset,
-                                                cmdlist.data(), cmdlist.size() * sizeof(u32)) == -1) {
-            LOG_CRITICAL(Service_NVDRV, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
-        }
+        mizu_servctl_read_buffer(object->addr + cmd_buffer.offset,
+                                 cmdlist.data(), cmdlist.size() * sizeof(u32));
         SharedWriter(gpu)->PushCommandBuffer(cmdlist);
     }
     std::memcpy(output.data(), &params, sizeof(IoctlSubmit));
