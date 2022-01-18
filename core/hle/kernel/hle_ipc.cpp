@@ -212,21 +212,15 @@ std::vector<u8> HLERequestContext::ReadBuffer(std::size_t buffer_index) const {
             BufferDescriptorA().size() > buffer_index, { return buffer; },
             "BufferDescriptorA invalid buffer_index {}", buffer_index);
         buffer.resize(BufferDescriptorA()[buffer_index].Size());
-        if (mizu_servctl(MIZU_SCTL_READ_BUFFER,
-                         (unsigned long)BufferDescriptorA()[buffer_index].Address(),
-                         (unsigned long)buffer.data(), buffer.size()) == -1) {
-            LOG_CRITICAL(Core, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
-        }
+        mizu_servctl_read_buffer(BufferDescriptorA()[buffer_index].Address(),
+                                 buffer.data(), buffer.size());
     } else {
         ASSERT_OR_EXECUTE_MSG(
             BufferDescriptorX().size() > buffer_index, { return buffer; },
             "BufferDescriptorX invalid buffer_index {}", buffer_index);
         buffer.resize(BufferDescriptorX()[buffer_index].Size());
-        if (mizu_servctl(MIZU_SCTL_READ_BUFFER,
-                         (unsigned long)BufferDescriptorX()[buffer_index].Address(),
-                         (unsigned long)buffer.data(), buffer.size()) == -1) {
-            LOG_CRITICAL(Core, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
-        }
+        mizu_servctl_read_buffer(BufferDescriptorX()[buffer_index].Address(),
+                                 buffer.data(), buffer.size());
     }
 
     return buffer;
@@ -253,19 +247,13 @@ std::size_t HLERequestContext::WriteBuffer(const void* buffer, std::size_t size,
             BufferDescriptorB().size() > buffer_index &&
                 BufferDescriptorB()[buffer_index].Size() >= size,
             { return 0; }, "BufferDescriptorB is invalid, index={}, size={}", buffer_index, size);
-        if (mizu_servctl(MIZU_SCTL_WRITE_BUFFER,
-                         (unsigned long)BufferDescriptorB()[buffer_index].Address(),
-                         (unsigned long)buffer, size) == -1)
-            LOG_CRITICAL(Core, "MIZU_SCTL_WRITE_BUFFER failed: {}", ResultCode(errno).description.Value());
+        mizu_servctl_write_buffer(BufferDescriptorB()[buffer_index].Address(), buffer, size);
     } else {
         ASSERT_OR_EXECUTE_MSG(
             BufferDescriptorC().size() > buffer_index &&
                 BufferDescriptorC()[buffer_index].Size() >= size,
             { return 0; }, "BufferDescriptorC is invalid, index={}, size={}", buffer_index, size);
-        if (mizu_servctl(MIZU_SCTL_WRITE_BUFFER,
-                         (unsigned long)BufferDescriptorC()[buffer_index].Address(),
-                         (unsigned long)buffer, size) == -1)
-            LOG_CRITICAL(Core, "MIZU_SCTL_WRITE_BUFFER failed: {}", ResultCode(errno).description.Value());
+        mizu_servctl_write_buffer(BufferDescriptorC()[buffer_index].Address(), buffer, size);
     }
 
     return size;

@@ -84,6 +84,7 @@ struct InputSubsystem::Impl {
         Input::UnregisterFactory<Input::AnalogDevice>("gcpad");
         Input::UnregisterFactory<Input::VibrationDevice>("gcpad");
 
+        gcadapter.reset();
         gcbuttons.reset();
         gcanalog.reset();
         gcvibration.reset();

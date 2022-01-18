@@ -50,8 +50,8 @@ Buffer::Buffer(BufferCacheRuntime&, VideoCommon::NullBufferParams null_params)
     : VideoCommon::BufferBase<VideoCore::RasterizerInterface>(null_params) {}
 
 Buffer::Buffer(BufferCacheRuntime& runtime, VideoCore::RasterizerInterface& rasterizer_,
-               VAddr cpu_addr_, u64 size_bytes_)
-    : VideoCommon::BufferBase<VideoCore::RasterizerInterface>(rasterizer_, cpu_addr_, size_bytes_) {
+               VAddr cpu_addr_, u64 size_bytes_, GPUVAddr gpu_addr_)
+    : VideoCommon::BufferBase<VideoCore::RasterizerInterface>(rasterizer_, cpu_addr_, size_bytes_, gpu_addr_) {
     buffer.Create();
     const std::string name = fmt::format("Buffer 0x{:x}", CpuAddr());
     glObjectLabel(GL_BUFFER, buffer.handle, static_cast<GLsizei>(name.size()), name.data());

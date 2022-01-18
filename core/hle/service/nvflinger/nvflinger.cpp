@@ -60,23 +60,22 @@ NVFlinger::NVFlinger() {
 
     KernelHelpers::SetupServiceContext("nvflinger");
 
-    // Schedule the screen composition events
-    composition_event = KernelHelpers::CreateTimerEvent(
-        "ScreenComposition",
-        this,
-        [](::sigval sigev_value) {
-            auto nvf = static_cast<NVFlinger *>(sigev_value.sival_ptr);
-            const auto lock_guard = nvf->Lock();
-            nvf->Compose();
-
-            const auto future_ns = std::chrono::nanoseconds{nvf->GetNextTicks()};
-
-            KernelHelpers::ScheduleTimerEvent(future_ns, nvf->composition_event);
-        });
-
     if (Settings::values.use_multi_core) {
         vsync_thread = std::jthread([this](std::stop_token token) { SplitVSync(token); });
     } else {
+        // Schedule the screen composition events
+        composition_event = KernelHelpers::CreateTimerEvent(
+            "ScreenComposition",
+            this,
+            [](::sigval sigev_value) {
+                auto nvf = static_cast<NVFlinger *>(sigev_value.sival_ptr);
+                const auto lock_guard = nvf->Lock();
+                nvf->Compose();
+
+                const auto future_ns = std::chrono::nanoseconds{nvf->GetNextTicks()};
+
+                KernelHelpers::ScheduleTimerEvent(future_ns, nvf->composition_event);
+            });
         KernelHelpers::ScheduleTimerEvent(frame_ns, composition_event);
     }
 }
@@ -285,7 +284,6 @@ void NVFlinger::Compose() {
         auto nvdisp = SharedReader(*nvdrv)->GetDevice<Nvidia::Devices::nvdisp_disp0>("/dev/nvdisp_disp0");
         ASSERT(nvdisp);
 
-        ::fprintf(stderr, "nvdisp flip!\n");
         nvdisp->WriteLocked()->flip(igbp_buffer.gpu_buffer_id, igbp_buffer.offset, igbp_buffer.external_format,
                                     igbp_buffer.width, igbp_buffer.height, igbp_buffer.stride,
                                     buffer->get().transform, buffer->get().crop_rect, gpu);

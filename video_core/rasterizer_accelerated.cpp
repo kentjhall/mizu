@@ -19,7 +19,6 @@ RasterizerAccelerated::RasterizerAccelerated() {}
 RasterizerAccelerated::~RasterizerAccelerated() = default;
 
 void RasterizerAccelerated::UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
-#if 0 // mizu TEMP
     u64 uncache_begin = 0;
     u64 cache_begin = 0;
     u64 uncache_bytes = 0;
@@ -48,7 +47,7 @@ void RasterizerAccelerated::UpdatePagesCachedCount(VAddr addr, u64 size, int del
             }
             uncache_bytes += PAGE_SIZE;
         } else if (uncache_bytes > 0) {
-            cpu_memory.RasterizerMarkRegionCached(uncache_begin << PAGE_BITS, uncache_bytes, false);
+            /* cpu_memory.RasterizerMarkRegionCached(uncache_begin << PAGE_BITS, uncache_bytes, false); */
             uncache_bytes = 0;
         }
         if (count.load(std::memory_order::relaxed) == 1 && delta > 0) {
@@ -57,18 +56,16 @@ void RasterizerAccelerated::UpdatePagesCachedCount(VAddr addr, u64 size, int del
             }
             cache_bytes += PAGE_SIZE;
         } else if (cache_bytes > 0) {
-            cpu_memory.RasterizerMarkRegionCached(cache_begin << PAGE_BITS, cache_bytes, true);
+            /* cpu_memory.RasterizerMarkRegionCached(cache_begin << PAGE_BITS, cache_bytes, true); */
             cache_bytes = 0;
         }
     }
-    if (uncache_bytes > 0) {
-        cpu_memory.RasterizerMarkRegionCached(uncache_begin << PAGE_BITS, uncache_bytes, false);
-    }
-    if (cache_bytes > 0) {
-        cpu_memory.RasterizerMarkRegionCached(cache_begin << PAGE_BITS, cache_bytes, true);
-    }
-#endif
-    LOG_CRITICAL(HW_GPU, "mizu TODO RasterizerMarkRegionCached");
+    /* if (uncache_bytes > 0) { */
+    /*     cpu_memory.RasterizerMarkRegionCached(uncache_begin << PAGE_BITS, uncache_bytes, false); */
+    /* } */
+    /* if (cache_bytes > 0) { */
+    /*     cpu_memory.RasterizerMarkRegionCached(cache_begin << PAGE_BITS, cache_bytes, true); */
+    /* } */
 }
 
 } // namespace VideoCore

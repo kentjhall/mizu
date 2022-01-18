@@ -48,16 +48,7 @@ struct GPU::Impl {
           maxwell_dma{std::make_unique<Engines::MaxwellDMA>(*memory_manager)},
           kepler_memory{std::make_unique<Engines::KeplerMemory>(*memory_manager)},
           shader_notify{std::make_unique<VideoCore::ShaderNotify>()}, is_async{is_async_},
-          gpu_thread{gpu_, is_async_}, perf_stats{Service::GetTitleID()}, session_pid{session_pid_} {
-        switch (Settings::values.renderer_backend.GetValue()) {
-        case Settings::RendererBackend::OpenGL:
-            emu_window = std::make_unique<EmuWindow_SDL2_GL>(gpu_, true); // mizu TEMP always fullscreen
-            break;
-        case Settings::RendererBackend::Vulkan:
-            emu_window = std::make_unique<EmuWindow_SDL2_VK>(gpu_, true);
-            break;
-        }
-    }
+          gpu_thread{gpu_, is_async_}, perf_stats{Service::GetTitleID()}, session_pid{session_pid_} {}
 
     ~Impl() = default;
 
@@ -717,17 +708,15 @@ struct GPU::Impl {
     std::mutex flush_request_mutex;
 
     const bool is_async;
-
-    VideoCommon::GPUThread::ThreadManager gpu_thread;
-    std::unique_ptr<Core::Frontend::GraphicsContext> cpu_context;
+    const ::pid_t session_pid;
 
     Core::TelemetrySession telemetry_session;
     Core::PerfStats perf_stats;
     Core::SpeedLimiter speed_limiter;
 
     std::unique_ptr<EmuWindow_SDL2> emu_window;
-
-    ::pid_t session_pid;
+    VideoCommon::GPUThread::ThreadManager gpu_thread;
+    std::unique_ptr<Core::Frontend::GraphicsContext> cpu_context;
 
 #define ASSERT_REG_POSITION(field_name, position)                                                  \
     static_assert(offsetof(Regs, field_name) == position * 4,                                      \
@@ -764,6 +753,15 @@ GPU::GPU(bool is_async, bool use_nvdec, ::pid_t session_pid)
     // Reset counters and set time origin to current frame
     impl->perf_stats.GetAndResetStats(Service::GetGlobalTimeUs());
     impl->perf_stats.BeginSystemFrame();
+
+    switch (Settings::values.renderer_backend.GetValue()) {
+    case Settings::RendererBackend::OpenGL:
+        impl->emu_window = std::make_unique<EmuWindow_SDL2_GL>(*this, true); // mizu TEMP always fullscreen
+        break;
+    case Settings::RendererBackend::Vulkan:
+        impl->emu_window = std::make_unique<EmuWindow_SDL2_VK>(*this, true);
+        break;
+    }
 }
 
 GPU::~GPU() {

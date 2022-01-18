@@ -8,6 +8,7 @@
 #include "common/common_types.h"
 #include "core/file_sys/directory.h"
 #include "core/file_sys/vfs_types.h"
+#include "core/file_sys/romfs_factory.h"
 #include "core/hle/result.h"
 
 namespace FileSys {
@@ -55,18 +56,26 @@ public:
     explicit FileSystemController();
     ~FileSystemController();
 
-    ResultCode RegisterRomFS(std::unique_ptr<FileSys::RomFSFactory>&& factory);
+    template <typename... Args>
+    ResultCode RegisterRomFS(::pid_t pid, Args&&... args) {
+        romfs_factories.emplace(std::piecewise_construct,
+                                std::forward_as_tuple(pid),
+                                std::forward_as_tuple(args...));
+        LOG_DEBUG(Service_FS, "Registered RomFS (session pid={})", pid);
+        return ResultSuccess;
+    }
+    void UnregisterRomFS(::pid_t pid);
     ResultCode RegisterSaveData(std::unique_ptr<FileSys::SaveDataFactory>&& factory);
     ResultCode RegisterSDMC(std::unique_ptr<FileSys::SDMCFactory>&& factory);
     ResultCode RegisterBIS(std::unique_ptr<FileSys::BISFactory>&& factory);
 
-    void SetPackedUpdate(FileSys::VirtualFile update_raw);
-    ResultVal<FileSys::VirtualFile> OpenRomFSCurrentProcess() const;
-    ResultVal<FileSys::VirtualFile> OpenPatchedRomFS(u64 title_id,
+    void SetPackedUpdate(::pid_t pid, FileSys::VirtualFile update_raw);
+    ResultVal<FileSys::VirtualFile> OpenRomFSProcess(::pid_t pid) const;
+    ResultVal<FileSys::VirtualFile> OpenPatchedRomFS(::pid_t pid, u64 title_id,
                                                      FileSys::ContentRecordType type) const;
     ResultVal<FileSys::VirtualFile> OpenPatchedRomFSWithProgramIndex(
-        u64 title_id, u8 program_index, FileSys::ContentRecordType type) const;
-    ResultVal<FileSys::VirtualFile> OpenRomFS(u64 title_id, FileSys::StorageId storage_id,
+        ::pid_t pid, u64 title_id, u8 program_index, FileSys::ContentRecordType type) const;
+    ResultVal<FileSys::VirtualFile> OpenRomFS(::pid_t pid, u64 title_id, FileSys::StorageId storage_id,
                                               FileSys::ContentRecordType type) const;
     ResultVal<FileSys::VirtualDir> CreateSaveData(
         FileSys::SaveDataSpaceId space, const FileSys::SaveDataAttribute& save_struct) const;
@@ -124,7 +133,7 @@ public:
     void CreateFactories(bool overwrite = true);
 
 private:
-    std::unique_ptr<FileSys::RomFSFactory> romfs_factory;
+    std::unordered_map<::pid_t, FileSys::RomFSFactory> romfs_factories;
     std::unique_ptr<FileSys::SaveDataFactory> save_data_factory;
     std::unique_ptr<FileSys::SDMCFactory> sdmc_factory;
     std::unique_ptr<FileSys::BISFactory> bis_factory;

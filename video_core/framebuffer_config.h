@@ -42,6 +42,8 @@ struct FramebufferConfig {
 
     TransformFlags transform_flags{};
     Common::Rectangle<int> crop_rect;
+
+    ::pid_t session_pid;
 };
 
 } // namespace Tegra

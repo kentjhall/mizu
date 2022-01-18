@@ -91,7 +91,9 @@ EmuWindow_SDL2_VK::EmuWindow_SDL2_VK(Tegra::GPU& gpu, bool fullscreen)
     SDL_PumpEvents();
 }
 
-EmuWindow_SDL2_VK::~EmuWindow_SDL2_VK() = default;
+EmuWindow_SDL2_VK::~EmuWindow_SDL2_VK() {
+    SDL_DestroyWindow(render_window);
+}
 
 std::unique_ptr<Core::Frontend::GraphicsContext> EmuWindow_SDL2_VK::CreateSharedContext() const {
     return std::make_unique<DummyContext>();

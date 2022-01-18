@@ -211,30 +211,6 @@ public:
 
 private:
     Impl(const std::filesystem::path& file_backend_filename, const Filter& filter_)
-        : filter{filter_}, file_backend{file_backend_filename} {
-        backend_thread = std::thread([this] {
-                      Common::SetCurrentThreadName("yuzu:Log");
-                      Entry entry;
-                      const auto write_logs = [this, &entry]() {
-                          ForEachBackend([&entry](Backend& backend) { backend.Write(entry); });
-                      };
-                      while (true) {
-                          entry = message_queue.PopWait();
-                          if (entry.final_entry) {
-                              break;
-                          }
-                          write_logs();
-                      }
-                      // Drain the logging queue. Only writes out up to MAX_LOGS_TO_WRITE to prevent a
-                      // case where a system is repeatedly spamming logs even on close.
-                      int max_logs_to_write = filter.IsDebug() ? INT_MAX : 100;
-                      while (max_logs_to_write-- && message_queue.Pop(entry)) {
-                          write_logs();
-                      }
-        });
-    }
-#if 0
-    Impl(const std::filesystem::path& file_backend_filename, const Filter& filter_)
         : filter{filter_}, file_backend{file_backend_filename}, backend_thread{std::thread([this] {
               Common::SetCurrentThreadName("yuzu:Log");
               Entry entry;
@@ -255,7 +231,6 @@ private:
                   write_logs();
               }
           })} {}
-#endif
 
     ~Impl() {
         StopBackendThread();
@@ -303,9 +278,9 @@ private:
     ColorConsoleBackend color_console_backend{};
     FileBackend file_backend;
 
-    std::thread backend_thread;
     MPSCQueue<Entry> message_queue{};
     std::chrono::steady_clock::time_point time_origin{std::chrono::steady_clock::now()};
+    std::thread backend_thread;
 };
 } // namespace
 

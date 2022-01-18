@@ -29,6 +29,8 @@ void DmaPusher::DispatchCalls() {
 
     dma_state.is_last_call = true;
 
+    while (Step());
+
     gpu.FlushCommands();
     gpu.SyncGuestHost();
     gpu.OnCommandListEnd();

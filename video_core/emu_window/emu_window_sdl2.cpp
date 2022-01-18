@@ -17,21 +17,19 @@
 
 EmuWindow_SDL2::EmuWindow_SDL2(Tegra::GPU& gpu_)
     : gpu{gpu_} {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
-        LOG_CRITICAL(Frontend, "Failed to initialize SDL2: %s", SDL_GetError());
-    }
     input_subsystem.Initialize();
-    SDL_SetMainReady();
-    event_thread = std::jthread([this](std::stop_token stop_token) {
-        while (!stop_token.stop_requested()) {
+    event_thread = std::thread([this]() {
+        while (!is_quitting) {
             WaitEvent();
         }
     });
 }
 
 EmuWindow_SDL2::~EmuWindow_SDL2() {
+    SDL_Event evnt = { SDL_QUIT };
+    SDL_PushEvent(&evnt);
+    event_thread.join();
     input_subsystem.Shutdown();
-    SDL_Quit();
 }
 
 void EmuWindow_SDL2::OnMouseMotion(s32 x, s32 y) {
@@ -164,7 +162,7 @@ void EmuWindow_SDL2::WaitEvent() {
     SDL_Event event;
 
     if (!SDL_WaitEvent(&event)) {
-        LOG_CRITICAL(Frontend, "SDL_WaitEvent failed: {}", SDL_GetError());
+        LOG_DEBUG(Frontend, "SDL_WaitEvent failed: {}", SDL_GetError());
         return;
     }
 
@@ -213,7 +211,7 @@ void EmuWindow_SDL2::WaitEvent() {
         OnFingerUp();
         break;
     case SDL_QUIT:
-        LOG_INFO(Frontend, "SDL quit requested, not yet implemented");
+        is_quitting = true;
         break;
     default:
         break;

@@ -166,10 +166,8 @@ VkSemaphore VKBlitScreen::Draw(const Tegra::FramebufferConfig& framebuffer,
                                                            framebuffer.stride, framebuffer.height,
                                                            1, block_height_log2, 0)};
         u8 host_data[size_bytes];
-        if (mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)framebuffer_addr, (long)(u8 *)host_data, size_bytes) == -1) {
-            LOG_CRITICAL(Render_Vulkan,
-                         "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
-        }
+        mizu_servctl_read_buffer_from(framebuffer_addr, (u8 *)host_data, size_bytes,
+                                      framebuffer.session_pid);
         Tegra::Texture::UnswizzleTexture(
             mapped_span.subspan(image_offset, size_bytes), std::span(host_data, size_bytes),
             bytes_per_pixel, framebuffer.width, framebuffer.height, 1, block_height_log2, 0);

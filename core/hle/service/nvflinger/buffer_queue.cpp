@@ -40,7 +40,6 @@ void BufferQueue::SetPreallocatedBuffer(u32 slot, const IGBPBuffer& igbp_buffer)
         .swap_interval = 0,
         .multi_fence = {},
     };
-    ::fprintf(stderr, "preallocated buffer at slot %u\n", slot);
 
     KernelHelpers::SignalEvent(buffer_wait_event);
 }
@@ -49,7 +48,6 @@ std::optional<std::pair<u32, Service::Nvidia::MultiFence*>> BufferQueue::Dequeue
                                                                                        u32 height) {
     // Wait for first request before trying to dequeue
     {
-        ::fprintf(stderr, "waiting for buffer\n");
         std::unique_lock lock{free_buffers_mutex};
         free_buffers_condition.wait(lock, [this] { return !free_buffers.empty() || !is_connect; });
     }
@@ -104,7 +102,6 @@ void BufferQueue::QueueBuffer(u32 slot, BufferTransformFlags transform,
     buffers[slot].multi_fence = multi_fence;
     std::unique_lock lock{queue_sequence_mutex};
     queue_sequence.push_back(slot);
-    ::fprintf(stderr, "queued buffer at slot %u\n", slot);
 }
 
 void BufferQueue::CancelBuffer(u32 slot, const Service::Nvidia::MultiFence& multi_fence) {
@@ -142,12 +139,10 @@ std::optional<std::reference_wrapper<const BufferQueue::Buffer>> BufferQueue::Ac
         return std::nullopt;
     }
     buffers[buffer_slot].status = Buffer::Status::Acquired;
-        ::fprintf(stderr, "acquired buffer at slot %u\n", buffer_slot);
     return {{buffers[buffer_slot]}};
 }
 
 void BufferQueue::ReleaseBuffer(u32 slot) {
-        ::fprintf(stderr, "releasing buffer at slot %u\n", slot);
     ASSERT(slot < buffers.size());
     ASSERT(buffers[slot].status == Buffer::Status::Acquired);
     ASSERT(buffers[slot].slot == slot);

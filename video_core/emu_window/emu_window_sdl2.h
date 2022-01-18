@@ -74,6 +74,9 @@ protected:
     /// Called when a configuration change affects the minimal size of the window
     void OnMinimalClientAreaChangeRequest(std::pair<u32, u32> minimal_size) override;
 
+    /// Instance destructing
+    bool is_quitting = false;
+
     /// Is the window being shown?
     bool is_shown = true;
 
@@ -89,5 +92,5 @@ protected:
     Tegra::GPU& gpu;
 
 private:
-    std::jthread event_thread;
+    std::thread event_thread;
 };

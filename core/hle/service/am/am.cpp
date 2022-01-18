@@ -305,7 +305,7 @@ ISelfController::ISelfController()
     RegisterHandlers(functions);
 
     KernelHelpers::SetupServiceContext("ISelfController");
-    KernelHelpers::CreateEvent("ISelfController:LaunchableEvent");
+    launchable_event = KernelHelpers::CreateEvent("ISelfController:LaunchableEvent");
 
     // This event is created by AM on the first time GetAccumulatedSuspendedTickChangedEvent() is
     // called. Yuzu can just create it unconditionally, since it doesn't need to support multiple

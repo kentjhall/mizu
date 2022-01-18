@@ -23,7 +23,7 @@ class BufferCacheRuntime;
 class Buffer : public VideoCommon::BufferBase<VideoCore::RasterizerInterface> {
 public:
     explicit Buffer(BufferCacheRuntime&, VideoCore::RasterizerInterface& rasterizer, VAddr cpu_addr,
-                    u64 size_bytes);
+                    u64 size_bytes, GPUVAddr gpu_addr);
     explicit Buffer(BufferCacheRuntime&, VideoCommon::NullBufferParams);
 
     void ImmediateUpload(size_t offset, std::span<const u8> data) noexcept;

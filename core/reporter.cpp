@@ -161,9 +161,7 @@ json GetHLEBufferDescriptorData(const std::vector<DescriptorType>& buffer) {
 
         if constexpr (read_value) {
             std::vector<u8> data(desc.Size());
-            if (mizu_servctl(MIZU_SCTL_READ_BUFFER, desc.Address(), data.data(), desc.Size()) == -1) {
-                LOG_CRITICAL(Core, "MIZU_SCTL_READ_BUFFER failed: {}", ResultCode(errno).description.Value());
-            }
+            mizu_servctl_read_buffer(desc.Address(), data.data(), desc.Size());
             entry["data"] = Common::HexToString(data);
         }
 

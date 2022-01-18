@@ -25,7 +25,7 @@ class Buffer : public VideoCommon::BufferBase<VideoCore::RasterizerInterface> {
 public:
     explicit Buffer(BufferCacheRuntime&, VideoCommon::NullBufferParams null_params);
     explicit Buffer(BufferCacheRuntime& runtime, VideoCore::RasterizerInterface& rasterizer_,
-                    VAddr cpu_addr_, u64 size_bytes_);
+                    VAddr cpu_addr_, u64 size_bytes_, GPUVAddr gpu_addr_);
 
     [[nodiscard]] VkBufferView View(u32 offset, u32 size, VideoCore::Surface::PixelFormat format);
 

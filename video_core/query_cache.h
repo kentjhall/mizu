@@ -126,9 +126,9 @@ public:
         CachedQuery* query = TryGet(*cpu_addr);
         if (!query) {
             ASSERT_OR_EXECUTE(cpu_addr, return;);
-            auto host_ptr = gpu_memory.GetPointer(gpu_addr);
+            u8* const host_ptr = gpu_memory.GetPointer(gpu_addr);
 
-            query = Register(type, *cpu_addr, std::move(host_ptr), timestamp.has_value());
+            query = Register(type, *cpu_addr, host_ptr, timestamp.has_value());
         }
 
         query->BindCounter(Stream(type).Current(), timestamp);
@@ -236,12 +236,11 @@ private:
     }
 
     /// Registers the passed parameters as cached and returns a pointer to the stored cached query.
-    CachedQuery* Register(VideoCore::QueryType type, VAddr cpu_addr,
-		          Tegra::MemoryManager::Pointer host_ptr, bool timestamp) {
+    CachedQuery* Register(VideoCore::QueryType type, VAddr cpu_addr, u8* host_ptr, bool timestamp) {
         rasterizer.UpdatePagesCachedCount(cpu_addr, CachedQuery::SizeInBytes(timestamp), 1);
         const u64 page = static_cast<u64>(cpu_addr) >> PAGE_BITS;
         return &cached_queries[page].emplace_back(static_cast<QueryCache&>(*this), type, cpu_addr,
-                                                  std::move(host_ptr));
+                                                  host_ptr);
     }
 
     /// Tries to a get a cached query. Returns nullptr on failure.
@@ -335,8 +334,8 @@ private:
 template <class HostCounter>
 class CachedQueryBase {
 public:
-    explicit CachedQueryBase(VAddr cpu_addr_, Tegra::MemoryManager::Pointer host_ptr_)
-        : cpu_addr{cpu_addr_}, host_ptr{std::move(host_ptr_)} {}
+    explicit CachedQueryBase(VAddr cpu_addr_, u8* host_ptr_)
+        : cpu_addr{cpu_addr_}, host_ptr{host_ptr_} {}
     virtual ~CachedQueryBase() = default;
 
     CachedQueryBase(CachedQueryBase&&) noexcept = default;
@@ -350,14 +349,10 @@ public:
         // When counter is nullptr it means that it's just been reseted. We are supposed to write a
         // zero in these cases.
         const u64 value = counter ? counter->Query() : 0;
-        std::memcpy(host_ptr.get(), &value, sizeof(u64));
+        std::memcpy(host_ptr, &value, sizeof(u64));
 
         if (timestamp) {
-            std::memcpy(host_ptr.get() + TIMESTAMP_OFFSET, &*timestamp, sizeof(u64));
-        }
-
-        if (mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)cpu_addr, (long)host_ptr.get(), PAGE_SIZE) == -1) {
-            LOG_CRITICAL(Service_NVDRV, "MIZU_SCTL_WRITE_BUFFER failed: {}", ResultCode(errno).description.Value());
+            std::memcpy(host_ptr + TIMESTAMP_OFFSET, &*timestamp, sizeof(u64));
         }
     }
 
@@ -395,10 +390,10 @@ private:
     static constexpr std::size_t LARGE_QUERY_SIZE = 16;  // Query size with timestamp.
     static constexpr std::intptr_t TIMESTAMP_OFFSET = 8; // Timestamp offset in a large query.
 
-    VAddr cpu_addr;                         ///< Guest CPU address.
-    Tegra::MemoryManager::Pointer host_ptr; ///< Writable host pointer.
-    std::shared_ptr<HostCounter> counter;   ///< Host counter to query, owns the dependency tree.
-    std::optional<u64> timestamp;           ///< Timestamp to flush to guest memory.
+    VAddr cpu_addr;                       ///< Guest CPU address.
+    u8* host_ptr;                         ///< Writable host pointer.
+    std::shared_ptr<HostCounter> counter; ///< Host counter to query, owns the dependency tree.
+    std::optional<u64> timestamp;         ///< Timestamp to flush to guest memory.
 };
 
 } // namespace VideoCommon

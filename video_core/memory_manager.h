@@ -84,30 +84,8 @@ public:
     template <typename T>
     void Write(GPUVAddr addr, T data);
 
-    /*
-     * GetPointer() is really supposed to get a pointer directly into the user
-     * process, but this is not as easy to do in an actual multi-process
-     * environment; instead, we simulate the mechanism by copying a page in and
-     * out.
-     */
-    struct PointerDeleter {
-        VAddr addr;
-	void operator()(u8 *buf) {
-            if (mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)addr, (long)buf, PAGE_SIZE) == -1) {
-                LOG_CRITICAL(Service_NVDRV, "MIZU_SCTL_WRITE_BUFFER failed: {}", ResultCode(errno).description.Value());
-            }
-            delete[] buf;
-	}
-	void operator()(const u8 *buf) {
-            operator()(const_cast<u8 *>(buf));
-	}
-    };
-
-    using Pointer = std::unique_ptr<u8[], PointerDeleter>;
-    using ConstPointer = std::unique_ptr<const u8[], PointerDeleter>;
-
-    [[nodiscard]] Pointer GetPointer(GPUVAddr addr);
-    [[nodiscard]] ConstPointer GetPointer(GPUVAddr addr) const;
+    [[nodiscard]] u8* GetPointer(GPUVAddr addr);
+    [[nodiscard]] const u8* GetPointer(GPUVAddr addr) const;
 
     /// Returns the number of bytes until the end of the memory map containing the given GPU address
     [[nodiscard]] size_t BytesToMapEnd(GPUVAddr gpu_addr) const noexcept;
@@ -136,11 +114,6 @@ public:
     void WriteBlockUnsafe(GPUVAddr gpu_dest_addr, const void* src_buffer, std::size_t size);
 
     /**
-     * Checks if a gpu region can be simply read with a pointer.
-     */
-    [[nodiscard]] bool IsGranularRange(GPUVAddr gpu_addr, std::size_t size) const;
-
-    /**
      * Checks if a gpu region is mapped by a single range of cpu addresses.
      */
     [[nodiscard]] bool IsContinousRange(GPUVAddr gpu_addr, std::size_t size) const;
@@ -150,13 +123,13 @@ public:
      */
     [[nodiscard]] bool IsFullyMappedRange(GPUVAddr gpu_addr, std::size_t size) const;
 
+    using MapRange = struct { GPUVAddr gpu_addr; size_t size; VAddr cpu_addr; };
     /**
      * Returns a vector with all the subranges of cpu addresses mapped beneath.
      * if the region is continous, a single pair will be returned. If it's unmapped, an empty vector
      * will be returned;
      */
-    std::vector<std::pair<GPUVAddr, std::size_t>> GetSubmappedRange(GPUVAddr gpu_addr,
-                                                                    std::size_t size) const;
+    std::vector<MapRange> GetSubmappedRange(GPUVAddr gpu_addr, std::size_t size) const;
 
     [[nodiscard]] GPUVAddr Map(VAddr cpu_addr, GPUVAddr gpu_addr, std::size_t size);
     [[nodiscard]] GPUVAddr MapAllocate(VAddr cpu_addr, std::size_t size, std::size_t align);
@@ -166,36 +139,17 @@ public:
     void Unmap(GPUVAddr gpu_addr, std::size_t size);
 
 private:
-    [[nodiscard]] PageEntry GetPageEntry(GPUVAddr gpu_addr) const;
-    void SetPageEntry(GPUVAddr gpu_addr, PageEntry page_entry, std::size_t size = page_size);
-    GPUVAddr UpdateRange(GPUVAddr gpu_addr, PageEntry page_entry, std::size_t size);
-    [[nodiscard]] std::optional<GPUVAddr> FindFreeRange(std::size_t size, std::size_t align,
-                                                        bool start_32bit_address = false) const;
-
-    void TryLockPage(PageEntry page_entry, std::size_t size);
-    void TryUnlockPage(PageEntry page_entry, std::size_t size);
+    [[nodiscard]] std::optional<GPUVAddr> FindAllocateFreeRange(std::size_t size, std::size_t align,
+                                                                bool start_32bit_address = false);
 
     void FlushRegion(GPUVAddr gpu_addr, size_t size) const;
-
-    [[nodiscard]] static constexpr std::size_t PageEntryIndex(GPUVAddr gpu_addr) {
-        return (gpu_addr >> page_bits) & page_table_mask;
-    }
 
     static constexpr u64 address_space_size = 1ULL << 40;
     static constexpr u64 address_space_start = 1ULL << 32;
     static constexpr u64 address_space_start_low = 1ULL << 16;
-    static constexpr u64 page_bits{16};
-    static constexpr u64 page_size{1 << page_bits};
-    static constexpr u64 page_mask{page_size - 1};
-    static constexpr u64 page_table_bits{24};
-    static constexpr u64 page_table_size{1 << page_table_bits};
-    static constexpr u64 page_table_mask{page_table_size - 1};
 
     VideoCore::RasterizerInterface* rasterizer = nullptr;
 
-    std::vector<PageEntry> page_table;
-
-    using MapRange = std::pair<GPUVAddr, size_t>;
     std::vector<MapRange> map_ranges;
 
     std::vector<std::pair<VAddr, std::size_t>> cache_invalidate_queue;

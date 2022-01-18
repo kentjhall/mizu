@@ -1,4 +1,5 @@
-mizu_service_pack
+horizon-services
+hlaunch
 *.o
 video_core/*.moc.cpp
 video_core/host_shaders/*_comp.h

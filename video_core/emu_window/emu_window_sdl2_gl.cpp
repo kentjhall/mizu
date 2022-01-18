@@ -90,7 +90,6 @@ EmuWindow_SDL2_GL::EmuWindow_SDL2_GL(Tegra::GPU& gpu, bool fullscreen)
     if (Settings::values.renderer_debug) {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
     }
-    SDL_GL_SetSwapInterval(0);
 
     render_window =
         SDL_CreateWindow("Horizon renderer",
@@ -123,6 +122,8 @@ EmuWindow_SDL2_GL::EmuWindow_SDL2_GL(Tegra::GPU& gpu, bool fullscreen)
         exit(1);
     }
 
+    SDL_GL_SetSwapInterval(0);
+
     if (!gladLoadGLLoader(static_cast<GLADloadproc>(SDL_GL_GetProcAddress))) {
         LOG_CRITICAL(Frontend, "Failed to initialize GL functions! {}", SDL_GetError());
         exit(1);
@@ -142,6 +143,7 @@ EmuWindow_SDL2_GL::EmuWindow_SDL2_GL(Tegra::GPU& gpu, bool fullscreen)
 EmuWindow_SDL2_GL::~EmuWindow_SDL2_GL() {
     core_context.reset();
     SDL_GL_DeleteContext(window_context);
+    SDL_DestroyWindow(render_window);
 }
 
 std::unique_ptr<Core::Frontend::GraphicsContext> EmuWindow_SDL2_GL::CreateSharedContext() const {

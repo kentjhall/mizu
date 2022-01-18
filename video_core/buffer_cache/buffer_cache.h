@@ -96,11 +96,13 @@ class BufferCache {
         VAddr begin;
         VAddr end;
         bool has_stream_leap = false;
+        GPUVAddr gpu_addr;
     };
 
     struct Binding {
         VAddr cpu_addr{};
         u32 size{};
+        GPUVAddr gpu_addr{};
         BufferId buffer_id;
     };
 
@@ -111,6 +113,7 @@ class BufferCache {
     static constexpr Binding NULL_BINDING{
         .cpu_addr = 0,
         .size = 0,
+        .gpu_addr = 0,
         .buffer_id = NULL_BUFFER_ID,
     };
 
@@ -315,13 +318,13 @@ private:
 
     void MarkWrittenBuffer(BufferId buffer_id, VAddr cpu_addr, u32 size);
 
-    [[nodiscard]] BufferId FindBuffer(VAddr cpu_addr, u32 size);
+    [[nodiscard]] BufferId FindBuffer(VAddr cpu_addr, u32 size, GPUVAddr gpu_addr);
 
-    [[nodiscard]] OverlapResult ResolveOverlaps(VAddr cpu_addr, u32 wanted_size);
+    [[nodiscard]] OverlapResult ResolveOverlaps(VAddr cpu_addr, u32 wanted_size, GPUVAddr gpu_addr);
 
     void JoinOverlap(BufferId new_buffer_id, BufferId overlap_id, bool accumulate_stream_score);
 
-    [[nodiscard]] BufferId CreateBuffer(VAddr cpu_addr, u32 wanted_size);
+    [[nodiscard]] BufferId CreateBuffer(VAddr cpu_addr, u32 wanted_size, GPUVAddr gpu_addr);
 
     void Register(BufferId buffer_id);
 
@@ -357,7 +360,7 @@ private:
     [[nodiscard]] TextureBufferBinding GetTextureBufferBinding(GPUVAddr gpu_addr, u32 size,
                                                                PixelFormat format);
 
-    [[nodiscard]] std::span<const u8> ImmediateBufferWithData(VAddr cpu_addr, size_t size);
+    [[nodiscard]] std::span<const u8> ImmediateBufferWithData(GPUVAddr gpu_addr, size_t size);
 
     [[nodiscard]] std::span<u8> ImmediateBuffer(size_t wanted_capacity);
 
@@ -542,8 +545,8 @@ bool BufferCache<P>::DMACopy(GPUVAddr src_address, GPUVAddr dest_address, u64 am
     BufferId buffer_b;
     do {
         has_deleted_buffers = false;
-        buffer_a = FindBuffer(*cpu_src_address, static_cast<u32>(amount));
-        buffer_b = FindBuffer(*cpu_dest_address, static_cast<u32>(amount));
+        buffer_a = FindBuffer(*cpu_src_address, static_cast<u32>(amount), src_address);
+        buffer_b = FindBuffer(*cpu_dest_address, static_cast<u32>(amount), dest_address);
     } while (has_deleted_buffers);
     auto& src_buffer = slot_buffers[buffer_a];
     auto& dest_buffer = slot_buffers[buffer_b];
@@ -576,8 +579,8 @@ bool BufferCache<P>::DMACopy(GPUVAddr src_address, GPUVAddr dest_address, u64 am
         dest_buffer.MarkRegionAsGpuModified(*cpu_dest_address, amount);
     }
     std::vector<u8> tmp_buffer(amount);
-    mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)*cpu_src_address, (long)tmp_buffer.data(), (long)amount);
-    mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)*cpu_dest_address, (long)tmp_buffer.data(), (long)amount);
+    gpu_memory.ReadBlockUnsafe(src_address, tmp_buffer.data(), amount);
+    gpu_memory.WriteBlockUnsafe(dest_address, tmp_buffer.data(), amount);
     return true;
 }
 
@@ -597,7 +600,7 @@ bool BufferCache<P>::DMAClear(GPUVAddr dst_address, u64 amount, u32 value) {
     ClearDownload(subtract_interval);
     common_ranges.subtract(subtract_interval);
 
-    const BufferId buffer = FindBuffer(*cpu_dst_address, static_cast<u32>(size));
+    const BufferId buffer = FindBuffer(*cpu_dst_address, static_cast<u32>(size), dst_address);
     auto& dest_buffer = slot_buffers[buffer];
     const u32 offset = dest_buffer.Offset(*cpu_dst_address);
     runtime.ClearBuffer(dest_buffer, offset, size, value);
@@ -611,6 +614,7 @@ void BufferCache<P>::BindGraphicsUniformBuffer(size_t stage, u32 index, GPUVAddr
     const Binding binding{
         .cpu_addr = *cpu_addr,
         .size = size,
+	.gpu_addr = gpu_addr,
         .buffer_id = BufferId{},
     };
     uniform_buffers[stage][index] = binding;
@@ -859,19 +863,19 @@ void BufferCache<P>::CommitAsyncFlushesHigh() {
         runtime.Finish();
         for (const auto& [copy, buffer_id] : downloads) {
             const Buffer& buffer = slot_buffers[buffer_id];
-            const VAddr cpu_addr = buffer.CpuAddr() + copy.src_offset;
+            const GPUVAddr gpu_addr = buffer.GpuAddr() + copy.src_offset;
             // Undo the modified offset
             const u64 dst_offset = copy.dst_offset - download_staging.offset;
             const u8* read_mapped_memory = download_staging.mapped_span.data() + dst_offset;
-            mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)cpu_addr, (long)read_mapped_memory, (long)copy.size);
+            gpu_memory.WriteBlockUnsafe(gpu_addr, read_mapped_memory, copy.size);
         }
     } else {
         const std::span<u8> immediate_buffer = ImmediateBuffer(largest_copy);
         for (const auto& [copy, buffer_id] : downloads) {
             Buffer& buffer = slot_buffers[buffer_id];
             buffer.ImmediateDownload(copy.src_offset, immediate_buffer.subspan(0, copy.size));
-            const VAddr cpu_addr = buffer.CpuAddr() + copy.src_offset;
-            mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)cpu_addr, (long)immediate_buffer.data(), (long)copy.size);
+            const GPUVAddr gpu_addr = buffer.GpuAddr() + copy.src_offset;
+            gpu_memory.WriteBlockUnsafe(gpu_addr, immediate_buffer.data(), copy.size);
         }
     }
 }
@@ -1007,6 +1011,7 @@ void BufferCache<P>::BindHostGraphicsUniformBuffer(size_t stage, u32 index, u32 
     const Binding& binding = uniform_buffers[stage][index];
     const VAddr cpu_addr = binding.cpu_addr;
     const u32 size = std::min(binding.size, (*uniform_buffer_sizes)[stage][index]);
+    const GPUVAddr gpu_addr = binding.gpu_addr;
     Buffer& buffer = slot_buffers[binding.buffer_id];
     TouchBuffer(buffer, binding.buffer_id);
     const bool use_fast_buffer = binding.buffer_id != NULL_BUFFER_ID &&
@@ -1025,7 +1030,7 @@ void BufferCache<P>::BindHostGraphicsUniformBuffer(size_t stage, u32 index, u32 
                     uniform_buffer_binding_sizes[stage][binding_index] = size;
                     runtime.BindFastUniformBuffer(stage, binding_index, size);
                 }
-                const auto span = ImmediateBufferWithData(cpu_addr, size);
+                const auto span = ImmediateBufferWithData(gpu_addr, size);
                 runtime.PushFastUniformBuffer(stage, binding_index, span);
                 return;
             }
@@ -1036,7 +1041,7 @@ void BufferCache<P>::BindHostGraphicsUniformBuffer(size_t stage, u32 index, u32 
         }
         // Stream buffer path to avoid stalling on non-Nvidia drivers or Vulkan
         const std::span<u8> span = runtime.BindMappedUniformBuffer(stage, binding_index, size);
-        mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)cpu_addr, (long)span.data(), (long)size);
+        gpu_memory.ReadBlockUnsafe(gpu_addr, span.data(), size);
         return;
     }
     // Classic cached path
@@ -1248,7 +1253,8 @@ void BufferCache<P>::UpdateIndexBuffer() {
     index_buffer = Binding{
         .cpu_addr = *cpu_addr,
         .size = size,
-        .buffer_id = FindBuffer(*cpu_addr, size),
+	.gpu_addr = gpu_addr_begin,
+        .buffer_id = FindBuffer(*cpu_addr, size, gpu_addr_begin),
     };
 }
 
@@ -1284,7 +1290,8 @@ void BufferCache<P>::UpdateVertexBuffer(u32 index) {
     vertex_buffers[index] = Binding{
         .cpu_addr = *cpu_addr,
         .size = size,
-        .buffer_id = FindBuffer(*cpu_addr, size),
+	.gpu_addr = gpu_addr_begin,
+        .buffer_id = FindBuffer(*cpu_addr, size, gpu_addr_begin),
     };
 }
 
@@ -1301,7 +1308,7 @@ void BufferCache<P>::UpdateUniformBuffers(size_t stage) {
             dirty_uniform_buffers[stage] |= 1U << index;
         }
         // Resolve buffer
-        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size);
+        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size, binding.gpu_addr);
     });
 }
 
@@ -1311,7 +1318,7 @@ void BufferCache<P>::UpdateStorageBuffers(size_t stage) {
     ForEachEnabledBit(enabled_storage_buffers[stage], [&](u32 index) {
         // Resolve buffer
         Binding& binding = storage_buffers[stage][index];
-        const BufferId buffer_id = FindBuffer(binding.cpu_addr, binding.size);
+        const BufferId buffer_id = FindBuffer(binding.cpu_addr, binding.size, binding.gpu_addr);
         binding.buffer_id = buffer_id;
         // Mark buffer as written if needed
         if (((written_mask >> index) & 1) != 0) {
@@ -1324,7 +1331,7 @@ template <class P>
 void BufferCache<P>::UpdateTextureBuffers(size_t stage) {
     ForEachEnabledBit(enabled_texture_buffers[stage], [&](u32 index) {
         Binding& binding = texture_buffers[stage][index];
-        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size);
+        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size, binding.gpu_addr);
         // Mark buffer as written if needed
         if (((written_texture_buffers[stage] >> index) & 1) != 0) {
             MarkWrittenBuffer(binding.buffer_id, binding.cpu_addr, binding.size);
@@ -1352,10 +1359,11 @@ void BufferCache<P>::UpdateTransformFeedbackBuffer(u32 index) {
         transform_feedback_buffers[index] = NULL_BINDING;
         return;
     }
-    const BufferId buffer_id = FindBuffer(*cpu_addr, size);
+    const BufferId buffer_id = FindBuffer(*cpu_addr, size, gpu_addr);
     transform_feedback_buffers[index] = Binding{
         .cpu_addr = *cpu_addr,
         .size = size,
+	.gpu_addr = gpu_addr,
         .buffer_id = buffer_id,
     };
     MarkWrittenBuffer(buffer_id, *cpu_addr, size);
@@ -1373,9 +1381,10 @@ void BufferCache<P>::UpdateComputeUniformBuffers() {
             if (cpu_addr) {
                 binding.cpu_addr = *cpu_addr;
                 binding.size = cbuf.size;
+		binding.gpu_addr = cbuf.Address();
             }
         }
-        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size);
+        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size, binding.gpu_addr);
     });
 }
 
@@ -1384,7 +1393,7 @@ void BufferCache<P>::UpdateComputeStorageBuffers() {
     ForEachEnabledBit(enabled_compute_storage_buffers, [&](u32 index) {
         // Resolve buffer
         Binding& binding = compute_storage_buffers[index];
-        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size);
+        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size, binding.gpu_addr);
         // Mark as written if needed
         if (((written_compute_storage_buffers >> index) & 1) != 0) {
             MarkWrittenBuffer(binding.buffer_id, binding.cpu_addr, binding.size);
@@ -1396,7 +1405,7 @@ template <class P>
 void BufferCache<P>::UpdateComputeTextureBuffers() {
     ForEachEnabledBit(enabled_compute_texture_buffers, [&](u32 index) {
         Binding& binding = compute_texture_buffers[index];
-        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size);
+        binding.buffer_id = FindBuffer(binding.cpu_addr, binding.size, binding.gpu_addr);
         // Mark as written if needed
         if (((written_compute_texture_buffers >> index) & 1) != 0) {
             MarkWrittenBuffer(binding.buffer_id, binding.cpu_addr, binding.size);
@@ -1422,25 +1431,26 @@ void BufferCache<P>::MarkWrittenBuffer(BufferId buffer_id, VAddr cpu_addr, u32 s
 }
 
 template <class P>
-BufferId BufferCache<P>::FindBuffer(VAddr cpu_addr, u32 size) {
+BufferId BufferCache<P>::FindBuffer(VAddr cpu_addr, u32 size, GPUVAddr gpu_addr) {
     if (cpu_addr == 0) {
         return NULL_BUFFER_ID;
     }
     const u64 page = cpu_addr >> PAGE_BITS;
     const BufferId buffer_id = page_table[page];
     if (!buffer_id) {
-        return CreateBuffer(cpu_addr, size);
+        return CreateBuffer(cpu_addr, size, gpu_addr);
     }
     const Buffer& buffer = slot_buffers[buffer_id];
     if (buffer.IsInBounds(cpu_addr, size)) {
         return buffer_id;
     }
-    return CreateBuffer(cpu_addr, size);
+    return CreateBuffer(cpu_addr, size, gpu_addr);
 }
 
 template <class P>
 typename BufferCache<P>::OverlapResult BufferCache<P>::ResolveOverlaps(VAddr cpu_addr,
-                                                                       u32 wanted_size) {
+                                                                       u32 wanted_size,
+								       GPUVAddr gpu_addr) {
     static constexpr int STREAM_LEAP_THRESHOLD = 16;
     std::vector<BufferId> overlap_ids;
     VAddr begin = cpu_addr;
@@ -1461,6 +1471,7 @@ typename BufferCache<P>::OverlapResult BufferCache<P>::ResolveOverlaps(VAddr cpu
         const VAddr overlap_cpu_addr = overlap.CpuAddr();
         if (overlap_cpu_addr < begin) {
             cpu_addr = begin = overlap_cpu_addr;
+            gpu_addr = overlap.GpuAddr();
         }
         end = std::max(end, overlap_cpu_addr + overlap.SizeBytes());
 
@@ -1477,6 +1488,7 @@ typename BufferCache<P>::OverlapResult BufferCache<P>::ResolveOverlaps(VAddr cpu
         .begin = begin,
         .end = end,
         .has_stream_leap = has_stream_leap,
+	.gpu_addr = gpu_addr,
     };
 }
 
@@ -1506,10 +1518,11 @@ void BufferCache<P>::JoinOverlap(BufferId new_buffer_id, BufferId overlap_id,
 }
 
 template <class P>
-BufferId BufferCache<P>::CreateBuffer(VAddr cpu_addr, u32 wanted_size) {
-    const OverlapResult overlap = ResolveOverlaps(cpu_addr, wanted_size);
+BufferId BufferCache<P>::CreateBuffer(VAddr cpu_addr, u32 wanted_size, GPUVAddr gpu_addr) {
+    const OverlapResult overlap = ResolveOverlaps(cpu_addr, wanted_size, gpu_addr);
     const u32 size = static_cast<u32>(overlap.end - overlap.begin);
-    const BufferId new_buffer_id = slot_buffers.insert(runtime, rasterizer, overlap.begin, size);
+    const BufferId new_buffer_id = slot_buffers.insert(runtime, rasterizer, overlap.begin, size,
+                                                       overlap.gpu_addr);
     for (const BufferId overlap_id : overlap.ids) {
         JoinOverlap(new_buffer_id, overlap_id, !overlap.has_stream_leap);
     }
@@ -1603,24 +1616,12 @@ void BufferCache<P>::UploadMemory(Buffer& buffer, u64 total_size_bytes, u64 larg
 template <class P>
 void BufferCache<P>::ImmediateUploadMemory(Buffer& buffer, u64 largest_copy,
                                            std::span<const BufferCopy> copies) {
-    std::span<u8> immediate_buffer;
     for (const BufferCopy& copy : copies) {
         std::span<const u8> upload_span;
-        const VAddr cpu_addr = buffer.CpuAddr() + copy.dst_offset;
-#if 0
-        if (IsRangeGranular(cpu_addr, copy.size)) {
-            upload_span = std::span(cpu_memory.GetPointer(cpu_addr), copy.size);
-        } else {
-#endif
-            if (immediate_buffer.empty()) {
-                immediate_buffer = ImmediateBuffer(largest_copy);
-            }
-            mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)cpu_addr, (long)immediate_buffer.data(), (long)copy.size);
-            upload_span = immediate_buffer.subspan(0, copy.size);
-        /* } */
+        const GPUVAddr gpu_addr = buffer.GpuAddr() + copy.dst_offset;
+        upload_span = std::span(gpu_memory.GetPointer(gpu_addr), copy.size);
         buffer.ImmediateUpload(copy.dst_offset, upload_span);
     }
-    LOG_CRITICAL(HW_GPU, "mizu TODO GetPointer");
 }
 
 template <class P>
@@ -1630,8 +1631,8 @@ void BufferCache<P>::MappedUploadMemory(Buffer& buffer, u64 total_size_bytes,
     const std::span<u8> staging_pointer = upload_staging.mapped_span;
     for (BufferCopy& copy : copies) {
         u8* const src_pointer = staging_pointer.data() + copy.src_offset;
-        const VAddr cpu_addr = buffer.CpuAddr() + copy.dst_offset;
-        mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)cpu_addr, (long)src_pointer, (long)copy.size);
+        const GPUVAddr gpu_addr = buffer.GpuAddr() + copy.dst_offset;
+        gpu_memory.ReadBlockUnsafe(gpu_addr, src_pointer, copy.size);
 
         // Apply the staging offset
         copy.src_offset += upload_staging.offset;
@@ -1689,18 +1690,18 @@ void BufferCache<P>::DownloadBufferMemory(Buffer& buffer, VAddr cpu_addr, u64 si
         runtime.CopyBuffer(download_staging.buffer, buffer, copies_span);
         runtime.Finish();
         for (const BufferCopy& copy : copies) {
-            const VAddr copy_cpu_addr = buffer.CpuAddr() + copy.src_offset;
+            const GPUVAddr copy_gpu_addr = buffer.GpuAddr() + copy.src_offset;
             // Undo the modified offset
             const u64 dst_offset = copy.dst_offset - download_staging.offset;
             const u8* copy_mapped_memory = mapped_memory + dst_offset;
-            mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)copy_cpu_addr, (long)copy_mapped_memory, (long)copy.size);
+            gpu_memory.WriteBlockUnsafe(copy_gpu_addr, copy_mapped_memory, copy.size);
         }
     } else {
         const std::span<u8> immediate_buffer = ImmediateBuffer(largest_copy);
         for (const BufferCopy& copy : copies) {
             buffer.ImmediateDownload(copy.src_offset, immediate_buffer.subspan(0, copy.size));
-            const VAddr copy_cpu_addr = buffer.CpuAddr() + copy.src_offset;
-            mizu_servctl(MIZU_SCTL_WRITE_BUFFER, (long)copy_cpu_addr, (long)immediate_buffer.data(), (long)copy.size);
+            const GPUVAddr copy_gpu_addr = buffer.GpuAddr() + copy.src_offset;
+            gpu_memory.WriteBlockUnsafe(copy_gpu_addr, immediate_buffer.data(), copy.size);
         }
     }
 }
@@ -1761,6 +1762,7 @@ typename BufferCache<P>::Binding BufferCache<P>::StorageBufferBinding(GPUVAddr s
     const Binding binding{
         .cpu_addr = *cpu_addr,
         .size = size,
+	.gpu_addr = gpu_addr,
         .buffer_id = BufferId{},
     };
     return binding;
@@ -1774,11 +1776,13 @@ typename BufferCache<P>::TextureBufferBinding BufferCache<P>::GetTextureBufferBi
     if (!cpu_addr || size == 0) {
         binding.cpu_addr = 0;
         binding.size = 0;
+	binding.gpu_addr = 0;
         binding.buffer_id = NULL_BUFFER_ID;
         binding.format = PixelFormat::Invalid;
     } else {
         binding.cpu_addr = *cpu_addr;
         binding.size = size;
+	binding.gpu_addr = gpu_addr;
         binding.buffer_id = BufferId{};
         binding.format = format;
     }
@@ -1786,19 +1790,8 @@ typename BufferCache<P>::TextureBufferBinding BufferCache<P>::GetTextureBufferBi
 }
 
 template <class P>
-std::span<const u8> BufferCache<P>::ImmediateBufferWithData(VAddr cpu_addr, size_t size) {
-#if 0 // mizu TEMP
-    u8* const base_pointer = cpu_memory.GetPointer(cpu_addr);
-    if (IsRangeGranular(cpu_addr, size) ||
-        base_pointer + size == cpu_memory.GetPointer(cpu_addr + size)) {
-        return std::span(base_pointer, size);
-    } else {
-#endif
-        const std::span<u8> span = ImmediateBuffer(size);
-        mizu_servctl(MIZU_SCTL_READ_BUFFER, (long)cpu_addr, (long)span.data(), (long)size);
-        return span;
-    /* } */
-    LOG_CRITICAL(HW_GPU, "mizu TODO GetPointer");
+std::span<const u8> BufferCache<P>::ImmediateBufferWithData(GPUVAddr gpu_addr, size_t size) {
+    return std::span(gpu_memory.GetPointer(gpu_addr), size);
 }
 
 template <class P>

@@ -166,12 +166,6 @@ void RendererOpenGL::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
     if (!framebuffer) {
         return;
     }
-    ::fprintf(stderr, "renderer SwapBuffers!\n");
-    /* glClearColor(1.0f, 0.0f, 0.0f, 1.f); */
-  /* glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); */
-    /* context->SwapBuffers(); */
-    /* ::fprintf(stderr, "did a swap, error?: %d\n", glGetError()); */
-    /* return; */
     PrepareRendertarget(framebuffer);
     RenderScreenshot();
 
@@ -227,11 +221,8 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
     const u64 size_in_bytes{Tegra::Texture::CalculateSize(
         true, bytes_per_pixel, framebuffer.stride, framebuffer.height, 1, block_height_log2, 0)};
     u8 host_data[size_in_bytes];
-    if (mizu_servctl(MIZU_SCTL_READ_BUFFER_FROM, (long)framebuffer_addr, (long)(u8 *)host_data, size_in_bytes, gpu.SessionPid()) == -1) {
-        LOG_CRITICAL(Render_OpenGL,
-                     "MIZU_SCTL_READ_BUFFER_FROM failed: {}", ResultCode(errno).description.Value());
-        return;
-    }
+    mizu_servctl_read_buffer_from(framebuffer_addr, (u8 *)host_data, size_in_bytes,
+                                  framebuffer.session_pid);
     const std::span<const u8> input_data(host_data, size_in_bytes);
     Tegra::Texture::UnswizzleTexture(gl_framebuffer_data, input_data, bytes_per_pixel,
                                      framebuffer.width, framebuffer.height, 1, block_height_log2,
@@ -337,7 +328,6 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
 }
 
 void RendererOpenGL::DrawScreen(const Layout::FramebufferLayout& layout) {
-    ::fprintf(stderr, "DrawScreen width=%d, height=%d\n", layout.width, layout.height);
     // Update background color before drawing
     glClearColor(Settings::values.bg_red.GetValue() / 255.0f,
                  Settings::values.bg_green.GetValue() / 255.0f,

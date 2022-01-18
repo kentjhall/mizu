@@ -35,7 +35,7 @@ shader_headers := astc_decoder_comp.h \
 
 subdirs := common common/fs common/logging config \
 	   core core/file_sys core/file_sys/system_archive core/file_sys/system_archive/data core/crypto \
-	   core/frontend core/frontend/applets core/hle core/hle/kernel \
+	   core/frontend core/loader core/frontend/applets core/hle core/hle/kernel \
 	   $(shell find video_core -type d) $(shell find shader_recompiler -type d) \
 	   input_common $(shell find input_common -type d)  \
 	   core/hle/service $(shell find $(addprefix core/hle/service/,$(services)) -type d)
@@ -44,8 +44,14 @@ headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/h
 	   mizu_servctl.h
 objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
 
-mizu_service_pack: $(objects)
+.PHONY: default
+default: horizon-services hlaunch
+
+horizon-services: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+hlaunch: hlaunch.c
+	gcc $(DEBUG-$(DEBUG)) -Wall -o $@ $^ -lrt
 
 $(objects): $(headers)
 
@@ -72,7 +78,7 @@ ld_err.txt: $(objects)
 
 .PHONY: clean
 clean:
-	rm -f mizu_service_pack
+	rm -f horizon-services
 	find . -name '*.o' -exec rm {} \;
 	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;
 	find video_core/host_shaders -name '*_frag.h' -exec rm {} \;

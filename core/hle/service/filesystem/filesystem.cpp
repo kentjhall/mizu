@@ -279,10 +279,8 @@ FileSystemController::FileSystemController() {}
 
 FileSystemController::~FileSystemController() = default;
 
-ResultCode FileSystemController::RegisterRomFS(std::unique_ptr<FileSys::RomFSFactory>&& factory) {
-    romfs_factory = std::move(factory);
-    LOG_DEBUG(Service_FS, "Registered RomFS");
-    return ResultSuccess;
+void FileSystemController::UnregisterRomFS(::pid_t pid) {
+    romfs_factories.erase(pid);
 }
 
 ResultCode FileSystemController::RegisterSaveData(
@@ -307,62 +305,67 @@ ResultCode FileSystemController::RegisterBIS(std::unique_ptr<FileSys::BISFactory
     return ResultSuccess;
 }
 
-void FileSystemController::SetPackedUpdate(FileSys::VirtualFile update_raw) {
+void FileSystemController::SetPackedUpdate(::pid_t pid, FileSys::VirtualFile update_raw) {
     LOG_TRACE(Service_FS, "Setting packed update for romfs");
 
-    if (romfs_factory == nullptr)
+    auto it = romfs_factories.find(pid);
+    if (it == romfs_factories.end())
         return;
 
-    romfs_factory->SetPackedUpdate(std::move(update_raw));
+    it->second.SetPackedUpdate(std::move(update_raw));
 }
 
-ResultVal<FileSys::VirtualFile> FileSystemController::OpenRomFSCurrentProcess() const {
-    LOG_TRACE(Service_FS, "Opening RomFS for current process");
+ResultVal<FileSys::VirtualFile> FileSystemController::OpenRomFSProcess(::pid_t pid) const {
+    LOG_TRACE(Service_FS, "Opening RomFS for process (pid={})", pid);
 
-    if (romfs_factory == nullptr) {
+    auto it = romfs_factories.find(pid);
+    if (it == romfs_factories.end()) {
         // TODO(bunnei): Find a better error code for this
         return ResultUnknown;
     }
 
-    return romfs_factory->OpenCurrentProcess(Service::GetTitleID());
+    return it->second.OpenCurrentProcess(Service::GetTitleID());
 }
 
 ResultVal<FileSys::VirtualFile> FileSystemController::OpenPatchedRomFS(
-    u64 title_id, FileSys::ContentRecordType type) const {
+    ::pid_t pid, u64 title_id, FileSys::ContentRecordType type) const {
     LOG_TRACE(Service_FS, "Opening patched RomFS for title_id={:016X}", title_id);
 
-    if (romfs_factory == nullptr) {
+    auto it = romfs_factories.find(pid);
+    if (it == romfs_factories.end()) {
         // TODO: Find a better error code for this
         return ResultUnknown;
     }
 
-    return romfs_factory->OpenPatchedRomFS(title_id, type);
+    return it->second.OpenPatchedRomFS(title_id, type);
 }
 
 ResultVal<FileSys::VirtualFile> FileSystemController::OpenPatchedRomFSWithProgramIndex(
-    u64 title_id, u8 program_index, FileSys::ContentRecordType type) const {
+    ::pid_t pid, u64 title_id, u8 program_index, FileSys::ContentRecordType type) const {
     LOG_TRACE(Service_FS, "Opening patched RomFS for title_id={:016X}, program_index={}", title_id,
               program_index);
 
-    if (romfs_factory == nullptr) {
+    auto it = romfs_factories.find(pid);
+    if (it == romfs_factories.end()) {
         // TODO: Find a better error code for this
         return ResultUnknown;
     }
 
-    return romfs_factory->OpenPatchedRomFSWithProgramIndex(title_id, program_index, type);
+    return it->second.OpenPatchedRomFSWithProgramIndex(title_id, program_index, type);
 }
 
 ResultVal<FileSys::VirtualFile> FileSystemController::OpenRomFS(
-    u64 title_id, FileSys::StorageId storage_id, FileSys::ContentRecordType type) const {
+    ::pid_t pid, u64 title_id, FileSys::StorageId storage_id, FileSys::ContentRecordType type) const {
     LOG_TRACE(Service_FS, "Opening RomFS for title_id={:016X}, storage_id={:02X}, type={:02X}",
               title_id, storage_id, type);
 
-    if (romfs_factory == nullptr) {
+    auto it = romfs_factories.find(pid);
+    if (it == romfs_factories.end()) {
         // TODO(bunnei): Find a better error code for this
         return ResultUnknown;
     }
 
-    return romfs_factory->Open(title_id, storage_id, type);
+    return it->second.Open(title_id, storage_id, type);
 }
 
 ResultVal<FileSys::VirtualDir> FileSystemController::CreateSaveData(

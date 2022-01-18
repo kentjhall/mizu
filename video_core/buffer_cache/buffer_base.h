@@ -143,9 +143,11 @@ class BufferBase {
     };
 
 public:
-    explicit BufferBase(RasterizerInterface& rasterizer_, VAddr cpu_addr_, u64 size_bytes)
+    explicit BufferBase(RasterizerInterface& rasterizer_, VAddr cpu_addr_, u64 size_bytes,
+                        GPUVAddr gpu_addr_)
         : rasterizer{&rasterizer_}, cpu_addr{Common::AlignDown(cpu_addr_, BYTES_PER_PAGE)},
-          words(Common::AlignUp(size_bytes + (cpu_addr_ - cpu_addr), BYTES_PER_PAGE)) {}
+          words(Common::AlignUp(size_bytes + (cpu_addr_ - cpu_addr), BYTES_PER_PAGE)),
+          gpu_addr(gpu_addr_) {}
 
     explicit BufferBase(NullBufferParams) {}
 
@@ -284,6 +286,11 @@ public:
     /// Returns the base CPU address of the buffer
     [[nodiscard]] VAddr CpuAddr() const noexcept {
         return cpu_addr;
+    }
+
+    /// Returns the base GPU address of the buffer
+    [[nodiscard]] VAddr GpuAddr() const noexcept {
+        return gpu_addr;
     }
 
     /// Returns the offset relative to the given CPU address
@@ -604,6 +611,7 @@ private:
     BufferFlagBits flags{};
     int stream_score = 0;
     size_t lru_id = SIZE_MAX;
+    GPUVAddr gpu_addr;
 };
 
 } // namespace VideoCommon

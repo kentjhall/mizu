@@ -95,9 +95,8 @@ private:
 
 class CachedQuery : public VideoCommon::CachedQueryBase<HostCounter> {
 public:
-    explicit CachedQuery(VKQueryCache&, VideoCore::QueryType, VAddr cpu_addr_,
-		         Tegra::MemoryManager::Pointer host_ptr_)
-        : CachedQueryBase{cpu_addr_, std::move(host_ptr_)} {}
+    explicit CachedQuery(VKQueryCache&, VideoCore::QueryType, VAddr cpu_addr_, u8* host_ptr_)
+        : CachedQueryBase{cpu_addr_, host_ptr_} {}
 };
 
 } // namespace Vulkan

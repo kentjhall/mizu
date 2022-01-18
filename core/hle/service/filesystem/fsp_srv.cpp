@@ -962,7 +962,7 @@ void FSP_SRV::ReadSaveDataFileSystemExtraDataWithMaskBySaveDataAttribute(
 void FSP_SRV::OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_FS, "called");
 
-    auto current_romfs = SharedReader(filesystem_controller)->OpenRomFSCurrentProcess();
+    auto current_romfs = SharedReader(filesystem_controller)->OpenRomFSProcess(ctx.GetRequesterPid());
     if (current_romfs.Failed()) {
         // TODO (bunnei): Find the right error code to use here
         LOG_CRITICAL(Service_FS, "no file system interface available!");
@@ -989,7 +989,7 @@ void FSP_SRV::OpenDataStorageByDataId(Kernel::HLERequestContext& ctx) {
 
     auto data =
         SharedReader(filesystem_controller)->
-            OpenRomFS(title_id, storage_id, FileSys::ContentRecordType::Data);
+            OpenRomFS(ctx.GetRequesterPid(), title_id, storage_id, FileSys::ContentRecordType::Data);
 
     if (data.Failed()) {
         const auto archive = FileSys::SystemArchive::SynthesizeSystemArchive(title_id);
@@ -1040,7 +1040,7 @@ void FSP_SRV::OpenDataStorageWithProgramIndex(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_FS, "called, program_index={}", program_index);
 
     auto patched_romfs = SharedReader(filesystem_controller)->OpenPatchedRomFSWithProgramIndex(
-        GetTitleID(), program_index, FileSys::ContentRecordType::Program);
+        ctx.GetRequesterPid(), GetTitleID(), program_index, FileSys::ContentRecordType::Program);
 
     if (patched_romfs.Failed()) {
         // TODO: Find the right error code to use here

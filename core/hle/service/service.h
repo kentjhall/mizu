@@ -131,6 +131,10 @@ extern Shared<Glue::ARPManager> arp_manager;
 extern Shared<Core::Hardware::InterruptManager> interrupt_manager;
 extern const Core::Reporter reporter;
 
+/*
+ * Per-session GPUs
+ */
+
 struct SharedGPU {
     size_t refcount;
     Shared<Tegra::GPU> gpu;
@@ -170,7 +174,7 @@ inline void PutGPU(::pid_t req_pid) {
     SharedWriter gpus_locked(gpus);
     auto it = gpus_locked->find(req_pid);
     if (it == gpus_locked->end()) {
-        LOG_ERROR(Service_NVDRV, "PutGPU on non-existent or already-erased entry at {}", req_pid);
+        LOG_ERROR(Service, "PutGPU on non-existent or already-erased entry at {}", req_pid);
         return;
     }
     if (--it->second.refcount == 0) {
@@ -193,8 +197,11 @@ inline u64 GetProcessID()
 
 inline u64 GetTitleID()
 {
-    LOG_CRITICAL(Service, "mizu TODO GetTitleId");
-    return 0; // TODO TEMP
+    long title_id = mizu_servctl(MIZU_SCTL_GET_TITLE_ID);
+    if (title_id == -1) {
+        LOG_CRITICAL(Service, "MIZU_SCTL_GET_TITLE_ID failed: {}", ResultCode(errno).description.Value());
+    }
+    return static_cast<u64>(title_id);
 }
 
 using CurrentBuildProcessID = std::array<u8, 0x20>;

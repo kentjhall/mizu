@@ -87,8 +87,8 @@ Buffer::Buffer(BufferCacheRuntime&, VideoCommon::NullBufferParams null_params)
     : VideoCommon::BufferBase<VideoCore::RasterizerInterface>(null_params) {}
 
 Buffer::Buffer(BufferCacheRuntime& runtime, VideoCore::RasterizerInterface& rasterizer_,
-               VAddr cpu_addr_, u64 size_bytes_)
-    : VideoCommon::BufferBase<VideoCore::RasterizerInterface>(rasterizer_, cpu_addr_, size_bytes_),
+               VAddr cpu_addr_, u64 size_bytes_, GPUVAddr gpu_addr_)
+    : VideoCommon::BufferBase<VideoCore::RasterizerInterface>(rasterizer_, cpu_addr_, size_bytes_, gpu_addr_),
       device{&runtime.device}, buffer{CreateBuffer(*device, SizeBytes())},
       commit{runtime.memory_allocator.Commit(buffer, MemoryUsage::DeviceLocal)} {
     if (runtime.device.HasDebuggingToolAttached()) {

@@ -221,6 +221,12 @@ void StartServices() {
 
     SharedWriter(filesystem_controller)->CreateFactories(false);
 
+    /// Create default implementations of applets if one is not provided.
+    SharedWriter(applet_manager)->SetDefaultAppletsIfMissing();
+
+    /// Reset all glue registrations
+    SharedWriter(arp_manager)->ResetAll();
+
     if (mizu_servctl(MIZU_SCTL_REGISTER_NAMED_SERVICE, (unsigned long)"sm:") == -1) {
         LOG_CRITICAL(Service, "MIZU_SCTL_REGISTER_NAMED_SERVICE failed");
         ::exit(1);

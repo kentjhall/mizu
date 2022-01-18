@@ -19,8 +19,7 @@
 
 namespace FileSys {
 
-RomFSFactory::RomFSFactory() {
-#if 0 // mizu TEMP
+RomFSFactory::RomFSFactory(Loader::AppLoader& app_loader) {
     // Load the RomFS from the app
     if (app_loader.ReadRomFS(file) != Loader::ResultStatus::Success) {
         LOG_ERROR(Service_FS, "Unable to read RomFS!");
@@ -28,8 +27,6 @@ RomFSFactory::RomFSFactory() {
 
     updatable = app_loader.IsRomFSUpdatable();
     ivfc_offset = app_loader.ReadRomFSIVFCOffset();
-#endif
-    LOG_CRITICAL(Service_FS, "mizu TODO RomFSFactory");
 }
 
 RomFSFactory::~RomFSFactory() = default;
