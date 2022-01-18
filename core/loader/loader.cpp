@@ -18,6 +18,7 @@
 #include "common/logging/log.h"
 #include "common/string_util.h"
 #include "common/fs/fs.h"
+#include "common/thread.h"
 #include "core/core.h"
 #include "core/file_sys/vfs_concat.h"
 #include "core/hle/service/filesystem/filesystem.h"
@@ -27,7 +28,7 @@
 /* #include "core/loader/nax.h" */
 /* #include "core/loader/nca.h" */
 #include "core/loader/nro.h"
-/* #include "core/loader/nso.h" */
+#include "core/loader/nso.h"
 /* #include "core/loader/nsp.h" */
 /* #include "core/loader/xci.h" */
 
@@ -52,8 +53,8 @@ FileType IdentifyFile(FileSys::VirtualFile file) {
     /*     return *romdir_type; */
     /* } else if (const auto elf_type = IdentifyFileLoader<AppLoader_ELF>(file)) { */
     /*     return *elf_type; */
-    /* } else if (const auto nso_type = IdentifyFileLoader<AppLoader_NSO>(file)) { */
-    /*     return *nso_type; */
+    } else if (const auto nso_type = IdentifyFileLoader<AppLoader_NSO>(file)) {
+        return *nso_type;
     } else if (const auto nro_type = IdentifyFileLoader<AppLoader_NRO>(file)) {
         return *nro_type;
     /* } else if (const auto nca_type = IdentifyFileLoader<AppLoader_NCA>(file)) { */
@@ -222,11 +223,11 @@ static std::unique_ptr<AppLoader> GetFileLoader(FileSys::VirtualFile file,
     // Standard ELF file format.
     case FileType::ELF:
         return std::make_unique<AppLoader_ELF>(std::move(file));
+#endif
 
     // NX NSO file format.
     case FileType::NSO:
         return std::make_unique<AppLoader_NSO>(std::move(file));
-#endif
 
     // NX NRO file format.
     case FileType::NRO:
@@ -426,6 +427,12 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         if (pid == 0) {
             ::close(fd);
 
+            // set process name by app title
+            std::string title;
+            if (app_loader->ReadTitle(title) == ResultStatus::Success) {
+                Common::SetCurrentThreadName(title.c_str());
+            }
+
             // wait for parent to write temporary and setup fs controller
             ::close(pipefd[1]);
             ssize_t r = ::read(pipefd[0], &whocares, 1);
@@ -448,8 +455,7 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 
         // load data
         std::vector<Kernel::CodeSet> codesets;
-        FileSys::ProgramMetadata metadata;
-        const auto load_result = app_loader->Load(pid, codesets, metadata);
+        const auto load_result = app_loader->Load(pid, codesets);
         if (load_result != ResultStatus::Success) {
             LOG_CRITICAL(Core, "Failed to load ROM at '{}' (Error {})!", path, load_result);
             ::close(fd);
@@ -461,10 +467,12 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         ssize_t w;
         size_t total = 0;
         bool fail = false;
+        u64 title_id = 0;
+        app_loader->ReadProgramId(title_id); // read in Title ID if there
         mizu_hdr hdr = {
             .magic = 0x70417020,
-            .is_64bit = metadata.Is64BitProgram(),
-            .title_id = metadata.GetTitleID(),
+            .is_64bit = true, // nothing identifies 64-bit yet
+            .title_id = title_id,
             .num_codesets = static_cast<u32>(codesets.size()),
         };
         if ((w = ::write(fd, &hdr, sizeof(hdr))) != sizeof(hdr)) {

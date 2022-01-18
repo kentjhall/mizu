@@ -122,7 +122,7 @@ FileType AppLoader_NRO::IdentifyType(const FileSys::VirtualFile& nro_file) {
     return FileType::Error;
 }
 
-static bool LoadNroImpl(std::vector<Kernel::CodeSet>& codesets, FileSys::ProgramMetadata& metadata,
+static bool LoadNroImpl(std::vector<Kernel::CodeSet>& codesets,
                         const std::vector<u8>& data) {
     if (data.size() < sizeof(NroHeader)) {
         return {};
@@ -179,9 +179,6 @@ static bool LoadNroImpl(std::vector<Kernel::CodeSet>& codesets, FileSys::Program
     codeset.DataSegment().size += bss_size;
     program_image.resize(static_cast<u32>(program_image.size()) + bss_size);
 
-    // Set metadata
-    metadata = FileSys::ProgramMetadata::GetDefault();
-
     // Set codeset
     codeset.SetMemory(std::move(program_image));
     codesets.push_back(std::move(codeset));
@@ -190,18 +187,16 @@ static bool LoadNroImpl(std::vector<Kernel::CodeSet>& codesets, FileSys::Program
 }
 
 bool AppLoader_NRO::LoadNro(std::vector<Kernel::CodeSet>& codesets,
-                            FileSys::ProgramMetadata& metadata,
                             const FileSys::VfsFile& nro_file) {
-    return LoadNroImpl(codesets, metadata, nro_file.ReadAllBytes());
+    return LoadNroImpl(codesets, nro_file.ReadAllBytes());
 }
 
-AppLoader_NRO::LoadResult AppLoader_NRO::Load(::pid_t pid, std::vector<Kernel::CodeSet>& codesets,
-                                              FileSys::ProgramMetadata& metadata) {
+AppLoader_NRO::LoadResult AppLoader_NRO::Load(::pid_t pid, std::vector<Kernel::CodeSet>& codesets) {
     if (is_loaded) {
         return ResultStatus::ErrorAlreadyLoaded;
     }
 
-    if (!LoadNro(codesets, metadata, *file)) {
+    if (!LoadNro(codesets, *file)) {
         return ResultStatus::ErrorLoadingNRO;
     }
 

@@ -35,8 +35,7 @@ public:
         return IdentifyType(file);
     }
 
-    LoadResult Load(::pid_t pid, std::vector<Kernel::CodeSet>& codesets,
-                    FileSys::ProgramMetadata& metadata) override;
+    LoadResult Load(::pid_t pid, std::vector<Kernel::CodeSet>& codesets) override;
 
     ResultStatus ReadIcon(std::vector<u8>& buffer) override;
     ResultStatus ReadProgramId(u64& out_program_id) override;
@@ -47,7 +46,6 @@ public:
 
 private:
     bool LoadNro(std::vector<Kernel::CodeSet>& codesets,
-                 FileSys::ProgramMetadata& metadata,
                  const FileSys::VfsFile& nro_file);
 
     std::vector<u8> icon_data;

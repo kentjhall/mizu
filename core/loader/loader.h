@@ -169,8 +169,7 @@ public:
      *
      * @return The status result of the operation.
      */
-    virtual LoadResult Load(::pid_t pid, std::vector<Kernel::CodeSet>& codesets,
-                            FileSys::ProgramMetadata& metadata) = 0;
+    virtual LoadResult Load(::pid_t pid, std::vector<Kernel::CodeSet>& codesets) = 0;
 
     /**
      * Get the code (typically .code section) of the application
@@ -320,10 +319,6 @@ public:
     }
 
     using Modules = std::map<VAddr, std::string>;
-
-    virtual ResultStatus ReadNSOModules(Modules& modules) {
-        return ResultStatus::ErrorNotImplemented;
-    }
 
 protected:
     FileSys::VirtualFile file;

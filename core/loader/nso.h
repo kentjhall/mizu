@@ -12,6 +12,14 @@
 #include "core/file_sys/patch_manager.h"
 #include "core/loader/loader.h"
 
+namespace Core {
+class System;
+}
+
+namespace Kernel {
+class KProcess;
+}
+
 namespace Loader {
 
 struct NSOSegmentHeader {
@@ -78,19 +86,12 @@ public:
         return IdentifyType(file);
     }
 
-    static std::optional<VAddr> LoadModule(std::vector<Kernel::CodeSet>& codesets,
-                                           FileSys::ProgramMetadata& metadata,
-                                           const FileSys::VfsFile& nso_file, VAddr load_base,
-                                           bool should_pass_arguments, bool load_into_process,
-                                           std::optional<FileSys::PatchManager> pm = {});
+    static bool LoadModule(std::vector<Kernel::CodeSet>& codesets,
+                           const FileSys::VfsFile& nso_file,
+                           bool should_pass_arguments, bool load_into_process,
+                           std::optional<FileSys::PatchManager> pm = {});
 
-    LoadResult Load(::pid_t pid, std::vector<Kernel::CodeSet>& codesets,
-                    FileSys::ProgramMetadata& metadata) override;
-
-    ResultStatus ReadNSOModules(Modules& out_modules) override;
-
-private:
-    Modules modules;
+    LoadResult Load(::pid_t, std::vector<Kernel::CodeSet>& codesets) override;
 };
 
 } // namespace Loader
