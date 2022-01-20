@@ -24,8 +24,8 @@ namespace Tegra {
 MemoryManager::MemoryManager() {}
 
 MemoryManager::~MemoryManager() {
-    for (const auto& map_range : map_ranges) {
-        ::munmap(reinterpret_cast<void *>(map_range.gpu_addr), map_range.size);
+    for (const auto& alloc_range : alloc_ranges) {
+        ::munmap(reinterpret_cast<void *>(alloc_range.gpu_addr), alloc_range.size);
     }
 }
 
@@ -34,10 +34,12 @@ void MemoryManager::BindRasterizer(VideoCore::RasterizerInterface* rasterizer_) 
 }
 
 GPUVAddr MemoryManager::Map(VAddr cpu_addr, GPUVAddr gpu_addr, std::size_t size) {
-    for (auto& range : map_ranges) {
-        if (range.gpu_addr == gpu_addr && range.size == size) {
+    for (auto& alloc_range : alloc_ranges) {
+        if (gpu_addr >= alloc_range.gpu_addr &&
+            gpu_addr + size <= alloc_range.gpu_addr + alloc_range.size) {
             mizu_servctl_map_memory(cpu_addr, gpu_addr, size);
-            range.cpu_addr = cpu_addr;
+            UnmapRegion(gpu_addr, size);
+            map_ranges.emplace_back(gpu_addr, size, cpu_addr);
             return gpu_addr;
         }
     }
@@ -59,15 +61,9 @@ void MemoryManager::Unmap(GPUVAddr gpu_addr, std::size_t size) {
     if (size == 0) {
         return;
     }
-    auto it = map_ranges.begin();
-    for (; it != map_ranges.end(); ++it) {
-        if (it->gpu_addr == gpu_addr && it->size == size) {
-            map_ranges.erase(it);
-            break;
-        }
-    }
-    if (it == map_ranges.end()) {
-        LOG_WARNING(HW_GPU, "Unmapping non-existent GPU address=0x{:x}", gpu_addr);
+
+    if (!UnmapRegion(gpu_addr, size)) {
+        UNREACHABLE_MSG("Unmapping non-existent GPU address=0x{:x}", gpu_addr);
     }
 
     const auto submapped_ranges = GetSubmappedRange(gpu_addr, size);
@@ -76,8 +72,32 @@ void MemoryManager::Unmap(GPUVAddr gpu_addr, std::size_t size) {
         // Flush and invalidate through the GPU interface, to be asynchronous if possible.
         rasterizer->UnmapMemory(map.cpu_addr, map.size);
     }
+}
 
-    ::munmap(reinterpret_cast<void *>(gpu_addr), size);
+bool MemoryManager::UnmapRegion(GPUVAddr gpu_addr, std::size_t size) {
+    ASSERT(size != 0);
+
+    auto it = map_ranges.begin();
+    for (; it != map_ranges.end(); ++it) {
+        if (gpu_addr >= it->gpu_addr &&
+            gpu_addr + size <= it->gpu_addr + it->size) {
+            if (gpu_addr != it->gpu_addr) {
+                map_ranges.emplace_back(
+                        it->gpu_addr,
+                        gpu_addr - it->gpu_addr,
+                        it->cpu_addr);
+            }
+            if (gpu_addr + size != it->gpu_addr + it->size) {
+                map_ranges.emplace_back(
+                        gpu_addr + size,
+                        it->gpu_addr + it->size - gpu_addr + size,
+                        it->cpu_addr + (gpu_addr + size - it->gpu_addr));
+            }
+            map_ranges.erase(it);
+            break;
+        }
+    }
+    return it != map_ranges.end();
 }
 
 std::optional<GPUVAddr> MemoryManager::AllocateFixed(GPUVAddr gpu_addr, std::size_t size) {
@@ -87,7 +107,7 @@ std::optional<GPUVAddr> MemoryManager::AllocateFixed(GPUVAddr gpu_addr, std::siz
                -1, 0) == MAP_FAILED) {
         return std::nullopt;
     }
-    map_ranges.emplace_back(gpu_addr, size, 0);
+    alloc_ranges.emplace_back(gpu_addr, size);
     return gpu_addr;
 }
 
@@ -118,7 +138,7 @@ std::optional<GPUVAddr> MemoryManager::FindAllocateFreeRange(std::size_t size, s
             return std::nullopt;
         }
         GPUVAddr gpu_addr = reinterpret_cast<GPUVAddr>(addr);
-        map_ranges.emplace_back(gpu_addr, size, 0);
+        alloc_ranges.emplace_back(gpu_addr, size);
         return gpu_addr;
     }
 
@@ -128,7 +148,7 @@ std::optional<GPUVAddr> MemoryManager::FindAllocateFreeRange(std::size_t size, s
         if (::mmap(reinterpret_cast<void *>(gpu_addr), size, PROT_NONE,
                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE,
                    -1, 0) != MAP_FAILED) {
-            map_ranges.emplace_back(gpu_addr, size, 0);
+            alloc_ranges.emplace_back(gpu_addr, size);
             return gpu_addr;
         } else {
             if (errno != EEXIST) {
@@ -207,7 +227,7 @@ const u8* MemoryManager::GetPointer(GPUVAddr gpu_addr) const {
 }
 
 size_t MemoryManager::BytesToMapEnd(GPUVAddr gpu_addr) const noexcept {
-    auto it = std::ranges::upper_bound(map_ranges, gpu_addr, {}, &MapRange::gpu_addr);
+    auto it = std::ranges::upper_bound(alloc_ranges, gpu_addr, {}, &AllocRange::gpu_addr);
     --it;
     return it->size - (gpu_addr - it->gpu_addr);
 }

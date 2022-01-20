@@ -22,14 +22,14 @@
 #include "core/core.h"
 #include "core/file_sys/vfs_concat.h"
 #include "core/hle/service/filesystem/filesystem.h"
-/* #include "core/loader/deconstructed_rom_directory.h" */
+#include "core/loader/deconstructed_rom_directory.h"
 /* #include "core/loader/elf.h" */
 /* #include "core/loader/kip.h" */
 /* #include "core/loader/nax.h" */
-/* #include "core/loader/nca.h" */
+#include "core/loader/nca.h"
 #include "core/loader/nro.h"
 #include "core/loader/nso.h"
-/* #include "core/loader/nsp.h" */
+#include "core/loader/nsp.h"
 /* #include "core/loader/xci.h" */
 
 namespace Loader {
@@ -48,23 +48,20 @@ std::optional<FileType> IdentifyFileLoader(FileSys::VirtualFile file) {
 } // namespace
 
 FileType IdentifyFile(FileSys::VirtualFile file) {
-    if (false) { // mizu TEMP
-    /* if (const auto romdir_type = IdentifyFileLoader<AppLoader_DeconstructedRomDirectory>(file)) { */
-    /*     return *romdir_type; */
-    /* } else if (const auto elf_type = IdentifyFileLoader<AppLoader_ELF>(file)) { */
-    /*     return *elf_type; */
+    if (const auto romdir_type = IdentifyFileLoader<AppLoader_DeconstructedRomDirectory>(file)) {
+        return *romdir_type;
     } else if (const auto nso_type = IdentifyFileLoader<AppLoader_NSO>(file)) {
         return *nso_type;
     } else if (const auto nro_type = IdentifyFileLoader<AppLoader_NRO>(file)) {
         return *nro_type;
-    /* } else if (const auto nca_type = IdentifyFileLoader<AppLoader_NCA>(file)) { */
-    /*     return *nca_type; */
+    } else if (const auto nca_type = IdentifyFileLoader<AppLoader_NCA>(file)) {
+        return *nca_type;
     /* } else if (const auto xci_type = IdentifyFileLoader<AppLoader_XCI>(file)) { */
     /*     return *xci_type; */
     /* } else if (const auto nax_type = IdentifyFileLoader<AppLoader_NAX>(file)) { */
     /*     return *nax_type; */
-    /* } else if (const auto nsp_type = IdentifyFileLoader<AppLoader_NSP>(file)) { */
-    /*     return *nsp_type; */
+    } else if (const auto nsp_type = IdentifyFileLoader<AppLoader_NSP>(file)) {
+        return *nsp_type;
     /* } else if (const auto kip_type = IdentifyFileLoader<AppLoader_KIP>(file)) { */
     /*     return *kip_type; */
     } else {
@@ -81,8 +78,6 @@ FileType GuessFromFilename(const std::string& name) {
     const std::string extension =
         Common::ToLower(std::string(Common::FS::GetExtensionFromFilename(name)));
 
-    if (extension == "elf")
-        return FileType::ELF;
     if (extension == "nro")
         return FileType::NRO;
     if (extension == "nso")
@@ -101,8 +96,6 @@ FileType GuessFromFilename(const std::string& name) {
 
 std::string GetFileTypeString(FileType type) {
     switch (type) {
-    case FileType::ELF:
-        return "ELF";
     case FileType::NRO:
         return "NRO";
     case FileType::NSO:
@@ -219,12 +212,6 @@ static std::unique_ptr<AppLoader> GetFileLoader(FileSys::VirtualFile file,
                                                 FileType type, u64 program_id,
                                                 std::size_t program_index) {
     switch (type) {
-#if 0 // mizu TEMP
-    // Standard ELF file format.
-    case FileType::ELF:
-        return std::make_unique<AppLoader_ELF>(std::move(file));
-#endif
-
     // NX NSO file format.
     case FileType::NSO:
         return std::make_unique<AppLoader_NSO>(std::move(file));
@@ -233,11 +220,11 @@ static std::unique_ptr<AppLoader> GetFileLoader(FileSys::VirtualFile file,
     case FileType::NRO:
         return std::make_unique<AppLoader_NRO>(std::move(file));
 
-#if 0 // mizu TEMP
     // NX NCA (Nintendo Content Archive) file format.
     case FileType::NCA:
         return std::make_unique<AppLoader_NCA>(std::move(file));
 
+#if 0 // mizu TEMP
     // NX XCI (nX Card Image) file format.
     case FileType::XCI:
         return std::make_unique<AppLoader_XCI>(std::move(file), system.GetFileSystemController(),
@@ -247,21 +234,21 @@ static std::unique_ptr<AppLoader> GetFileLoader(FileSys::VirtualFile file,
     // NX NAX (NintendoAesXts) file format.
     case FileType::NAX:
         return std::make_unique<AppLoader_NAX>(std::move(file));
+#endif
 
     // NX NSP (Nintendo Submission Package) file format
     case FileType::NSP:
-        return std::make_unique<AppLoader_NSP>(std::move(file), system.GetFileSystemController(),
-                                               system.GetContentProvider(), program_id,
-                                               program_index);
+        return std::make_unique<AppLoader_NSP>(std::move(file), program_id, program_index);
 
+#if 0 // mizu TEMP
     // NX KIP (Kernel Internal Process) file format
     case FileType::KIP:
         return std::make_unique<AppLoader_KIP>(std::move(file));
+#endif
 
     // NX deconstructed ROM directory.
     case FileType::DeconstructedRomDirectory:
         return std::make_unique<AppLoader_DeconstructedRomDirectory>(std::move(file));
-#endif
 
     default:
         return nullptr;
@@ -471,10 +458,11 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         app_loader->ReadProgramId(title_id); // read in Title ID if there
         mizu_hdr hdr = {
             .magic = 0x70417020,
-            .is_64bit = true, // nothing identifies 64-bit yet
+            .is_64bit = app_loader->LoadedIs64Bit(),
             .title_id = title_id,
             .num_codesets = static_cast<u32>(codesets.size()),
         };
+        static_assert(sizeof(hdr) <= BINPRM_BUF_SIZE);
         if ((w = ::write(fd, &hdr, sizeof(hdr))) != sizeof(hdr)) {
             LOG_CRITICAL(Core, "Failed to write temporary file: {}", w == -1 ? ::strerror(errno) : "N/A");
             ::close(fd);
@@ -494,13 +482,6 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
             ::close(fd);
             ::close(pipefd[1]);
             continue;
-        }
-        if (total > BINPRM_BUF_SIZE) {
-            LOG_CRITICAL(Core, "Header for '{}' is too large: {} bytes", path, total);
-            ::close(fd);
-            ::close(pipefd[1]);
-            continue;
-
         }
         if (lseek(fd, PageAlignSize(total), SEEK_SET) == -1) {
             LOG_CRITICAL(Core, "ftruncate failed: {}", ::strerror(errno));

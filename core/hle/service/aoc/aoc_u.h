@@ -7,19 +7,11 @@
 #include "core/hle/service/kernel_helpers.h"
 #include "core/hle/service/service.h"
 
-namespace Core {
-class System;
-}
-
-namespace Kernel {
-class KEvent;
-}
-
 namespace Service::AOC {
 
 class AOC_U final : public ServiceFramework<AOC_U> {
 public:
-    explicit AOC_U(Core::System& system);
+    explicit AOC_U();
     ~AOC_U() override;
 
 private:
@@ -33,12 +25,11 @@ private:
     void CreatePermanentEcPurchasedEventManager(Kernel::HLERequestContext& ctx);
 
     std::vector<u64> add_on_content;
-    KernelHelpers::ServiceContext service_context;
 
-    Kernel::KEvent* aoc_change_event;
+    int aoc_change_event;
 };
 
 /// Registers all AOC services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system);
+void InstallInterfaces();
 
 } // namespace Service::AOC

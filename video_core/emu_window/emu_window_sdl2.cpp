@@ -187,6 +187,7 @@ void EmuWindow_SDL2::WaitEvent() {
         break;
     case SDL_KEYDOWN:
     case SDL_KEYUP:
+        ::fprintf(stderr, "Getting keyboard input\n");
         OnKeyEvent(static_cast<int>(event.key.keysym.scancode), event.key.state);
         break;
     case SDL_MOUSEMOTION:

@@ -16,6 +16,7 @@
 #include "core/file_sys/patch_manager.h"
 #include "core/file_sys/registered_cache.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/aoc/aoc_u.h"
 #include "core/loader/loader.h"
 
@@ -25,9 +26,10 @@ static bool CheckAOCTitleIDMatchesBase(u64 title_id, u64 base) {
     return FileSys::GetBaseTitleID(title_id) == base;
 }
 
-static std::vector<u64> AccumulateAOCTitleIDs(Core::System& system) {
+static std::vector<u64> AccumulateAOCTitleIDs() {
     std::vector<u64> add_on_content;
-    const auto& rcu = system.GetContentProvider();
+    SharedReader content_provider_locked(content_provider);
+    const auto& rcu = static_cast<const FileSys::ContentProvider&>(*content_provider_locked);
     const auto list =
         rcu.ListEntriesFilter(FileSys::TitleType::AOC, FileSys::ContentRecordType::Data);
     std::transform(list.begin(), list.end(), std::back_inserter(add_on_content),
@@ -45,9 +47,8 @@ static std::vector<u64> AccumulateAOCTitleIDs(Core::System& system) {
 
 class IPurchaseEventManager final : public ServiceFramework<IPurchaseEventManager> {
 public:
-    explicit IPurchaseEventManager(Core::System& system_)
-        : ServiceFramework{system_, "IPurchaseEventManager"}, service_context{
-                                                                  system, "IPurchaseEventManager"} {
+    explicit IPurchaseEventManager()
+        : ServiceFramework{"IPurchaseEventManager"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &IPurchaseEventManager::SetDefaultDeliveryTarget, "SetDefaultDeliveryTarget"},
@@ -60,11 +61,12 @@ public:
 
         RegisterHandlers(functions);
 
-        purchased_event = service_context.CreateEvent("IPurchaseEventManager:PurchasedEvent");
+        KernelHelpers::SetupServiceContext("IPurchaseEventManager");
+        purchased_event = KernelHelpers::CreateEvent("IPurchaseEventManager:PurchasedEvent");
     }
 
     ~IPurchaseEventManager() override {
-        service_context.CloseEvent(purchased_event);
+        KernelHelpers::CloseEvent(purchased_event);
     }
 
 private:
@@ -97,17 +99,14 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(purchased_event->GetReadableEvent());
+        rb.PushCopyFds(purchased_event);
     }
 
-    KernelHelpers::ServiceContext service_context;
-
-    Kernel::KEvent* purchased_event;
+    int purchased_event;
 };
 
-AOC_U::AOC_U(Core::System& system_)
-    : ServiceFramework{system_, "aoc:u"}, add_on_content{AccumulateAOCTitleIDs(system)},
-      service_context{system_, "aoc:u"} {
+AOC_U::AOC_U()
+    : ServiceFramework{"aoc:u"}, add_on_content{AccumulateAOCTitleIDs()} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, nullptr, "CountAddOnContentByApplicationId"},
@@ -129,11 +128,12 @@ AOC_U::AOC_U(Core::System& system_)
 
     RegisterHandlers(functions);
 
-    aoc_change_event = service_context.CreateEvent("GetAddOnContentListChanged:Event");
+    KernelHelpers::SetupServiceContext("aoc:u");
+    aoc_change_event = KernelHelpers::CreateEvent("GetAddOnContentListChanged:Event");
 }
 
 AOC_U::~AOC_U() {
-    service_context.CloseEvent(aoc_change_event);
+    KernelHelpers::CloseEvent(aoc_change_event);
 }
 
 void AOC_U::CountAddOnContent(Kernel::HLERequestContext& ctx) {
@@ -150,7 +150,7 @@ void AOC_U::CountAddOnContent(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(ResultSuccess);
 
-    const auto current = system.CurrentProcess()->GetTitleID();
+    const auto current = GetTitleID();
 
     const auto& disabled = Settings::values.disabled_addons[current];
     if (std::find(disabled.begin(), disabled.end(), "DLC") != disabled.end()) {
@@ -177,7 +177,7 @@ void AOC_U::ListAddOnContent(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_AOC, "called with offset={}, count={}, process_id={}", offset, count,
               process_id);
 
-    const auto current = system.CurrentProcess()->GetTitleID();
+    const auto current = GetTitleID();
 
     std::vector<u32> out;
     const auto& disabled = Settings::values.disabled_addons[current];
@@ -223,9 +223,8 @@ void AOC_U::GetAddOnContentBaseId(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(ResultSuccess);
 
-    const auto title_id = system.CurrentProcess()->GetTitleID();
-    const FileSys::PatchManager pm{title_id, system.GetFileSystemController(),
-                                   system.GetContentProvider()};
+    const auto title_id = GetTitleID();
+    const FileSys::PatchManager pm{title_id};
 
     const auto res = pm.GetControlMetadata();
     if (res.first == nullptr) {
@@ -258,7 +257,7 @@ void AOC_U::GetAddOnContentListChangedEvent(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2, 1};
     rb.Push(ResultSuccess);
-    rb.PushCopyObjects(aoc_change_event->GetReadableEvent());
+    rb.PushCopyFds(aoc_change_event);
 }
 
 void AOC_U::GetAddOnContentListChangedEventWithProcessId(Kernel::HLERequestContext& ctx) {
@@ -266,7 +265,7 @@ void AOC_U::GetAddOnContentListChangedEventWithProcessId(Kernel::HLERequestConte
 
     IPC::ResponseBuilder rb{ctx, 2, 1};
     rb.Push(ResultSuccess);
-    rb.PushCopyObjects(aoc_change_event->GetReadableEvent());
+    rb.PushCopyFds(aoc_change_event);
 }
 
 void AOC_U::CreateEcPurchasedEventManager(Kernel::HLERequestContext& ctx) {
@@ -274,7 +273,7 @@ void AOC_U::CreateEcPurchasedEventManager(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IPurchaseEventManager>(system);
+    rb.PushIpcInterface<IPurchaseEventManager>();
 }
 
 void AOC_U::CreatePermanentEcPurchasedEventManager(Kernel::HLERequestContext& ctx) {
@@ -282,11 +281,11 @@ void AOC_U::CreatePermanentEcPurchasedEventManager(Kernel::HLERequestContext& ct
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IPurchaseEventManager>(system);
+    rb.PushIpcInterface<IPurchaseEventManager>();
 }
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
-    std::make_shared<AOC_U>(system)->InstallAsService(service_manager);
+void InstallInterfaces() {
+    MakeService<AOC_U>();
 }
 
 } // namespace Service::AOC

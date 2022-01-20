@@ -130,23 +130,28 @@ NvResult nvhost_ctrl::IocCtrlEventWait(const std::vector<u8>& input, std::vector
         return NvResult::Timeout;
     }
 
-    EventState status = SharedReader(events_interface)->status[event_id];
-    const bool bad_parameter = status != EventState::Free && status != EventState::Registered;
-    if (bad_parameter) {
-        std::memcpy(output.data(), &params, sizeof(params));
-        return NvResult::BadParameter;
+    bool failed;
+    {
+        SharedWriter events_interface_locked(events_interface);
+        EventState status = events_interface_locked->status[event_id];
+        const bool bad_parameter = status != EventState::Free && status != EventState::Registered;
+        if (bad_parameter) {
+            std::memcpy(output.data(), &params, sizeof(params));
+            return NvResult::BadParameter;
+        }
+        events_interface_locked->SetEventStatus(event_id, EventState::Waiting);
+        events_interface_locked->assigned_syncpt[event_id] = params.syncpt_id;
+        events_interface_locked->assigned_value[event_id] = target_value;
+        if (is_async) {
+            params.value = params.syncpt_id << 4;
+        } else {
+            params.value = ((params.syncpt_id & 0xfff) << 16) | 0x10000000;
+        }
+        params.value |= event_id;
+        KernelHelpers::ClearEvent(event.event);
+        failed = events_interface_locked->failed[event_id];
     }
-    SharedWriter(events_interface)->SetEventStatus(event_id, EventState::Waiting);
-    SharedWriter(events_interface)->assigned_syncpt[event_id] = params.syncpt_id;
-    SharedWriter(events_interface)->assigned_value[event_id] = target_value;
-    if (is_async) {
-        params.value = params.syncpt_id << 4;
-    } else {
-        params.value = ((params.syncpt_id & 0xfff) << 16) | 0x10000000;
-    }
-    params.value |= event_id;
-    KernelHelpers::ClearEvent(event.event);
-    if (SharedReader(events_interface)->failed[event_id]) {
+    if (failed) {
         {
             SharedUnlocked(gpu)->WaitFence(params.syncpt_id, target_value);
         }
@@ -167,16 +172,17 @@ NvResult nvhost_ctrl::IocCtrlEventRegister(const std::vector<u8>& input, std::ve
     if (event_id >= MaxNvEvents) {
         return NvResult::BadParameter;
     }
-    if (SharedReader(events_interface)->registered[event_id]) {
-        const auto event_state = SharedReader(events_interface)->status[event_id];
+    SharedWriter events_interface_locked(events_interface);
+    if (events_interface_locked->registered[event_id]) {
+        const auto event_state = events_interface_locked->status[event_id];
         if (event_state != EventState::Free) {
             LOG_WARNING(Service_NVDRV, "Event already registered! Unregistering previous event");
-            SharedWriter(events_interface)->UnregisterEvent(event_id);
+            events_interface_locked->UnregisterEvent(event_id);
         } else {
             return NvResult::BadParameter;
         }
     }
-    SharedWriter(events_interface)->RegisterEvent(event_id);
+    events_interface_locked->RegisterEvent(event_id);
     return NvResult::Success;
 }
 
@@ -206,12 +212,15 @@ NvResult nvhost_ctrl::IocCtrlClearEventWait(const std::vector<u8>& input, std::v
     if (event_id >= MaxNvEvents) {
         return NvResult::BadParameter;
     }
-    if (SharedReader(events_interface)->status[event_id] == EventState::Waiting) {
-        SharedWriter(events_interface)->LiberateEvent(event_id);
-    }
-    SharedWriter(events_interface)->failed[event_id] = true;
+    {
+        SharedWriter events_interface_locked(events_interface);
+        if (events_interface_locked->status[event_id] == EventState::Waiting) {
+            events_interface_locked->LiberateEvent(event_id);
+        }
+        events_interface_locked->failed[event_id] = true;
 
-    syncpoint_manager.RefreshSyncpoint(SharedReader(events_interface)->events[event_id].fence.id, gpu);
+        syncpoint_manager.RefreshSyncpoint(events_interface_locked->events[event_id].fence.id, gpu);
+    }
 
     return NvResult::Success;
 }

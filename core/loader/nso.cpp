@@ -65,19 +65,19 @@ FileType AppLoader_NSO::IdentifyType(const FileSys::VirtualFile& in_file) {
 
 bool AppLoader_NSO::LoadModule(std::vector<Kernel::CodeSet>& codesets,
                                const FileSys::VfsFile& nso_file,
-                               bool should_pass_arguments, bool load_into_process,
+                               bool should_pass_arguments,
                                std::optional<FileSys::PatchManager> pm) {
     if (nso_file.GetSize() < sizeof(NSOHeader)) {
-        return false;
+        return 0;
     }
 
     NSOHeader nso_header{};
     if (sizeof(NSOHeader) != nso_file.ReadObject(&nso_header)) {
-        return false;
+        return 0;
     }
 
     if (nso_header.magic != Common::MakeMagic('N', 'S', 'O', '0')) {
-        return false;
+        return 0;
     }
 
     // Build program image
@@ -133,12 +133,7 @@ bool AppLoader_NSO::LoadModule(std::vector<Kernel::CodeSet>& codesets,
         std::copy(pi_header.begin() + sizeof(NSOHeader), pi_header.end(), program_image.data());
     }
 
-    // If we aren't actually loading (i.e. just computing the process code layout), we are done
-    if (!load_into_process) {
-        return true;
-    }
-
-#if 0 // mizu TEMP probably (if cheats get implemented)
+#if 0 // mizu TEMP maybe (if cheats get implemented)
     // Apply cheats if they exist and the program has a valid title ID
     if (pm) {
         system.SetCurrentProcessBuildID(nso_header.build_id);
@@ -153,7 +148,7 @@ bool AppLoader_NSO::LoadModule(std::vector<Kernel::CodeSet>& codesets,
     codeset.SetMemory(std::move(program_image));
     codesets.push_back(std::move(codeset));
 
-    return true;
+    return image_size;
 }
 
 AppLoader_NSO::LoadResult AppLoader_NSO::Load(::pid_t, std::vector<Kernel::CodeSet>& codesets) {
@@ -162,7 +157,7 @@ AppLoader_NSO::LoadResult AppLoader_NSO::Load(::pid_t, std::vector<Kernel::CodeS
     }
 
     // Load module
-    if (!LoadModule(codesets, *file, true, true)) {
+    if (!LoadModule(codesets, *file, true)) {
         return ResultStatus::ErrorLoadingNSO;
     }
 

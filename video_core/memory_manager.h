@@ -144,11 +144,16 @@ private:
 
     void FlushRegion(GPUVAddr gpu_addr, size_t size) const;
 
+    bool UnmapRegion(GPUVAddr gpu_addr, std::size_t size);
+
     static constexpr u64 address_space_size = 1ULL << 40;
     static constexpr u64 address_space_start = 1ULL << 32;
     static constexpr u64 address_space_start_low = 1ULL << 16;
 
     VideoCore::RasterizerInterface* rasterizer = nullptr;
+
+    using AllocRange = struct { GPUVAddr gpu_addr; size_t size; };
+    std::vector<AllocRange> alloc_ranges;
 
     std::vector<MapRange> map_ranges;
 

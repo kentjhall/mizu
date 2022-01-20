@@ -10,9 +10,9 @@
 #include <boost/container_hash/hash.hpp>
 #include "common/logging/log.h"
 #include "common/scope_exit.h"
-#include "core/core.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/service/lm/lm.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/service.h"
 #include "core/memory.h"
 
@@ -87,7 +87,7 @@ DECLARE_ENUM_FLAG_OPERATORS(LogPacketFlags);
 
 class ILogger final : public ServiceFramework<ILogger> {
 public:
-    explicit ILogger(Core::System& system_) : ServiceFramework{system_, "ILogger"} {
+    explicit ILogger() : ServiceFramework{"ILogger"} {
         static const FunctionInfo functions[] = {
             {0, &ILogger::Log, "Log"},
             {1, &ILogger::SetDestination, "SetDestination"},
@@ -335,7 +335,7 @@ private:
 
 class LM final : public ServiceFramework<LM> {
 public:
-    explicit LM(Core::System& system_) : ServiceFramework{system_, "lm"} {
+    explicit LM() : ServiceFramework{"lm"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &LM::OpenLogger, "OpenLogger"},
@@ -351,12 +351,12 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<ILogger>(system);
+        rb.PushIpcInterface<ILogger>();
     }
 };
 
-void InstallInterfaces(Core::System& system) {
-    std::make_shared<LM>(system)->InstallAsService(system.ServiceManager());
+void InstallInterfaces() {
+    MakeService<LM>();
 }
 
 } // namespace Service::LM

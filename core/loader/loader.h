@@ -37,7 +37,6 @@ inline u32 PageAlignSize(u32 size) {
 enum class FileType {
     Error,
     Unknown,
-    ELF,
     NSO,
     NRO,
     NCA,
@@ -316,6 +315,15 @@ public:
      */
     virtual ResultStatus ReadManualRomFS(FileSys::VirtualFile& out_file) {
         return ResultStatus::ErrorNotImplemented;
+    }
+
+    /*
+     * Check whether loaded program is 64-bit. Must be used after Load().
+     *
+     * @return bool whether it is 64-bit (default=true)
+     */
+    virtual bool LoadedIs64Bit() const {
+        return true;
     }
 
     using Modules = std::map<VAddr, std::string>;

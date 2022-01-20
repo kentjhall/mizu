@@ -7,6 +7,7 @@
 #include "core/file_sys/control_metadata.h"
 #include "core/file_sys/patch_manager.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/pctl/pctl.h"
 #include "core/hle/service/pctl/pctl_module.h"
 
@@ -23,8 +24,8 @@ constexpr ResultCode ResultNoRestrictionEnabled{ErrorModule::PCTL, 181};
 
 class IParentalControlService final : public ServiceFramework<IParentalControlService> {
 public:
-    explicit IParentalControlService(Core::System& system_, Capability capability_)
-        : ServiceFramework{system_, "IParentalControlService"}, capability{capability_} {
+    explicit IParentalControlService(Capability capability_)
+        : ServiceFramework{"IParentalControlService"}, capability{capability_} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {1, &IParentalControlService::Initialize, "Initialize"},
@@ -188,10 +189,9 @@ private:
 
         // TODO(ogniK): Recovery flag initialization for pctl:r
 
-        const auto tid = system.CurrentProcess()->GetTitleID();
+        const auto tid = GetTitleID();
         if (tid != 0) {
-            const FileSys::PatchManager pm{tid, system.GetFileSystemController(),
-                                           system.GetContentProvider()};
+            const FileSys::PatchManager pm{tid};
             const auto control = pm.GetControlMetadata();
             if (control.first) {
                 states.tid_from_event = 0;
@@ -370,7 +370,7 @@ void Module::Interface::CreateService(Kernel::HLERequestContext& ctx) {
     rb.Push(ResultSuccess);
     // TODO(ogniK): Get TID from process
 
-    rb.PushIpcInterface<IParentalControlService>(system, capability);
+    rb.PushIpcInterface<IParentalControlService>(capability);
 }
 
 void Module::Interface::CreateServiceWithoutInitialize(Kernel::HLERequestContext& ctx) {
@@ -378,28 +378,24 @@ void Module::Interface::CreateServiceWithoutInitialize(Kernel::HLERequestContext
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IParentalControlService>(system, capability);
+    rb.PushIpcInterface<IParentalControlService>(capability);
 }
 
-Module::Interface::Interface(Core::System& system_, std::shared_ptr<Module> module_,
+Module::Interface::Interface(std::shared_ptr<Module> module_,
                              const char* name_, Capability capability_)
-    : ServiceFramework{system_, name_}, module{std::move(module_)}, capability{capability_} {}
+    : ServiceFramework{name_}, module{std::move(module_)}, capability{capability_} {}
 
 Module::Interface::~Interface() = default;
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
+void InstallInterfaces() {
     auto module = std::make_shared<Module>();
-    std::make_shared<PCTL>(system, module, "pctl",
-                           Capability::Application | Capability::SnsPost | Capability::Status |
-                               Capability::StereoVision)
-        ->InstallAsService(service_manager);
+    MakeService<PCTL>(module, "pctl",
+                      Capability::Application | Capability::SnsPost |
+                      Capability::Status | Capability::StereoVision);
     // TODO(ogniK): Implement remaining capabilities
-    std::make_shared<PCTL>(system, module, "pctl:a", Capability::None)
-        ->InstallAsService(service_manager);
-    std::make_shared<PCTL>(system, module, "pctl:r", Capability::None)
-        ->InstallAsService(service_manager);
-    std::make_shared<PCTL>(system, module, "pctl:s", Capability::None)
-        ->InstallAsService(service_manager);
+    MakeService<PCTL>(module, "pctl:a", Capability::None);
+    MakeService<PCTL>(module, "pctl:r", Capability::None);
+    MakeService<PCTL>(module, "pctl:s", Capability::None);
 }
 
 } // namespace Service::PCTL

@@ -88,7 +88,7 @@ public:
 
     static bool LoadModule(std::vector<Kernel::CodeSet>& codesets,
                            const FileSys::VfsFile& nso_file,
-                           bool should_pass_arguments, bool load_into_process,
+                           bool should_pass_arguments,
                            std::optional<FileSys::PatchManager> pm = {});
 
     LoadResult Load(::pid_t, std::vector<Kernel::CodeSet>& codesets) override;

@@ -18,7 +18,7 @@
 #include "core/hle/service/acc/acc.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applets/applets.h"
-/* #include "core/hle/service/aoc/aoc_u.h" */
+#include "core/hle/service/aoc/aoc_u.h"
 #include "core/hle/service/apm/apm.h"
 #include "core/hle/service/apm/apm_controller.h"
 /* #include "core/hle/service/audio/audio.h" */
@@ -41,7 +41,7 @@
 /* #include "core/hle/service/lbl/lbl.h" */
 /* #include "core/hle/service/ldn/ldn.h" */
 /* #include "core/hle/service/ldr/ldr.h" */
-/* #include "core/hle/service/lm/lm.h" */
+#include "core/hle/service/lm/lm.h"
 /* #include "core/hle/service/mig/mig.h" */
 /* #include "core/hle/service/mii/mii.h" */
 /* #include "core/hle/service/mm/mm_u.h" */
@@ -57,7 +57,7 @@
 #include "core/hle/service/nvflinger/nvflinger.h"
 /* #include "core/hle/service/olsc/olsc.h" */
 /* #include "core/hle/service/pcie/pcie.h" */
-/* #include "core/hle/service/pctl/pctl_module.h" */
+#include "core/hle/service/pctl/pctl_module.h"
 /* #include "core/hle/service/pcv/pcv.h" */
 /* #include "core/hle/service/pm/pm.h" */
 /* #include "core/hle/service/prepo/prepo.h" */
@@ -234,7 +234,7 @@ void StartServices() {
 
     Account::InstallInterfaces();
     AM::InstallInterfaces();
-    /* AOC::InstallInterfaces(*sm, system); */
+    AOC::InstallInterfaces();
     APM::InstallInterfaces();
     /* Audio::InstallInterfaces(*sm, system); */
     BCAT::InstallInterfaces();
@@ -255,7 +255,7 @@ void StartServices() {
     /* LBL::InstallInterfaces(*sm, system); */
     /* LDN::InstallInterfaces(*sm, system); */
     /* LDR::InstallInterfaces(*sm, system); */
-    /* LM::InstallInterfaces(system); */
+    LM::InstallInterfaces();
     /* Migration::InstallInterfaces(*sm, system); */
     /* Mii::InstallInterfaces(*sm, system); */
     /* MM::InstallInterfaces(*sm, system); */
@@ -270,7 +270,7 @@ void StartServices() {
     Nvidia::InstallInterfaces();
     /* OLSC::InstallInterfaces(*sm, system); */
     /* PCIe::InstallInterfaces(*sm, system); */
-    /* PCTL::InstallInterfaces(*sm, system); */
+    PCTL::InstallInterfaces();
     /* PCV::InstallInterfaces(*sm, system); */
     /* PlayReport::InstallInterfaces(*sm, system); */
     /* PM::InstallInterfaces(system); */

@@ -7,10 +7,6 @@
 #include "common/common_funcs.h"
 #include "core/hle/service/service.h"
 
-namespace Core {
-class System;
-}
-
 namespace Service::PCTL {
 
 enum class Capability : u32 {
@@ -28,7 +24,7 @@ class Module final {
 public:
     class Interface : public ServiceFramework<Interface> {
     public:
-        explicit Interface(Core::System& system_, std::shared_ptr<Module> module_,
+        explicit Interface(std::shared_ptr<Module> module_,
                            const char* name_, Capability capability_);
         ~Interface() override;
 
@@ -44,6 +40,6 @@ public:
 };
 
 /// Registers all PCTL services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system);
+void InstallInterfaces();
 
 } // namespace Service::PCTL
