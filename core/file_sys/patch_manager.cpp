@@ -175,11 +175,7 @@ VirtualDir PatchManager::PatchExeFS(VirtualDir exefs) const {
         }
         layers.push_back(exefs);
 
-#if 0
         auto layered = LayeredVfsDirectory::MakeLayeredDirectory(std::move(layers));
-#endif
-        LOG_CRITICAL(Loader, "mizu TODO");
-        auto layered = nullptr; // mizu TEMP
         if (layered != nullptr) {
             LOG_INFO(Loader, "    ExeFS: LayeredExeFS patches applied successfully");
             exefs = std::move(layered);
@@ -350,7 +346,6 @@ std::vector<Core::Memory::CheatEntry> PatchManager::CreateCheatList(
 }
 
 static void ApplyLayeredFS(VirtualFile& romfs, u64 title_id, ContentRecordType type) {
-#if 0 // mizu TEMP TODO Layered FS
     const auto load_dir = Service::SharedReader(Service::filesystem_controller)->GetModificationLoadRoot(title_id);
     const auto sdmc_load_dir = Service::SharedReader(Service::filesystem_controller)->GetSDMCModificationLoadRoot(title_id);
     if ((type != ContentRecordType::Program && type != ContentRecordType::Data) ||
@@ -411,8 +406,6 @@ static void ApplyLayeredFS(VirtualFile& romfs, u64 title_id, ContentRecordType t
 
     LOG_INFO(Loader, "    RomFS: LayeredFS patches applied successfully");
     romfs = std::move(packed);
-#endif
-    LOG_CRITICAL(Loader, "mizu TODO");
 }
 
 VirtualFile PatchManager::PatchRomFS(VirtualFile romfs, u64 ivfc_offset, ContentRecordType type,

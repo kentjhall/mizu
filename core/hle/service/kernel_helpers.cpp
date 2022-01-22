@@ -44,7 +44,7 @@ void ClearEvent(int efd) {
     }
 }
 
-::timer_t CreateTimerEvent(std::string&& name, void *val, void (*cb) (::sigval)) {
+::timer_t CreateTimerEvent(std::string name, void *val, void (*cb) (::sigval)) {
     ::sigevent sev;
     sev.sigev_notify = SIGEV_THREAD;
     sev.sigev_value = { .sival_ptr = val };

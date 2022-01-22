@@ -94,7 +94,7 @@ Device CreateDevice(const vk::Instance& instance, const vk::InstanceDispatch& dl
 
 RendererVulkan::RendererVulkan(Tegra::GPU& gpu_,
                                std::unique_ptr<Core::Frontend::GraphicsContext> context_) try
-    : RendererBase(gpu_.EmuWindow(), std::move(context_)), telemetry_session(gpu.TelemetrySession()),
+    : RendererBase(gpu_.EmuWindow(), std::move(context_)), telemetry_session(gpu_.TelemetrySession()),
       gpu(gpu_), library(OpenLibrary()),
       instance(CreateInstance(library, dld, VK_API_VERSION_1_1, render_window.GetWindowInfo().type,
                               true, Settings::values.renderer_debug.GetValue())),

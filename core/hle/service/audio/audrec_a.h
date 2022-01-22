@@ -14,7 +14,7 @@ namespace Service::Audio {
 
 class AudRecA final : public ServiceFramework<AudRecA> {
 public:
-    explicit AudRecA(Core::System& system_);
+    explicit AudRecA();
     ~AudRecA() override;
 };
 

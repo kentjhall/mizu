@@ -14,7 +14,7 @@ namespace Service::Audio {
 
 class CodecCtl final : public ServiceFramework<CodecCtl> {
 public:
-    explicit CodecCtl(Core::System& system_);
+    explicit CodecCtl();
     ~CodecCtl() override;
 };
 

@@ -17,6 +17,7 @@
 #include "core/hle/service/audio/errors.h"
 #include "core/hle/service/kernel_helpers.h"
 #include "core/memory.h"
+#include "mizu_servctl.h"
 
 namespace Service::Audio {
 
@@ -37,12 +38,11 @@ enum class AudioState : u32 {
 
 class IAudioOut final : public ServiceFramework<IAudioOut> {
 public:
-    explicit IAudioOut(Core::System& system_, AudoutParams audio_params_,
+    explicit IAudioOut(AudoutParams audio_params_,
                        AudioCore::AudioOut& audio_core_, std::string&& device_name_,
                        std::string&& unique_name)
-        : ServiceFramework{system_, "IAudioOut"}, audio_core{audio_core_},
-          device_name{std::move(device_name_)}, audio_params{audio_params_},
-          main_memory{system.Memory()}, service_context{system_, "IAudioOut"} {
+        : ServiceFramework{"IAudioOut"}, audio_core{audio_core_},
+          device_name{std::move(device_name_)}, audio_params{audio_params_} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &IAudioOut::GetAudioOutState, "GetAudioOutState"},
@@ -63,18 +63,19 @@ public:
         // clang-format on
         RegisterHandlers(functions);
 
+        KernelHelpers::SetupServiceContext("IAudioOut");
         // This is the event handle used to check if the audio buffer was released
-        buffer_event = service_context.CreateEvent("IAudioOutBufferReleased");
+        buffer_event = KernelHelpers::CreateEvent("IAudioOutBufferReleased");
 
-        stream = audio_core.OpenStream(system.CoreTiming(), audio_params.sample_rate,
+        stream = audio_core.OpenStream(audio_params.sample_rate,
                                        audio_params.channel_count, std::move(unique_name), [this] {
                                            const auto guard = LockService();
-                                           buffer_event->GetWritableEvent().Signal();
+                                           KernelHelpers::SignalEvent(buffer_event);
                                        });
     }
 
     ~IAudioOut() override {
-        service_context.CloseEvent(buffer_event);
+        KernelHelpers::CloseEvent(buffer_event);
     }
 
 private:
@@ -126,7 +127,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(buffer_event->GetReadableEvent());
+        rb.PushCopyFds(buffer_event);
     }
 
     void AppendAudioOutBufferImpl(Kernel::HLERequestContext& ctx) {
@@ -141,7 +142,7 @@ private:
         const u64 tag{rp.Pop<u64>()};
 
         std::vector<s16> samples(audio_buffer.buffer_size / sizeof(s16));
-        main_memory.ReadBlock(audio_buffer.buffer, samples.data(), audio_buffer.buffer_size);
+        mizu_servctl_read_buffer(audio_buffer.buffer, samples.data(), audio_buffer.buffer_size);
 
         if (!audio_core.QueueBuffer(stream, tag, std::move(samples))) {
             IPC::ResponseBuilder rb{ctx, 2};
@@ -227,15 +228,11 @@ private:
 
     [[maybe_unused]] AudoutParams audio_params{};
 
-    Core::Memory::Memory& main_memory;
-
-    KernelHelpers::ServiceContext service_context;
-
     /// This is the event handle used to check if the audio buffer was released
-    Kernel::KEvent* buffer_event;
+    int buffer_event;
 };
 
-AudOutU::AudOutU(Core::System& system_) : ServiceFramework{system_, "audout:u"} {
+AudOutU::AudOutU() : ServiceFramework{"audout:u"} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &AudOutU::ListAudioOutsImpl, "ListAudioOuts"},
@@ -287,7 +284,7 @@ void AudOutU::OpenAudioOutImpl(Kernel::HLERequestContext& ctx) {
 
     std::string unique_name{fmt::format("{}-{}", device_name, audio_out_interfaces.size())};
     auto audio_out_interface = std::make_shared<IAudioOut>(
-        system, params, *audio_core, std::move(device_name), std::move(unique_name));
+        params, *audio_core, std::move(device_name), std::move(unique_name));
 
     IPC::ResponseBuilder rb{ctx, 6, 0, 1};
     rb.Push(ResultSuccess);

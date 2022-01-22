@@ -19,7 +19,7 @@ namespace Service::Audio {
 
 class AudRenU final : public ServiceFramework<AudRenU> {
 public:
-    explicit AudRenU(Core::System& system_);
+    explicit AudRenU();
     ~AudRenU() override;
 
 private:
@@ -31,10 +31,8 @@ private:
 
     void OpenAudioRendererImpl(Kernel::HLERequestContext& ctx);
 
-    KernelHelpers::ServiceContext service_context;
-
     std::size_t audren_instance_count = 0;
-    Kernel::KEvent* buffer_event;
+    int buffer_event;
 };
 
 // Describes a particular audio feature that may be supported in a particular revision.

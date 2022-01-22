@@ -14,7 +14,7 @@ namespace Service::Audio {
 
 class AudOutA final : public ServiceFramework<AudOutA> {
 public:
-    explicit AudOutA(Core::System& system_);
+    explicit AudOutA();
     ~AudOutA() override;
 };
 

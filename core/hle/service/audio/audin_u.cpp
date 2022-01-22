@@ -9,8 +9,8 @@
 
 namespace Service::Audio {
 
-IAudioIn::IAudioIn(Core::System& system_)
-    : ServiceFramework{system_, "IAudioIn"}, service_context{system_, "IAudioIn"} {
+IAudioIn::IAudioIn()
+    : ServiceFramework{"IAudioIn"} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, nullptr, "GetAudioInState"},
@@ -33,11 +33,12 @@ IAudioIn::IAudioIn(Core::System& system_)
 
     RegisterHandlers(functions);
 
-    buffer_event = service_context.CreateEvent("IAudioIn:BufferEvent");
+    KernelHelpers::SetupServiceContext("IAudioIn");
+    buffer_event = KernelHelpers::CreateEvent("IAudioIn:BufferEvent");
 }
 
 IAudioIn::~IAudioIn() {
-    service_context.CloseEvent(buffer_event);
+    KernelHelpers::CloseEvent(buffer_event);
 }
 
 void IAudioIn::Start(Kernel::HLERequestContext& ctx) {
@@ -52,7 +53,7 @@ void IAudioIn::RegisterBufferEvent(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2, 1};
     rb.Push(ResultSuccess);
-    rb.PushCopyObjects(buffer_event->GetReadableEvent());
+    rb.PushCopyFds(buffer_event);
 }
 
 void IAudioIn::AppendAudioInBufferAuto(Kernel::HLERequestContext& ctx) {
@@ -62,7 +63,7 @@ void IAudioIn::AppendAudioInBufferAuto(Kernel::HLERequestContext& ctx) {
     rb.Push(ResultSuccess);
 }
 
-AudInU::AudInU(Core::System& system_) : ServiceFramework{system_, "audin:u"} {
+AudInU::AudInU() : ServiceFramework{"audin:u"} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &AudInU::ListAudioIns, "ListAudioIns"},
@@ -122,7 +123,7 @@ void AudInU::OpenInOutImpl(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 6, 0, 1};
     rb.Push(ResultSuccess);
     rb.PushRaw<AudInOutParams>(params);
-    rb.PushIpcInterface<IAudioIn>(system);
+    rb.PushIpcInterface<IAudioIn>();
 }
 
 void AudInU::OpenAudioIn(Kernel::HLERequestContext& ctx) {

@@ -15,27 +15,28 @@
 #include "core/hle/service/audio/audren_u.h"
 #include "core/hle/service/audio/codecctl.h"
 #include "core/hle/service/audio/hwopus.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/service.h"
 
 namespace Service::Audio {
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
-    std::make_shared<AudCtl>(system)->InstallAsService(service_manager);
-    std::make_shared<AudOutA>(system)->InstallAsService(service_manager);
-    std::make_shared<AudOutU>(system)->InstallAsService(service_manager);
-    std::make_shared<AudInA>(system)->InstallAsService(service_manager);
-    std::make_shared<AudInU>(system)->InstallAsService(service_manager);
-    std::make_shared<AudRecA>(system)->InstallAsService(service_manager);
-    std::make_shared<AudRecU>(system)->InstallAsService(service_manager);
-    std::make_shared<AudRenA>(system)->InstallAsService(service_manager);
-    std::make_shared<AudRenU>(system)->InstallAsService(service_manager);
-    std::make_shared<CodecCtl>(system)->InstallAsService(service_manager);
-    std::make_shared<HwOpus>(system)->InstallAsService(service_manager);
+void InstallInterfaces() {
+    MakeService<AudCtl>();
+    MakeService<AudOutA>();
+    MakeService<AudOutU>();
+    MakeService<AudInA>();
+    MakeService<AudInU>();
+    MakeService<AudRecA>();
+    MakeService<AudRecU>();
+    MakeService<AudRenA>();
+    MakeService<AudRenU>();
+    MakeService<CodecCtl>();
+    MakeService<HwOpus>();
 
-    std::make_shared<AudDbg>(system, "audin:d")->InstallAsService(service_manager);
-    std::make_shared<AudDbg>(system, "audout:d")->InstallAsService(service_manager);
-    std::make_shared<AudDbg>(system, "audrec:d")->InstallAsService(service_manager);
-    std::make_shared<AudDbg>(system, "audren:d")->InstallAsService(service_manager);
+    MakeService<AudDbg>("audin:d");
+    MakeService<AudDbg>("audout:d");
+    MakeService<AudDbg>("audrec:d");
+    MakeService<AudDbg>("audren:d");
 }
 
 } // namespace Service::Audio

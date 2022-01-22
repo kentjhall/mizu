@@ -19,7 +19,7 @@ namespace Service::Audio {
 
 class IAudioIn final : public ServiceFramework<IAudioIn> {
 public:
-    explicit IAudioIn(Core::System& system_);
+    explicit IAudioIn();
     ~IAudioIn() override;
 
 private:
@@ -27,14 +27,12 @@ private:
     void RegisterBufferEvent(Kernel::HLERequestContext& ctx);
     void AppendAudioInBufferAuto(Kernel::HLERequestContext& ctx);
 
-    KernelHelpers::ServiceContext service_context;
-
-    Kernel::KEvent* buffer_event;
+    int buffer_event;
 };
 
 class AudInU final : public ServiceFramework<AudInU> {
 public:
-    explicit AudInU(Core::System& system_);
+    explicit AudInU();
     ~AudInU() override;
 
 private:

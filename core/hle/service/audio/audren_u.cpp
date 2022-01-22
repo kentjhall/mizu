@@ -22,10 +22,9 @@ namespace Service::Audio {
 
 class IAudioRenderer final : public ServiceFramework<IAudioRenderer> {
 public:
-    explicit IAudioRenderer(Core::System& system_,
-                            const AudioCommon::AudioRendererParameter& audren_params,
+    explicit IAudioRenderer(const AudioCommon::AudioRendererParameter& audren_params,
                             const std::size_t instance_number)
-        : ServiceFramework{system_, "IAudioRenderer"}, service_context{system_, "IAudioRenderer"} {
+        : ServiceFramework{"IAudioRenderer"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &IAudioRenderer::GetSampleRate, "GetSampleRate"},
@@ -44,18 +43,19 @@ public:
         // clang-format on
         RegisterHandlers(functions);
 
-        system_event = service_context.CreateEvent("IAudioRenderer:SystemEvent");
+        KernelHelpers::SetupServiceContext("IAudioRenderer");
+        system_event = KernelHelpers::CreateEvent("IAudioRenderer:SystemEvent");
         renderer = std::make_unique<AudioCore::AudioRenderer>(
-            system.CoreTiming(), system.Memory(), audren_params,
+            audren_params,
             [this]() {
                 const auto guard = LockService();
-                system_event->GetWritableEvent().Signal();
+                KernelHelpers::SignalEvent(system_event);
             },
             instance_number);
     }
 
     ~IAudioRenderer() override {
-        service_context.CloseEvent(system_event);
+        KernelHelpers::CloseEvent(system_event);
     }
 
 private:
@@ -128,7 +128,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(system_event->GetReadableEvent());
+        rb.PushCopyFds(system_event);
     }
 
     void SetRenderingTimeLimit(Kernel::HLERequestContext& ctx) {
@@ -162,18 +162,15 @@ private:
         rb.Push(ERR_NOT_SUPPORTED);
     }
 
-    KernelHelpers::ServiceContext service_context;
-
-    Kernel::KEvent* system_event;
+    int system_event;
     std::unique_ptr<AudioCore::AudioRenderer> renderer;
     u32 rendering_time_limit_percent = 100;
 };
 
 class IAudioDevice final : public ServiceFramework<IAudioDevice> {
 public:
-    explicit IAudioDevice(Core::System& system_, Kernel::KEvent* buffer_event_, u32_le revision_)
-        : ServiceFramework{system_, "IAudioDevice"}, buffer_event{buffer_event_}, revision{
-                                                                                      revision_} {
+    explicit IAudioDevice(int buffer_event_, u32_le revision_)
+        : ServiceFramework{"IAudioDevice"}, buffer_event{buffer_event_}, revision{revision_} {
         static const FunctionInfo functions[] = {
             {0, &IAudioDevice::ListAudioDeviceName, "ListAudioDeviceName"},
             {1, &IAudioDevice::SetAudioDeviceOutputVolume, "SetAudioDeviceOutputVolume"},
@@ -279,11 +276,11 @@ private:
     void QueryAudioDeviceSystemEvent(Kernel::HLERequestContext& ctx) {
         LOG_WARNING(Service_Audio, "(STUBBED) called");
 
-        buffer_event->GetWritableEvent().Signal();
+        KernelHelpers::SignalEvent(buffer_event);
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(buffer_event->GetReadableEvent());
+        rb.PushCopyFds(buffer_event);
     }
 
     void GetActiveChannelCount(Kernel::HLERequestContext& ctx) {
@@ -300,7 +297,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(buffer_event->GetReadableEvent());
+        rb.PushCopyFds(buffer_event);
     }
 
     void QueryAudioDeviceOutputEvent(Kernel::HLERequestContext& ctx) {
@@ -308,15 +305,15 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(buffer_event->GetReadableEvent());
+        rb.PushCopyFds(buffer_event);
     }
 
-    Kernel::KEvent* buffer_event;
+    int buffer_event;
     u32_le revision = 0;
 };
 
-AudRenU::AudRenU(Core::System& system_)
-    : ServiceFramework{system_, "audren:u"}, service_context{system_, "audren:u"} {
+AudRenU::AudRenU()
+    : ServiceFramework{"audren:u"} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &AudRenU::OpenAudioRenderer, "OpenAudioRenderer"},
@@ -329,11 +326,12 @@ AudRenU::AudRenU(Core::System& system_)
 
     RegisterHandlers(functions);
 
-    buffer_event = service_context.CreateEvent("IAudioOutBufferReleasedEvent");
+    KernelHelpers::SetupServiceContext("audren:u");
+    buffer_event = KernelHelpers::CreateEvent("IAudioOutBufferReleasedEvent");
 }
 
 AudRenU::~AudRenU() {
-    service_context.CloseEvent(buffer_event);
+    KernelHelpers::CloseEvent(buffer_event);
 }
 
 void AudRenU::OpenAudioRenderer(Kernel::HLERequestContext& ctx) {
@@ -655,7 +653,7 @@ void AudRenU::GetAudioDeviceService(Kernel::HLERequestContext& ctx) {
     // always assumes the initial release revision (REV1).
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IAudioDevice>(system, buffer_event, Common::MakeMagic('R', 'E', 'V', '1'));
+    rb.PushIpcInterface<IAudioDevice>(buffer_event, Common::MakeMagic('R', 'E', 'V', '1'));
 }
 
 void AudRenU::OpenAudioRendererForManualExecution(Kernel::HLERequestContext& ctx) {
@@ -677,7 +675,7 @@ void AudRenU::GetAudioDeviceServiceWithRevisionInfo(Kernel::HLERequestContext& c
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IAudioDevice>(system, buffer_event, revision);
+    rb.PushIpcInterface<IAudioDevice>(buffer_event, revision);
 }
 
 void AudRenU::OpenAudioRendererImpl(Kernel::HLERequestContext& ctx) {
@@ -686,7 +684,7 @@ void AudRenU::OpenAudioRendererImpl(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
 
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IAudioRenderer>(system, params, audren_instance_count++);
+    rb.PushIpcInterface<IAudioRenderer>(params, audren_instance_count++);
 }
 
 bool IsFeatureSupported(AudioFeatures feature, u32_le revision) {

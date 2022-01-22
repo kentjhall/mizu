@@ -14,7 +14,7 @@ namespace Service::Audio {
 
 class AudDbg final : public ServiceFramework<AudDbg> {
 public:
-    explicit AudDbg(Core::System& system_, const char* name);
+    explicit AudDbg(const char* name);
     ~AudDbg() override;
 };
 

@@ -22,6 +22,7 @@
 #include "core/core.h"
 #include "core/file_sys/vfs_concat.h"
 #include "core/hle/service/filesystem/filesystem.h"
+#include "core/hle/service/glue/glue_manager.h"
 #include "core/loader/deconstructed_rom_directory.h"
 /* #include "core/loader/elf.h" */
 /* #include "core/loader/kip.h" */
@@ -450,12 +451,57 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
             continue;
         }
 
+        u64 title_id = 0;
+        app_loader->ReadProgramId(title_id); // read in Title ID if there
+
+        std::vector<u8> nacp_data;
+        FileSys::NACP nacp;
+        if (app_loader->ReadControlData(nacp) == Loader::ResultStatus::Success) {
+            nacp_data = nacp.GetRawBytes();
+        } else {
+            nacp_data.resize(sizeof(FileSys::RawNACP));
+        }
+
+        Service::Glue::ApplicationLaunchProperty launch{};
+        launch.title_id = title_id;
+
+        FileSys::PatchManager pm{launch.title_id};
+        launch.version = pm.GetGameVersion().value_or(0);
+
+        auto GetStorageIdForFrontendSlot =
+            [](std::optional<FileSys::ContentProviderUnionSlot> slot) {
+            if (!slot.has_value()) {
+                return FileSys::StorageId::None;
+            }
+
+            switch (*slot) {
+            case FileSys::ContentProviderUnionSlot::UserNAND:
+                return FileSys::StorageId::NandUser;
+            case FileSys::ContentProviderUnionSlot::SysNAND:
+                return FileSys::StorageId::NandSystem;
+            case FileSys::ContentProviderUnionSlot::SDMC:
+                return FileSys::StorageId::SdCard;
+            case FileSys::ContentProviderUnionSlot::FrontendManual:
+                return FileSys::StorageId::Host;
+            default:
+                return FileSys::StorageId::None;
+            }
+        };
+
+        // TODO(DarkLordZach): When FSController/Game Card Support is added, if
+        // current_process_game_card use correct StorageId
+        launch.base_game_storage_id = GetStorageIdForFrontendSlot(Service::SharedReader(Service::content_provider)->
+            GetSlotForEntry(launch.title_id, FileSys::ContentRecordType::Program));
+        launch.update_storage_id = GetStorageIdForFrontendSlot(Service::SharedReader(Service::content_provider)->
+            GetSlotForEntry(FileSys::GetUpdateTitleID(launch.title_id), FileSys::ContentRecordType::Program));
+
+        Service::SharedWriter(Service::arp_manager)->Register(launch.title_id, launch, std::move(nacp_data));
+
         // write out data to temporary file
         ssize_t w;
         size_t total = 0;
         bool fail = false;
-        u64 title_id = 0;
-        app_loader->ReadProgramId(title_id); // read in Title ID if there
+        ::fprintf(stderr, "Title ID: %llu\n", title_id);
         mizu_hdr hdr = {
             .magic = 0x70417020,
             .is_64bit = app_loader->LoadedIs64Bit(),

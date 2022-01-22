@@ -14,7 +14,7 @@ namespace Service::Audio {
 
 class HwOpus final : public ServiceFramework<HwOpus> {
 public:
-    explicit HwOpus(Core::System& system_);
+    explicit HwOpus();
     ~HwOpus() override;
 
 private:

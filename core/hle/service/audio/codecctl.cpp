@@ -6,7 +6,7 @@
 
 namespace Service::Audio {
 
-CodecCtl::CodecCtl(Core::System& system_) : ServiceFramework{system_, "codecctl"} {
+CodecCtl::CodecCtl() : ServiceFramework{"codecctl"} {
     static const FunctionInfo functions[] = {
         {0, nullptr, "Initialize"},
         {1, nullptr, "Finalize"},

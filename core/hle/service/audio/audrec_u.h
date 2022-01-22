@@ -14,7 +14,7 @@ namespace Service::Audio {
 
 class AudRecU final : public ServiceFramework<AudRecU> {
 public:
-    explicit AudRecU(Core::System& system_);
+    explicit AudRecU();
     ~AudRecU() override;
 };
 

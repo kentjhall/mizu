@@ -21,7 +21,7 @@
 #include "core/hle/service/aoc/aoc_u.h"
 #include "core/hle/service/apm/apm.h"
 #include "core/hle/service/apm/apm_controller.h"
-/* #include "core/hle/service/audio/audio.h" */
+#include "core/hle/service/audio/audio.h"
 #include "core/hle/service/bcat/bcat_module.h"
 /* #include "core/hle/service/bpc/bpc.h" */
 /* #include "core/hle/service/btdrv/btdrv.h" */
@@ -236,7 +236,7 @@ void StartServices() {
     AM::InstallInterfaces();
     AOC::InstallInterfaces();
     APM::InstallInterfaces();
-    /* Audio::InstallInterfaces(*sm, system); */
+    Audio::InstallInterfaces();
     BCAT::InstallInterfaces();
     /* BPC::InstallInterfaces(*sm, system); */
     /* BtDrv::InstallInterfaces(*sm, system); */

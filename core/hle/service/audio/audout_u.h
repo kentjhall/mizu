@@ -25,7 +25,7 @@ class IAudioOut;
 
 class AudOutU final : public ServiceFramework<AudOutU> {
 public:
-    explicit AudOutU(Core::System& system_);
+    explicit AudOutU();
     ~AudOutU() override;
 
 private:

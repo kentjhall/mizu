@@ -21,7 +21,7 @@ void SignalEvent(int);
 
 void ClearEvent(int);
 
-::timer_t CreateTimerEvent(std::string&& name, void *val, void (*cb)(::sigval));
+::timer_t CreateTimerEvent(std::string name, void *val, void (*cb)(::sigval));
 
 void CloseTimerEvent(::timer_t event);
 
