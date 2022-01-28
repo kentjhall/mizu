@@ -519,7 +519,7 @@ const ServerVoiceInfo& VoiceContext::GetSortedInfo(std::size_t i) const {
 }
 
 s32 VoiceContext::DecodePcm16(s32* output_buffer, ServerWaveBuffer* wave_buffer, s32 channel,
-                              s32 channel_count, s32 buffer_offset, s32 sample_count) {
+                              s32 channel_count, s32 buffer_offset, s32 sample_count, ::pid_t pid) {
     if (wave_buffer->buffer_address == 0) {
         return 0;
     }
@@ -537,7 +537,7 @@ s32 VoiceContext::DecodePcm16(s32* output_buffer, ServerWaveBuffer* wave_buffer,
 
     const auto samples_processed = std::min(sample_count, samples_remaining);
     s16 buffer_data[(samples_processed-1) * channel_count + channel + 1];
-    mizu_servctl_read_buffer(buffer_pos, buffer_data, sizeof(buffer_data));
+    mizu_servctl_read_buffer_from(buffer_pos, buffer_data, sizeof(buffer_data), pid);
 
     // Fast path
     if (channel_count == 1) {

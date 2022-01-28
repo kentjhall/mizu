@@ -16,8 +16,8 @@ namespace Service::PSM {
 
 class IPsmSession final : public ServiceFramework<IPsmSession> {
 public:
-    explicit IPsmSession(Core::System& system_)
-        : ServiceFramework{system_, "IPsmSession"}, service_context{system_, "IPsmSession"} {
+    explicit IPsmSession()
+        : ServiceFramework{"IPsmSession"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &IPsmSession::BindStateChangeEvent, "BindStateChangeEvent"},
@@ -30,28 +30,29 @@ public:
 
         RegisterHandlers(functions);
 
-        state_change_event = service_context.CreateEvent("IPsmSession::state_change_event");
+        KernelHelpers::SetupServiceContext("IPsmSession");
+        state_change_event = KernelHelpers::CreateEvent("IPsmSession::state_change_event");
     }
 
     ~IPsmSession() override {
-        service_context.CloseEvent(state_change_event);
+        KernelHelpers::CloseEvent(state_change_event);
     }
 
     void SignalChargerTypeChanged() {
         if (should_signal && should_signal_charger_type) {
-            state_change_event->GetWritableEvent().Signal();
+            KernelHelpers::SignalEvent(state_change_event);
         }
     }
 
     void SignalPowerSupplyChanged() {
         if (should_signal && should_signal_power_supply) {
-            state_change_event->GetWritableEvent().Signal();
+            KernelHelpers::SignalEvent(state_change_event);
         }
     }
 
     void SignalBatteryVoltageStateChanged() {
         if (should_signal && should_signal_battery_voltage) {
-            state_change_event->GetWritableEvent().Signal();
+            KernelHelpers::SignalEvent(state_change_event);
         }
     }
 
@@ -63,7 +64,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(state_change_event->GetReadableEvent());
+        rb.PushCopyFds(state_change_event);
     }
 
     void UnbindStateChangeEvent(Kernel::HLERequestContext& ctx) {
@@ -108,18 +109,16 @@ private:
         rb.Push(ResultSuccess);
     }
 
-    KernelHelpers::ServiceContext service_context;
-
     bool should_signal_charger_type{};
     bool should_signal_power_supply{};
     bool should_signal_battery_voltage{};
     bool should_signal{};
-    Kernel::KEvent* state_change_event;
+    int state_change_event;
 };
 
 class PSM final : public ServiceFramework<PSM> {
 public:
-    explicit PSM(Core::System& system_) : ServiceFramework{system_, "psm"} {
+    explicit PSM() : ServiceFramework{"psm"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &PSM::GetBatteryChargePercentage, "GetBatteryChargePercentage"},
@@ -171,7 +170,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<IPsmSession>(system);
+        rb.PushIpcInterface<IPsmSession>();
     }
 
     enum class ChargerType : u32 {
@@ -185,8 +184,8 @@ private:
     ChargerType charger_type{ChargerType::RegularCharger};
 };
 
-void InstallInterfaces(SM::ServiceManager& sm, Core::System& system) {
-    std::make_shared<PSM>(system)->InstallAsService(sm);
+void InstallInterfaces() {
+    MakeService<PSM>();
 }
 
 } // namespace Service::PSM

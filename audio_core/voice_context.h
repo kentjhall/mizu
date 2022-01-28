@@ -282,7 +282,7 @@ public:
     const ServerVoiceInfo& GetSortedInfo(std::size_t i) const;
 
     s32 DecodePcm16(s32* output_buffer, ServerWaveBuffer* wave_buffer, s32 channel,
-                    s32 channel_count, s32 buffer_offset, s32 sample_count);
+                    s32 channel_count, s32 buffer_offset, s32 sample_count, ::pid_t pid);
     void SortInfo();
     void UpdateStateByDspShared();
 

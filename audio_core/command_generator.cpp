@@ -249,14 +249,14 @@ void ApplyReverbGeneric(
 CommandGenerator::CommandGenerator(AudioCommon::AudioRendererParameter& worker_params_,
                                    VoiceContext& voice_context_, MixContext& mix_context_,
                                    SplitterContext& splitter_context_,
-                                   EffectContext& effect_context_)
+                                   EffectContext& effect_context_, ::pid_t pid)
     : worker_params(worker_params_), voice_context(voice_context_), mix_context(mix_context_),
       splitter_context(splitter_context_), effect_context(effect_context_),
       mix_buffer((worker_params.mix_buffer_count + AudioCommon::MAX_CHANNEL_COUNT) *
                  worker_params.sample_count),
       sample_buffer(MIX_BUFFER_SIZE),
       depop_buffer((worker_params.mix_buffer_count + AudioCommon::MAX_CHANNEL_COUNT) *
-                   worker_params.sample_count) {}
+                   worker_params.sample_count), session_pid(pid) {}
 CommandGenerator::~CommandGenerator() = default;
 
 void CommandGenerator::ClearMixBuffers() {
@@ -644,18 +644,22 @@ void CommandGenerator::GenerateAuxCommand(s32 mix_buffer_offset, EffectBase* inf
             if (enabled) {
                 AuxInfoDSP send_info{};
                 AuxInfoDSP recv_info{};
-                mizu_servctl_read_buffer(aux->GetSendInfo(), &send_info, sizeof(AuxInfoDSP));
-                mizu_servctl_read_buffer(aux->GetRecvInfo(), &recv_info, sizeof(AuxInfoDSP));
+                mizu_servctl_read_buffer_from(aux->GetSendInfo(), &send_info, sizeof(AuxInfoDSP),
+                                              session_pid);
+                mizu_servctl_read_buffer_from(aux->GetRecvInfo(), &recv_info, sizeof(AuxInfoDSP),
+                                              session_pid);
 
                 WriteAuxBuffer(send_info, aux->GetSendBuffer(), params.sample_count,
                                GetMixBuffer(input_index), worker_params.sample_count, offset,
                                write_count);
-                mizu_servctl_write_buffer(aux->GetSendInfo(), &send_info, sizeof(AuxInfoDSP));
+                mizu_servctl_write_buffer_to(aux->GetSendInfo(), &send_info, sizeof(AuxInfoDSP),
+                                             session_pid);
 
                 const auto samples_read = ReadAuxBuffer(
                     recv_info, aux->GetRecvBuffer(), params.sample_count,
                     GetMixBuffer(output_index), worker_params.sample_count, offset, write_count);
-                mizu_servctl_write_buffer(aux->GetRecvInfo(), &recv_info, sizeof(AuxInfoDSP));
+                mizu_servctl_write_buffer_to(aux->GetRecvInfo(), &recv_info, sizeof(AuxInfoDSP),
+                                             session_pid);
 
                 if (samples_read != static_cast<int>(worker_params.sample_count) &&
                     samples_read <= params.sample_count) {
@@ -664,8 +668,10 @@ void CommandGenerator::GenerateAuxCommand(s32 mix_buffer_offset, EffectBase* inf
                 }
             } else {
                 AuxInfoDSP empty{};
-                mizu_servctl_write_buffer(aux->GetSendInfo(), &empty, sizeof(AuxInfoDSP));
-                mizu_servctl_write_buffer(aux->GetRecvInfo(), &empty, sizeof(AuxInfoDSP));
+                mizu_servctl_write_buffer_to(aux->GetSendInfo(), &empty, sizeof(AuxInfoDSP),
+                                             session_pid);
+                mizu_servctl_write_buffer_to(aux->GetRecvInfo(), &empty, sizeof(AuxInfoDSP),
+                                             session_pid);
                 if (output_index != input_index) {
                     std::memcpy(GetMixBuffer(output_index).data(), GetMixBuffer(input_index).data(),
                                 worker_params.sample_count * sizeof(s32));
@@ -702,7 +708,8 @@ s32 CommandGenerator::WriteAuxBuffer(AuxInfoDSP& dsp_info, VAddr send_buffer, u3
         const auto base = send_buffer + (offset * sizeof(u32));
         const auto samples_to_grab = std::min(max_samples - offset, remaining);
         // Write to output
-        mizu_servctl_write_buffer(base, (data.data() + data_offset), samples_to_grab * sizeof(u32));
+        mizu_servctl_write_buffer_to(base, (data.data() + data_offset), samples_to_grab * sizeof(u32),
+                                     session_pid);
         offset = (offset + samples_to_grab) % max_samples;
         remaining -= samples_to_grab;
         data_offset += samples_to_grab;
@@ -732,7 +739,8 @@ s32 CommandGenerator::ReadAuxBuffer(AuxInfoDSP& recv_info, VAddr recv_buffer, u3
         const auto base = recv_buffer + (offset * sizeof(u32));
         const auto samples_to_grab = std::min(max_samples - offset, remaining);
         std::vector<s32> buffer(samples_to_grab);
-        mizu_servctl_read_buffer(base, buffer.data(), buffer.size() * sizeof(u32));
+        mizu_servctl_read_buffer_from(base, buffer.data(), buffer.size() * sizeof(u32),
+                                      session_pid);
         std::memcpy(out_data.data() + data_offset, buffer.data(), buffer.size() * sizeof(u32));
         offset = (offset + samples_to_grab) % max_samples;
         remaining -= samples_to_grab;
@@ -1047,7 +1055,8 @@ s32 CommandGenerator::DecodePcm(ServerVoiceInfo& voice_info, VoiceState& dsp_sta
 
     const auto channel_count = in_params.channel_count;
     std::vector<T> buffer(samples_processed * channel_count);
-    mizu_servctl_read_buffer(buffer_pos, buffer.data(), buffer.size() * sizeof(T));
+    mizu_servctl_read_buffer_from(buffer_pos, buffer.data(), buffer.size() * sizeof(T),
+                                  session_pid);
 
     if constexpr (std::is_floating_point_v<T>) {
         for (std::size_t i = 0; i < static_cast<std::size_t>(samples_processed); i++) {
@@ -1107,8 +1116,8 @@ s32 CommandGenerator::DecodeAdpcm(ServerVoiceInfo& voice_info, VoiceState& dsp_s
     s16 yn2 = dsp_state.context.yn2;
 
     Codec::ADPCM_Coeff coeffs;
-    mizu_servctl_read_buffer(in_params.additional_params_address, coeffs.data(),
-                     sizeof(Codec::ADPCM_Coeff));
+    mizu_servctl_read_buffer_from(in_params.additional_params_address, coeffs.data(),
+                                  sizeof(Codec::ADPCM_Coeff), session_pid);
 
     s32 coef1 = coeffs[idx * 2];
     s32 coef2 = coeffs[idx * 2 + 1];
@@ -1139,8 +1148,8 @@ s32 CommandGenerator::DecodeAdpcm(ServerVoiceInfo& voice_info, VoiceState& dsp_s
     std::size_t buffer_offset{};
     std::vector<u8> buffer(
         std::max((samples_processed / FRAME_LEN) * SAMPLES_PER_FRAME, FRAME_LEN));
-    mizu_servctl_read_buffer(wave_buffer.buffer_address + (position_in_frame / 2), buffer.data(),
-                     buffer.size());
+    mizu_servctl_read_buffer_from(wave_buffer.buffer_address + (position_in_frame / 2), buffer.data(),
+                                  buffer.size(), session_pid);
     std::size_t cur_mix_offset = mix_offset;
 
     auto remaining_samples = samples_processed;
@@ -1269,8 +1278,8 @@ void CommandGenerator::DecodeFromWaveBuffers(ServerVoiceInfo& voice_info, std::s
 
             if (in_params.sample_format == SampleFormat::Adpcm && dsp_state.offset == 0 &&
                 wave_buffer.context_address != 0 && wave_buffer.context_size != 0) {
-                mizu_servctl_read_buffer(wave_buffer.context_address, &dsp_state.context,
-                                 sizeof(ADPCMContext));
+                mizu_servctl_read_buffer_from(wave_buffer.context_address, &dsp_state.context,
+                                              sizeof(ADPCMContext), session_pid);
             }
 
             s32 samples_offset_start;

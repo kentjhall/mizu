@@ -23,7 +23,7 @@ namespace Service::Audio {
 class IAudioRenderer final : public ServiceFramework<IAudioRenderer> {
 public:
     explicit IAudioRenderer(const AudioCommon::AudioRendererParameter& audren_params,
-                            const std::size_t instance_number)
+                            const std::size_t instance_number, ::pid_t pid)
         : ServiceFramework{"IAudioRenderer"} {
         // clang-format off
         static const FunctionInfo functions[] = {
@@ -51,7 +51,7 @@ public:
                 const auto guard = LockService();
                 KernelHelpers::SignalEvent(system_event);
             },
-            instance_number);
+            instance_number, pid);
     }
 
     ~IAudioRenderer() override {
@@ -684,7 +684,8 @@ void AudRenU::OpenAudioRendererImpl(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
 
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IAudioRenderer>(params, audren_instance_count++);
+    rb.PushIpcInterface<IAudioRenderer>(params, audren_instance_count++,
+                                        ctx.GetRequesterPid());
 }
 
 bool IsFeatureSupported(AudioFeatures feature, u32_le revision) {

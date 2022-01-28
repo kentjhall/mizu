@@ -87,7 +87,7 @@ public:
      *
      * @returns A reference to the setting
      */
-    [[nodiscard]] virtual Type GetValue() {
+    [[nodiscard]] virtual Type GetValue() const {
         std::shared_lock guard(this->mtx);
         return global;
     }
@@ -137,13 +137,13 @@ public:
      *
      * @returns A reference to the setting
      */
-    explicit virtual operator Type() {
+    explicit virtual operator Type() const {
         std::shared_lock guard(this->mtx);
         return global;
     }
 
 protected:
-    std::shared_mutex mtx;
+    mutable std::shared_mutex mtx;
     const Type default_value{}; ///< The default value
     Type global{};              ///< The setting
     const std::string label{};  ///< The setting's label
@@ -245,14 +245,14 @@ public:
      *
      * @returns The required value of the setting
      */
-    [[nodiscard]] virtual Type GetValue() override {
+    [[nodiscard]] virtual Type GetValue() const override {
         std::shared_lock guard(this->mtx);
         if (use_global) {
             return this->global;
         }
         return custom;
     }
-    [[nodiscard]] virtual Type GetValue(bool need_global) {
+    [[nodiscard]] virtual Type GetValue(bool need_global) const {
         std::shared_lock guard(this->mtx);
         if (use_global || need_global) {
             return this->global;
@@ -289,7 +289,7 @@ public:
      *
      * @returns A reference to the current setting value
      */
-    virtual explicit operator Type() override {
+    virtual explicit operator Type() const override {
         std::shared_lock guard(this->mtx);
         if (use_global) {
             return this->global;
@@ -326,13 +326,13 @@ public:
 
     // The following are needed to avoid a MSVC bug
     // (source: https://stackoverflow.com/questions/469508)
-    [[nodiscard]] Type GetValue() override {
+    [[nodiscard]] Type GetValue() const override {
         return Setting<Type>::GetValue();
     }
-    [[nodiscard]] Type GetValue(bool need_global) override {
+    [[nodiscard]] Type GetValue(bool need_global) const override {
         return Setting<Type>::GetValue(need_global);
     }
-    explicit operator Type() override {
+    explicit operator Type() const override {
         std::shared_lock guard(this->mtx);
         if (this->use_global) {
             return this->global;
@@ -387,7 +387,7 @@ public:
         std::shared_lock guard(this->mtx);
         return use_global;
     }
-    [[nodiscard]] Type GetValue(bool need_global = false) {
+    [[nodiscard]] Type GetValue(bool need_global = false) const {
         std::shared_lock guard(this->mtx);
         if (use_global || need_global) {
             return global;
@@ -403,7 +403,7 @@ public:
     }
 
 private:
-    std::shared_mutex mtx;
+    mutable std::shared_mutex mtx;
     bool use_global{true}; ///< The setting's global state
     Type global{};         ///< The setting
     Type custom{};         ///< The custom setting value

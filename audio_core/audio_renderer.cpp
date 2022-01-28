@@ -71,12 +71,12 @@ constexpr s32 NUM_BUFFERS = 2;
 
 AudioRenderer::AudioRenderer(AudioCommon::AudioRendererParameter params,
                              Stream::ReleaseCallback&& release_callback,
-                             std::size_t instance_number)
+                             std::size_t instance_number, ::pid_t pid)
     : worker_params{params}, memory_pool_info(params.effect_count + params.voice_count * 4),
       voice_context(params.voice_count), effect_context(params.effect_count), mix_context(),
       sink_context(params.sink_count), splitter_context(),
       voices(params.voice_count),
-      command_generator(worker_params, voice_context, mix_context, splitter_context, effect_context) {
+      command_generator(worker_params, voice_context, mix_context, splitter_context, effect_context, pid) {
     behavior_info.SetUserRevision(params.revision);
     splitter_context.Initialize(behavior_info, params.splitter_count,
                                 params.num_splitter_send_channels);

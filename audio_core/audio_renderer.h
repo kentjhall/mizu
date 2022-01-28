@@ -32,7 +32,8 @@ class AudioOut;
 class AudioRenderer {
 public:
     AudioRenderer(AudioCommon::AudioRendererParameter params,
-                  Stream::ReleaseCallback&& release_callback, std::size_t instance_number);
+                  Stream::ReleaseCallback&& release_callback, std::size_t instance_number,
+                  ::pid_t pid);
     ~AudioRenderer();
 
     [[nodiscard]] ResultCode UpdateAudioRenderer(const std::vector<u8>& input_params,

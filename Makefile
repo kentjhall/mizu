@@ -4,10 +4,10 @@ INCLUDES := -I ~/mizu-services -I ~/mizu-services/glad/include -I ~/yuzu/src -I 
 DEBUG-y := -O0 -ggdb -D_DEBUG
 CXXFLAGS := -DYUZU_UNIX -DHAS_OPENGL -DFMT_HEADER_ONLY -DMBEDTLS_CMAC_C -DSDL_VIDEO_DRIVER_X11 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale INIReader liblz4 opus) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui -I ~/soundtouch/include $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
-LDFLAGS := -L ~/mbedtls/library -L ~/sirit/build/src -L ~/soundtouch/build
+LDFLAGS := -L ~/sirit/build/src -L ~/soundtouch/build
 LDLIBS := -lmbedcrypto -lsirit -lrt -ldl -lcubeb -lSoundTouch -pthread $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 sdl2 libavutil libavcodec libswscale INIReader liblz4 opus)
 
-services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio
+services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm
 
 shader_headers := astc_decoder_comp.h \
                   block_linear_unswizzle_2d_comp.h \

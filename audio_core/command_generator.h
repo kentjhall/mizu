@@ -26,7 +26,8 @@ class CommandGenerator {
 public:
     explicit CommandGenerator(AudioCommon::AudioRendererParameter& worker_params_,
                               VoiceContext& voice_context_, MixContext& mix_context_,
-                              SplitterContext& splitter_context_, EffectContext& effect_context_);
+                              SplitterContext& splitter_context_, EffectContext& effect_context_,
+                              ::pid_t pid);
     ~CommandGenerator();
 
     void ClearMixBuffers();
@@ -101,5 +102,7 @@ private:
     std::vector<s32> sample_buffer{};
     std::vector<s32> depop_buffer{};
     bool dumping_frame{false};
+
+    ::pid_t session_pid;
 };
 } // namespace AudioCore

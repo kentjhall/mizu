@@ -503,7 +503,7 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         bool fail = false;
         ::fprintf(stderr, "Title ID: %llu\n", title_id);
         mizu_hdr hdr = {
-            .magic = 0x70417020,
+            .magic = MIZU_MAGIC,
             .is_64bit = app_loader->LoadedIs64Bit(),
             .title_id = title_id,
             .num_codesets = static_cast<u32>(codesets.size()),
