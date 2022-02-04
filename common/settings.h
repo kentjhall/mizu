@@ -380,30 +380,19 @@ public:
     explicit InputSetting(Type val) : BasicSetting<Type>(val) {}
     ~InputSetting() = default;
     void SetGlobal(bool to_global) {
-        std::unique_lock guard(this->mtx);
         use_global = to_global;
     }
-    [[nodiscard]] bool UsingGlobal() {
-        std::shared_lock guard(this->mtx);
+    [[nodiscard]] bool UsingGlobal() const {
         return use_global;
     }
-    [[nodiscard]] Type GetValue(bool need_global = false) const {
-        std::shared_lock guard(this->mtx);
+    [[nodiscard]] Type& GetValue(bool need_global = false) {
         if (use_global || need_global) {
             return global;
         }
         return custom;
     }
-    void SetValue(Type&& val, bool set_global = false) {
-        std::shared_lock guard(this->mtx);
-        if (use_global || set_global) {
-            global = std::move(val);
-        }
-        custom = std::move(val);
-    }
 
 private:
-    mutable std::shared_mutex mtx;
     bool use_global{true}; ///< The setting's global state
     Type global{};         ///< The setting
     Type custom{};         ///< The custom setting value
@@ -569,7 +558,7 @@ struct Values {
     BasicSetting<bool> use_auto_stub{false, "use_auto_stub"};
 
     // Miscellaneous
-    BasicSetting<std::string> log_filter{"*:Info", "log_filter"};
+    BasicSetting<std::string> log_filter{"*:Trace", "log_filter"};
     BasicSetting<bool> use_dev_keys{false, "use_dev_keys"};
 
     // Network

@@ -42,7 +42,11 @@ Config::~Config() = default;
 
 bool Config::LoadINI(const std::string& default_contents, bool retry) {
     const auto config_loc_str = FS::PathToUTF8String(sdl2_config_loc);
-    if (sdl2_config->ParseError() < 0) {
+    if (sdl2_config->ParseError() > 0) {
+        LOG_ERROR(Config, "Failed to parse {} (line {}).", config_loc_str, sdl2_config->ParseError());
+        return false;
+    }
+    else if (sdl2_config->ParseError() < 0) {
         if (retry) {
             LOG_WARNING(Config, "Failed to load {}. Creating file from defaults...",
                         config_loc_str);
@@ -480,7 +484,7 @@ void Config::ReadValues() {
     // Miscellaneous
     // log_filter has a different default here than from common
     Settings::values.log_filter =
-        sdl2_config->Get("Miscellaneous", Settings::values.log_filter.GetLabel(), "*:Trace");
+        sdl2_config->Get("Miscellaneous", Settings::values.log_filter.GetLabel(), "*:Trace").c_str();
     ReadSetting("Miscellaneous", Settings::values.use_dev_keys);
 
     // Debugging

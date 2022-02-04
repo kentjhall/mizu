@@ -57,6 +57,11 @@ public:
         return metadata.Is64BitProgram();
     }
 
+    virtual u32 LoadedSystemResourceSize() const override {
+        ASSERT(is_loaded);
+        return metadata.GetSystemResourceSize();
+    }
+
 private:
     FileSys::ProgramMetadata metadata;
     FileSys::VirtualFile romfs;

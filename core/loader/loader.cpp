@@ -501,11 +501,11 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         ssize_t w;
         size_t total = 0;
         bool fail = false;
-        ::fprintf(stderr, "Title ID: %llu\n", title_id);
         mizu_hdr hdr = {
             .magic = MIZU_MAGIC,
             .is_64bit = app_loader->LoadedIs64Bit(),
             .title_id = title_id,
+            .system_resource_size = app_loader->LoadedSystemResourceSize(),
             .num_codesets = static_cast<u32>(codesets.size()),
         };
         static_assert(sizeof(hdr) <= BINPRM_BUF_SIZE);

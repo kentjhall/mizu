@@ -69,6 +69,8 @@ struct InputSubsystem::Impl {
         Input::RegisterFactory<Input::ButtonDevice>("tas", tasbuttons);
         tasanalog = std::make_shared<TasAnalogFactory>(tas);
         Input::RegisterFactory<Input::AnalogDevice>("tas", tasanalog);
+
+        Settings::values.is_device_reload_pending.store(true);
     }
 
     void Shutdown() {

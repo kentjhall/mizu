@@ -320,7 +320,7 @@ void Tas::SwapToTasController() {
     if (!Settings::values.tas_swap_controllers) {
         return;
     }
-    auto players = Settings::values.players.GetValue();
+    auto& players = Settings::values.players.GetValue();
     for (std::size_t index = 0; index < players.size(); index++) {
         auto& player = players[index];
         player_mappings[index] = player;
@@ -352,11 +352,10 @@ void Tas::SwapToStoredController() {
     if (!is_old_input_saved) {
         return;
     }
-    auto players = Settings::values.players.GetValue();
+    auto& players = Settings::values.players.GetValue();
     for (std::size_t index = 0; index < players.size(); index++) {
         players[index] = player_mappings[index];
     }
-    Settings::values.players.SetValue(std::move(players));
     is_old_input_saved = false;
     Settings::values.is_device_reload_pending.store(true);
 }

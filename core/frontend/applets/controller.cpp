@@ -26,7 +26,7 @@ void DefaultControllerApplet::ReconfigureControllers(std::function<void()> callb
             ->GetAppletResource()
             ->GetController<Service::HID::Controller_NPad>(Service::HID::HidController::NPad).WriteLocked();
 
-    auto players = Settings::values.players.GetValue();
+    auto& players = Settings::values.players.GetValue();
 
     const std::size_t min_supported_players =
         parameters.enable_single_mode ? 1 : parameters.min_players;

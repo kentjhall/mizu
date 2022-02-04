@@ -326,6 +326,15 @@ public:
         return true;
     }
 
+    /*
+     * Get loaded program's system resource size. Must be used after Load().
+     *
+     * @return u32 system resource size (default=metadata default)
+     */
+    virtual u32 LoadedSystemResourceSize() const {
+	    return FileSys::ProgramMetadata::GetDefault().GetSystemResourceSize();
+    }
+
     using Modules = std::map<VAddr, std::string>;
 
 protected:

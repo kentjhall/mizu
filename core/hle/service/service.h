@@ -150,7 +150,7 @@ inline void GrabGPU(::pid_t req_pid) {
     auto it = gpus_locked->find(req_pid);
     if (it == gpus_locked->end()) {
         // create new GPU instance
-        const auto nvdec_value = Settings::values.nvdec_emulation.GetValue();
+        const auto& nvdec_value = Settings::values.nvdec_emulation.GetValue();
         const bool use_nvdec = nvdec_value != Settings::NvdecEmulation::Off;
         const bool use_async = Settings::values.use_asynchronous_gpu_emulation.GetValue();
         it = gpus_locked->emplace(std::piecewise_construct,

@@ -755,7 +755,6 @@ ResultCode Module::Interface::InitializeApplicationInfoBase() {
         return ERR_ACCOUNTINFO_ALREADY_INITIALIZED;
     }
 
-    ::fprintf(stderr, "GetTitleID(): %llu\n", GetTitleID());
     // TODO(ogniK): This should be changed to reflect the target process for when we have multiple
     // processes emulated. As we don't actually have pid support we should assume we're just using
     // our own process

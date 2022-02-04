@@ -104,7 +104,7 @@ NvResult nvmap::IocCreate(const std::vector<u8>& input, std::vector<u8>& output)
 NvResult nvmap::IocAlloc(const std::vector<u8>& input, std::vector<u8>& output) {
     IocAllocParams params;
     std::memcpy(&params, input.data(), sizeof(params));
-    LOG_DEBUG(Service_NVDRV, "called, addr={:X}", params.addr);
+    LOG_DEBUG(Service_NVDRV, "called, addr={:X}, handle={}", params.addr, params.handle);
 
     if (!params.handle) {
         LOG_ERROR(Service_NVDRV, "Handle is 0");
