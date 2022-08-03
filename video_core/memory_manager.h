@@ -138,6 +138,8 @@ public:
     [[nodiscard]] GPUVAddr Allocate(std::size_t size, std::size_t align);
     void Unmap(GPUVAddr gpu_addr, std::size_t size);
 
+    void SyncCPUWrites();
+
 private:
     [[nodiscard]] std::optional<GPUVAddr> FindAllocateFreeRange(std::size_t size, std::size_t align,
                                                                 bool start_32bit_address = false);

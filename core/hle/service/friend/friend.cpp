@@ -7,6 +7,7 @@
 #include "common/uuid.h"
 #include "core/core.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/friend/errors.h"
 #include "core/hle/service/friend/friend.h"
 #include "core/hle/service/friend/friend_interface.h"
@@ -16,7 +17,7 @@ namespace Service::Friend {
 
 class IFriendService final : public ServiceFramework<IFriendService> {
 public:
-    explicit IFriendService(Core::System& system_) : ServiceFramework{system_, "IFriendService"} {
+    explicit IFriendService() : ServiceFramework{"IFriendService"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, nullptr, "GetCompletionEvent"},
@@ -182,9 +183,8 @@ private:
 
 class INotificationService final : public ServiceFramework<INotificationService> {
 public:
-    explicit INotificationService(Core::System& system_, Common::UUID uuid_)
-        : ServiceFramework{system_, "INotificationService"}, uuid{uuid_},
-          service_context{system_, "INotificationService"} {
+    explicit INotificationService(Common::UUID uuid_)
+        : ServiceFramework{"INotificationService"}, uuid{uuid_} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &INotificationService::GetEvent, "GetEvent"},
@@ -195,11 +195,12 @@ public:
 
         RegisterHandlers(functions);
 
-        notification_event = service_context.CreateEvent("INotificationService:NotifyEvent");
+        KernelHelpers::SetupServiceContext("INotificationService");
+        notification_event = KernelHelpers::CreateEvent("INotificationService:NotifyEvent");
     }
 
     ~INotificationService() override {
-        service_context.CloseEvent(notification_event);
+        KernelHelpers::CloseEvent(notification_event);
     }
 
 private:
@@ -208,7 +209,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(notification_event->GetReadableEvent());
+        rb.PushCopyFds(notification_event);
     }
 
     void Clear(Kernel::HLERequestContext& ctx) {
@@ -274,9 +275,8 @@ private:
     };
 
     Common::UUID uuid;
-    KernelHelpers::ServiceContext service_context;
 
-    Kernel::KEvent* notification_event;
+    int notification_event;
     std::queue<SizedNotificationInfo> notifications;
     States states{};
 };
@@ -284,7 +284,7 @@ private:
 void Module::Interface::CreateFriendService(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IFriendService>(system);
+    rb.PushIpcInterface<IFriendService>();
     LOG_DEBUG(Service_Friend, "called");
 }
 
@@ -296,22 +296,21 @@ void Module::Interface::CreateNotificationService(Kernel::HLERequestContext& ctx
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<INotificationService>(system, uuid);
+    rb.PushIpcInterface<INotificationService>(uuid);
 }
 
-Module::Interface::Interface(std::shared_ptr<Module> module_, Core::System& system_,
-                             const char* name)
-    : ServiceFramework{system_, name}, module{std::move(module_)} {}
+Module::Interface::Interface(std::shared_ptr<Module> module_, const char* name)
+    : ServiceFramework{name}, module{std::move(module_)} {}
 
 Module::Interface::~Interface() = default;
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
+void InstallInterfaces() {
     auto module = std::make_shared<Module>();
-    std::make_shared<Friend>(module, system, "friend:a")->InstallAsService(service_manager);
-    std::make_shared<Friend>(module, system, "friend:m")->InstallAsService(service_manager);
-    std::make_shared<Friend>(module, system, "friend:s")->InstallAsService(service_manager);
-    std::make_shared<Friend>(module, system, "friend:u")->InstallAsService(service_manager);
-    std::make_shared<Friend>(module, system, "friend:v")->InstallAsService(service_manager);
+    MakeService<Friend>(module, "friend:a");
+    MakeService<Friend>(module, "friend:m");
+    MakeService<Friend>(module, "friend:s");
+    MakeService<Friend>(module, "friend:u");
+    MakeService<Friend>(module, "friend:v");
 }
 
 } // namespace Service::Friend

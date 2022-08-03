@@ -12,7 +12,7 @@
 #include "core/perf_stats.h"
 #include "video_core/cdma_pusher.h"
 #include "video_core/framebuffer_config.h"
-#include "video_core/emu_window/emu_window_sdl2.h"
+#include "video_core/bootmanager.h"
 
 namespace Core {
 namespace Frontend {
@@ -24,6 +24,8 @@ namespace VideoCore {
 class RendererBase;
 class ShaderNotify;
 } // namespace VideoCore
+
+class GRenderWindow;
 
 namespace Tegra {
 class DmaPusher;
@@ -274,9 +276,9 @@ public:
 
     const Core::TelemetrySession& TelemetrySession() const;
 
-    EmuWindow_SDL2& EmuWindow();
+    GRenderWindow& RenderWindow();
 
-    const EmuWindow_SDL2& EmuWindow() const;
+    const GRenderWindow& RenderWindow() const;
 
     ::pid_t SessionPid() const;
 

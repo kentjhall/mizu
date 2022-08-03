@@ -134,7 +134,6 @@ private:
 
     void UpdateVertexInput(Tegra::Engines::Maxwell3D::Regs& regs);
 
-    Tegra::GPU& gpu;
     Tegra::MemoryManager& gpu_memory;
     Tegra::Engines::Maxwell3D& maxwell3d;
     Tegra::Engines::KeplerCompute& kepler_compute;

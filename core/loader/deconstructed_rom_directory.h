@@ -52,14 +52,9 @@ public:
     ResultStatus ReadTitle(std::string& title) override;
     bool IsRomFSUpdatable() const override;
 
-    virtual bool LoadedIs64Bit() const override {
+    virtual FileSys::ProgramMetadata LoadedMetadata() const override {
         ASSERT(is_loaded);
-        return metadata.Is64BitProgram();
-    }
-
-    virtual u32 LoadedSystemResourceSize() const override {
-        ASSERT(is_loaded);
-        return metadata.GetSystemResourceSize();
+        return metadata;
     }
 
 private:

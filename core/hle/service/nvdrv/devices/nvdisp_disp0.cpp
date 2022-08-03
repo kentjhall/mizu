@@ -53,7 +53,6 @@ void nvdisp_disp0::flip(u32 buffer_handle, u32 offset, u32 format, u32 width, u3
                                                SharedUnlocked(gpu)->SessionPid()};
 
     SharedWriter(gpu)->GetPerfStats().EndSystemFrame();
-    ::fprintf(stderr, "SwapBuffers\n");
     SharedUnlocked(gpu)->SwapBuffers(&framebuffer);
     SharedWriter gpu_locked(gpu);
     gpu_locked->SpeedLimiter().DoSpeedLimiting(GetGlobalTimeUs());

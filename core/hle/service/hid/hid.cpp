@@ -106,8 +106,8 @@ IAppletResource::IAppletResource()
             iar->UpdateMotion();
         });
 
-    KernelHelpers::ScheduleRepeatTimerEvent(pad_update_ns, pad_update_event);
-    KernelHelpers::ScheduleRepeatTimerEvent(motion_update_ns, motion_update_event);
+    KernelHelpers::ScheduleTimerEvent(pad_update_ns, pad_update_event);
+    KernelHelpers::ScheduleTimerEvent(motion_update_ns, motion_update_event);
 
     ReloadInputDevices();
 }
@@ -121,6 +121,12 @@ void IAppletResource::DeactivateController(HidController controller) {
 }
 
 IAppletResource::~IAppletResource() {
+    ASSERT(stop_source.request_stop());
+    {
+        std::unique_lock lock{done_mtx};
+        while (!pad_is_done || !motion_is_done)
+            done_cv.wait(lock);
+    }
     KernelHelpers::CloseTimerEvent(pad_update_event);
     KernelHelpers::CloseTimerEvent(motion_update_event);
     if (shared_mem_fd != -1) {
@@ -137,6 +143,13 @@ void IAppletResource::GetSharedMemoryHandle(Kernel::HLERequestContext& ctx) {
 }
 
 void IAppletResource::UpdateControllers() {
+    if (stop_source.stop_requested()) {
+        std::unique_lock lock{done_mtx};
+        pad_is_done = true;
+        done_cv.notify_all();
+        return;
+    }
+
     const bool should_reload = Settings::values.is_device_reload_pending.exchange(false);
     for (const auto& controller : controllers) {
         if (should_reload) {
@@ -144,11 +157,22 @@ void IAppletResource::UpdateControllers() {
         }
         controller->OnUpdate(shared_mem.get(), SHARED_MEMORY_SIZE);
     }
+
+    KernelHelpers::ScheduleTimerEvent(pad_update_ns, pad_update_event);
 }
 
 void IAppletResource::UpdateMotion() {
+    if (stop_source.stop_requested()) {
+        std::unique_lock lock{done_mtx};
+        motion_is_done = true;
+        done_cv.notify_all();
+        return;
+    }
+
     controllers[static_cast<size_t>(HidController::NPad)]->OnMotionUpdate(
         shared_mem.get(), SHARED_MEMORY_SIZE);
+
+    KernelHelpers::ScheduleTimerEvent(motion_update_ns, motion_update_event);
 }
 
 class IActiveVibrationDeviceList final : public ServiceFramework<IActiveVibrationDeviceList> {

@@ -13,6 +13,7 @@
 #include "video_core/gpu.h"
 #include "video_core/gpu_thread.h"
 #include "video_core/renderer_base.h"
+#include "video_core/memory_manager.h"
 
 namespace VideoCommon::GPUThread {
 
@@ -36,6 +37,7 @@ static void RunThread(std::stop_token stop_token, Tegra::GPU& gpu,
             break;
         }
         if (auto* submit_list = std::get_if<SubmitListCommand>(&next.data)) {
+            gpu.MemoryManager().SyncCPUWrites();
             dma_pusher.Push(std::move(submit_list->entries));
             dma_pusher.DispatchCalls();
         } else if (const auto* data = std::get_if<SwapBuffersCommand>(&next.data)) {

@@ -16,7 +16,6 @@
 #include "core/file_sys/patch_manager.h"
 #include "core/hle/kernel/code_set.h"
 #include "core/loader/nso.h"
-#include "core/memory.h"
 
 namespace Loader {
 namespace {

@@ -6,6 +6,8 @@
 
 #include <chrono>
 #include <mutex>
+#include <stop_token>
+#include <condition_variable>
 #include <sys/mman.h>
 
 #include "core/hle/service/hid/controllers/controller_base.h"
@@ -68,6 +70,11 @@ private:
 
     ::timer_t pad_update_event;
     ::timer_t motion_update_event;
+
+    std::stop_source stop_source;
+    std::condition_variable done_cv;
+    std::mutex done_mtx;
+    bool pad_is_done = false, motion_is_done = false;
 
     std::array<std::unique_ptr<ControllerBase>, static_cast<size_t>(HidController::MaxControllers)>
         controllers{};

@@ -18,7 +18,6 @@
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/loader/nro.h"
 #include "core/loader/nso.h"
-#include "core/memory.h"
 
 namespace Loader {
 

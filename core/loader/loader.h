@@ -318,21 +318,12 @@ public:
     }
 
     /*
-     * Check whether loaded program is 64-bit. Must be used after Load().
+     * Get loaded program's metadata. Must be used after Load().
      *
-     * @return bool whether it is 64-bit (default=true)
+     * @return FileSys::ProgramMetadata metadata
      */
-    virtual bool LoadedIs64Bit() const {
-        return true;
-    }
-
-    /*
-     * Get loaded program's system resource size. Must be used after Load().
-     *
-     * @return u32 system resource size (default=metadata default)
-     */
-    virtual u32 LoadedSystemResourceSize() const {
-	    return FileSys::ProgramMetadata::GetDefault().GetSystemResourceSize();
+    virtual FileSys::ProgramMetadata LoadedMetadata() const {
+        return FileSys::ProgramMetadata::GetDefault();
     }
 
     using Modules = std::map<VAddr, std::string>;

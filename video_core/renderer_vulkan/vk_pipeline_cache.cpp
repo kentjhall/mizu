@@ -16,7 +16,6 @@
 #include "common/microprofile.h"
 #include "common/thread_worker.h"
 #include "core/core.h"
-#include "core/memory.h"
 #include "shader_recompiler/backend/spirv/emit_spirv.h"
 #include "shader_recompiler/environment.h"
 #include "shader_recompiler/frontend/maxwell/control_flow.h"

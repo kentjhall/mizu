@@ -204,10 +204,10 @@ struct InputSubsystem::Impl {
     std::shared_ptr<MouseTouchFactory> mousetouch;
     std::shared_ptr<TasButtonFactory> tasbuttons;
     std::shared_ptr<TasAnalogFactory> tasanalog;
-    std::shared_ptr<CemuhookUDP::Client> udp;
-    std::shared_ptr<GCAdapter::Adapter> gcadapter;
-    std::shared_ptr<MouseInput::Mouse> mouse;
-    std::shared_ptr<TasInput::Tas> tas;
+    static inline std::shared_ptr<CemuhookUDP::Client> udp;
+    static inline std::shared_ptr<GCAdapter::Adapter> gcadapter;
+    static inline std::shared_ptr<MouseInput::Mouse> mouse;
+    static inline std::shared_ptr<TasInput::Tas> tas;
 };
 
 InputSubsystem::InputSubsystem() : impl{std::make_unique<Impl>()} {}

@@ -541,7 +541,7 @@ std::unique_ptr<ComputePipeline> ShaderCache::CreateComputePipeline(
 
 std::unique_ptr<ShaderWorker> ShaderCache::CreateWorkers() const {
     return std::make_unique<ShaderWorker>(std::max(std::thread::hardware_concurrency(), 2U) - 1,
-                                          "yuzu:ShaderBuilder",
+                                          "mizu:ShaderBuilder",
                                           [this] { return Context{emu_window}; });
 }
 

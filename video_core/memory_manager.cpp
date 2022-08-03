@@ -9,8 +9,8 @@
 #include "common/alignment.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
+#include "common/div_ceil.h"
 #include "core/core.h"
-#include "core/memory.h"
 #include "video_core/gpu.h"
 #include "video_core/memory_manager.h"
 #include "video_core/rasterizer_interface.h"
@@ -61,7 +61,6 @@ void MemoryManager::Unmap(GPUVAddr gpu_addr, std::size_t size) {
     if (size == 0) {
         return;
     }
-
     if (!UnmapRegion(gpu_addr, size)) {
         UNREACHABLE_MSG("Unmapping non-existent GPU address=0x{:x}", gpu_addr);
     }
@@ -77,34 +76,35 @@ void MemoryManager::Unmap(GPUVAddr gpu_addr, std::size_t size) {
 bool MemoryManager::UnmapRegion(GPUVAddr gpu_addr, std::size_t size) {
     ASSERT(size != 0);
 
-    auto it = map_ranges.begin();
-    for (; it != map_ranges.end(); ++it) {
+    for (auto it = map_ranges.begin(); it != map_ranges.end(); ++it) {
         if (gpu_addr >= it->gpu_addr &&
             gpu_addr + size <= it->gpu_addr + it->size) {
+            std::vector<MapRange> to_add;
+            to_add.reserve(2);
             if (gpu_addr != it->gpu_addr) {
-                map_ranges.emplace_back(
+                to_add.emplace_back(
                         it->gpu_addr,
                         gpu_addr - it->gpu_addr,
                         it->cpu_addr);
             }
             if (gpu_addr + size != it->gpu_addr + it->size) {
-                map_ranges.emplace_back(
+                to_add.emplace_back(
                         gpu_addr + size,
-                        it->gpu_addr + it->size - gpu_addr + size,
+                        it->gpu_addr + it->size - (gpu_addr + size),
                         it->cpu_addr + (gpu_addr + size - it->gpu_addr));
             }
             map_ranges.erase(it);
-            break;
+            map_ranges.insert(map_ranges.end(), to_add.begin(), to_add.end());
+            return true;
         }
     }
-    return it != map_ranges.end();
+    return false;
 }
 
 std::optional<GPUVAddr> MemoryManager::AllocateFixed(GPUVAddr gpu_addr, std::size_t size) {
     // mmap'd here to ensure available range, but will be mapped over on Map()
     if (::mmap(reinterpret_cast<void *>(gpu_addr), size, PROT_NONE,
-               MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE,
-               -1, 0) == MAP_FAILED) {
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0) == MAP_FAILED) {
         return std::nullopt;
     }
     alloc_ranges.emplace_back(gpu_addr, size);
@@ -117,22 +117,21 @@ GPUVAddr MemoryManager::Allocate(std::size_t size, std::size_t align) {
 
 std::optional<GPUVAddr> MemoryManager::FindAllocateFreeRange(std::size_t size, std::size_t align,
                                                              bool start_32bit_address) {
-#if 0
     if (!align) {
         align = PAGE_SIZE;
     } else {
         align = Common::AlignUp(align, PAGE_SIZE);
     }
-#endif
+#if 0
     if (align != PAGE_SIZE) {
         LOG_WARNING(HW_GPU, "Ignoring requested alignment of 0x{:x}", align);
     }
     align = PAGE_SIZE;
+#endif
 
     if (align == PAGE_SIZE && !start_32bit_address) {
         // let mmap find the range if aligned normally
-        void *addr = ::mmap(NULL, size, PROT_NONE,
-                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+        void *addr = ::mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
         if (addr == MAP_FAILED) {
             LOG_CRITICAL(HW_GPU, "mmap (size={}) failed: {}", size, ::strerror(errno));
             return std::nullopt;
@@ -146,8 +145,7 @@ std::optional<GPUVAddr> MemoryManager::FindAllocateFreeRange(std::size_t size, s
     while (gpu_addr < address_space_size) {
         // mmap'd here to find available range, but will be mapped over on Map()
         if (::mmap(reinterpret_cast<void *>(gpu_addr), size, PROT_NONE,
-                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE,
-                   -1, 0) != MAP_FAILED) {
+                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0) != MAP_FAILED) {
             alloc_ranges.emplace_back(gpu_addr, size);
             return gpu_addr;
         } else {
@@ -196,7 +194,6 @@ std::optional<VAddr> MemoryManager::GpuToCpuAddress(GPUVAddr addr, std::size_t s
 
 template <typename T>
 T MemoryManager::Read(GPUVAddr addr) const {
-    // NOTE: Avoid adding any extra logic to this fast-path block
     T value;
     std::memcpy(&value, GetPointer(addr), sizeof(T));
     return value;
@@ -204,9 +201,7 @@ T MemoryManager::Read(GPUVAddr addr) const {
 
 template <typename T>
 void MemoryManager::Write(GPUVAddr addr, T data) {
-    // NOTE: Avoid adding any extra logic to this fast-path block
     std::memcpy(GetPointer(addr), &data, sizeof(T));
-    return;
 }
 
 template u8 MemoryManager::Read<u8>(GPUVAddr addr) const;
@@ -239,11 +234,16 @@ void MemoryManager::ReadBlock(GPUVAddr gpu_src_addr, void* dest_buffer, std::siz
         // Flush must happen on the rasterizer interface, such that memory is always synchronous
         // when it is read (even when in asynchronous GPU mode). Fixes Dead Cells title menu.
         rasterizer->FlushRegion(map.cpu_addr, map.size);
+
+        ASSERT(map.gpu_addr >= gpu_src_addr && map.gpu_addr + map.size <= gpu_src_addr + size &&
+               map.gpu_addr - gpu_src_addr + map.size <= size);
+        // Not sure msync is necessary for shmem mapping, but can't hurt
+        ASSERT_MSG(::msync(reinterpret_cast<void *>(map.gpu_addr & ~(PAGE_SIZE-1)),
+                           map.size + (map.gpu_addr & (PAGE_SIZE-1)), MS_SYNC | MS_INVALIDATE) == 0,
+                   "msync failed: {}", ::strerror(errno));
+        ::memcpy(static_cast<char *>(dest_buffer) + (map.gpu_addr - gpu_src_addr),
+                 reinterpret_cast<void *>(map.gpu_addr), map.size);
     }
-    ::memcpy(dest_buffer, reinterpret_cast<void *>(gpu_src_addr), size);
-    ASSERT_MSG(::msync(reinterpret_cast<void *>(gpu_src_addr & ~(PAGE_SIZE-1)),
-                       size + (gpu_src_addr & (PAGE_SIZE-1)), MS_SYNC) == 0,
-               "msync failed: {}", ::strerror(errno));
 }
 
 void MemoryManager::ReadBlockUnsafe(GPUVAddr gpu_src_addr, void* dest_buffer,
@@ -258,11 +258,16 @@ void MemoryManager::WriteBlock(GPUVAddr gpu_dest_addr, const void* src_buffer, s
         // Invalidate must happen on the rasterizer interface, such that memory is always
         // synchronous when it is written (even when in asynchronous GPU mode).
         rasterizer->InvalidateRegion(map.cpu_addr, map.size);
+
+        ASSERT(map.gpu_addr >= gpu_dest_addr && map.gpu_addr + map.size <= gpu_dest_addr + size &&
+               map.gpu_addr - gpu_dest_addr + map.size <= size);
+        ::memcpy(reinterpret_cast<void *>(map.gpu_addr),
+                 static_cast<const char *>(src_buffer) + (map.gpu_addr - gpu_dest_addr), map.size);
+        // Not sure msync is necessary for shmem mapping, but can't hurt
+        ASSERT_MSG(::msync(reinterpret_cast<void *>(map.gpu_addr & ~(PAGE_SIZE-1)),
+                           map.size + (map.gpu_addr & (PAGE_SIZE-1)), MS_SYNC) == 0,
+                   "msync failed: {}", ::strerror(errno));
     }
-    ::memcpy(reinterpret_cast<void *>(gpu_dest_addr), src_buffer, size);
-    ASSERT_MSG(::msync(reinterpret_cast<void *>(gpu_dest_addr & ~(PAGE_SIZE-1)),
-                       size + (gpu_dest_addr & (PAGE_SIZE-1)), MS_SYNC) == 0,
-               "msync failed: {}", ::strerror(errno));
 }
 
 void MemoryManager::WriteBlockUnsafe(GPUVAddr gpu_dest_addr, const void* src_buffer,
@@ -320,12 +325,28 @@ std::vector<MemoryManager::MapRange> MemoryManager::GetSubmappedRange(
             !range.cpu_addr) {
             continue;
         }
-        auto submap_size = range.gpu_addr + range.size > gpu_addr + size ?
-                           gpu_addr + size - range.gpu_addr : range.size;
-        ASSERT(range.gpu_addr + submap_size <= gpu_addr + size);
-        result.emplace_back(range.gpu_addr, submap_size, range.cpu_addr);
+        auto submap_start = range.gpu_addr < gpu_addr ? gpu_addr : range.gpu_addr;
+        auto to_range_end = range.size - (submap_start - range.gpu_addr);
+        auto submap_size = submap_start + to_range_end > gpu_addr + size ?
+                           gpu_addr + size - submap_start : to_range_end;
+        ASSERT(submap_start + submap_size <= gpu_addr + size);
+        result.emplace_back(submap_start, submap_size,
+                            range.cpu_addr + (submap_start - range.gpu_addr));
     }
-    return std::move(result);
+    return result;
+}
+
+void MemoryManager::SyncCPUWrites()
+{
+    for (const auto& mapping : map_ranges) {
+        size_t dirty_len = Common::DivCeil(mapping.size, PAGE_SIZE);
+        std::unique_ptr<::loff_t[]> dirty(new ::loff_t[dirty_len]);
+        dirty_len = mizu_servctl_memwatch_get_clear(rasterizer->GPU().SessionPid(),
+                                                    mapping.cpu_addr, mapping.size, dirty.get(), dirty_len);
+        for (::loff_t *off = dirty.get(); off - dirty.get() < dirty_len; ++off) {
+            rasterizer->OnCPUWrite(mapping.cpu_addr + *off, PAGE_SIZE);
+        }
+    }
 }
 
 } // namespace Tegra

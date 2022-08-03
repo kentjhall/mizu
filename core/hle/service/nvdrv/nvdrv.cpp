@@ -172,8 +172,8 @@ NvResult Module::Close(DeviceFD fd, Shared<Tegra::GPU>& gpu) {
 }
 
 void Module::SignalSyncpt(const u32 syncpoint_id, const u32 value) {
+    SharedWriter ei_locked(events_interface);
     for (u32 i = 0; i < MaxNvEvents; i++) {
-        SharedWriter ei_locked(events_interface);
         if (ei_locked->assigned_syncpt[i] == syncpoint_id &&
             ei_locked->assigned_value[i] == value) {
             ei_locked->LiberateEvent(i);

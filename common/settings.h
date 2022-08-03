@@ -232,7 +232,7 @@ public:
      *
      * @returns The global state
      */
-    [[nodiscard]] bool UsingGlobal() {
+    [[nodiscard]] bool UsingGlobal() const {
         std::shared_lock guard(this->mtx);
         return use_global;
     }

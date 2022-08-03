@@ -126,7 +126,7 @@ RasterizerVulkan::RasterizerVulkan(Core::Frontend::EmuWindow& emu_window_, Tegra
                                    VKScreenInfo& screen_info_,
                                    const Device& device_, MemoryAllocator& memory_allocator_,
                                    StateTracker& state_tracker_, VKScheduler& scheduler_)
-    : RasterizerAccelerated{}, gpu{gpu_},
+    : RasterizerAccelerated{gpu_},
       gpu_memory{gpu_memory_}, maxwell3d{gpu.Maxwell3D()}, kepler_compute{gpu.KeplerCompute()},
       screen_info{screen_info_}, device{device_}, memory_allocator{memory_allocator_},
       state_tracker{state_tracker_}, scheduler{scheduler_},

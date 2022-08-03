@@ -19,7 +19,7 @@ namespace VideoCore {
 /// Implements the shared part in GPU accelerated rasterizers in RasterizerInterface.
 class RasterizerAccelerated : public RasterizerInterface {
 public:
-    explicit RasterizerAccelerated();
+    explicit RasterizerAccelerated(Tegra::GPU& gpu_);
     ~RasterizerAccelerated() override;
 
     void UpdatePagesCachedCount(VAddr addr, u64 size, int delta) override;

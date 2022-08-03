@@ -10,6 +10,9 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <stop_token>
+#include <mutex>
+#include <condition_variable>
 
 #include "audio_core/buffer.h"
 #include "common/common_types.h"
@@ -42,6 +45,8 @@ public:
     Stream(u32 sample_rate_, Format format_,
            ReleaseCallback&& release_callback_, SinkStream& sink_stream_, std::string&& name_);
 
+    ~Stream();
+
     /// Plays the audio stream
     void Play();
 
@@ -70,7 +75,10 @@ public:
     }
 
     /// Returns true if the stream is currently playing
-    [[nodiscard]] bool IsPlaying() const {
+    [[nodiscard]] bool IsPlaying(bool locked = false) const {
+	if (locked)
+		return state == State::Playing;
+        std::unique_lock lock{mutex};
         return state == State::Playing;
     }
 
@@ -112,11 +120,16 @@ private:
     ReleaseCallback release_callback; ///< Buffer release callback for the stream
     State state{State::Stopped};      ///< Playback state of the stream
     ::timer_t release_event;                ///< Core timing release event for the stream
+    mutable std::mutex mutex;
     BufferPtr active_buffer;                ///< Actively playing buffer in the stream
     std::queue<BufferPtr> queued_buffers;   ///< Buffers queued to be played in the stream
     std::queue<BufferPtr> released_buffers; ///< Buffers recently released from the stream
     SinkStream& sink_stream;                ///< Output sink for the stream
     std::string name;                       ///< Name of the stream, must be unique
+
+    std::stop_source stop_source;
+    std::condition_variable done_cv;
+    bool is_done = false;
 };
 
 using StreamPtr = std::shared_ptr<Stream>;

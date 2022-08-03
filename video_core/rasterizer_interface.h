@@ -35,6 +35,8 @@ using DiskResourceLoadCallback = std::function<void(LoadCallbackStage, std::size
 
 class RasterizerInterface {
 public:
+    RasterizerInterface(Tegra::GPU& gpu_) : gpu{gpu_} {}
+
     virtual ~RasterizerInterface() = default;
 
     /// Dispatches a draw invocation
@@ -135,5 +137,12 @@ public:
     /// Initialize disk cached resources for the game being emulated
     virtual void LoadDiskResources(u64 title_id, std::stop_token stop_loading,
                                    const DiskResourceLoadCallback& callback) {}
+
+    const Tegra::GPU& GPU() {
+        return gpu;
+    }
+
+protected:
+    Tegra::GPU& gpu;
 };
 } // namespace VideoCore

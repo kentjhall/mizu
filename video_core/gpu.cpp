@@ -9,6 +9,9 @@
 #include <list>
 #include <memory>
 
+#include <QApplication>
+#include <QDesktopWidget>
+
 #include "common/assert.h"
 #include "common/microprofile.h"
 #include "common/settings.h"
@@ -31,8 +34,7 @@
 #include "video_core/memory_manager.h"
 #include "video_core/renderer_base.h"
 #include "video_core/shader_notify.h"
-#include "video_core/emu_window/emu_window_sdl2_gl.h"
-#include "video_core/emu_window/emu_window_sdl2_vk.h"
+#include "video_core/bootmanager.h"
 
 namespace Tegra {
 
@@ -714,7 +716,7 @@ struct GPU::Impl {
     Core::PerfStats perf_stats;
     Core::SpeedLimiter speed_limiter;
 
-    std::unique_ptr<EmuWindow_SDL2> emu_window;
+    std::unique_ptr<GRenderWindow> render_window;
     VideoCommon::GPUThread::ThreadManager gpu_thread;
     std::unique_ptr<Core::Frontend::GraphicsContext> cpu_context;
 
@@ -754,14 +756,27 @@ GPU::GPU(bool is_async, bool use_nvdec, ::pid_t session_pid)
     impl->perf_stats.GetAndResetStats(Service::GetGlobalTimeUs());
     impl->perf_stats.BeginSystemFrame();
 
-    switch (Settings::values.renderer_backend.GetValue()) {
-    case Settings::RendererBackend::OpenGL:
-        impl->emu_window = std::make_unique<EmuWindow_SDL2_GL>(*this, true); // mizu TEMP always fullscreen
-        break;
-    case Settings::RendererBackend::Vulkan:
-        impl->emu_window = std::make_unique<EmuWindow_SDL2_VK>(*this, true);
-        break;
+    impl->render_window = std::make_unique<GRenderWindow>(*this);
+    impl->render_window->InitRenderTarget();
+    impl->render_window->show();
+    impl->render_window->setFocusPolicy(Qt::StrongFocus);
+
+    impl->render_window->installEventFilter(&*impl->render_window);
+    impl->render_window->setAttribute(Qt::WA_Hover, true);
+
+    const auto screen_geometry = QApplication::desktop()->screenGeometry(&*impl->render_window);
+    impl->render_window->setGeometry(screen_geometry.x(), screen_geometry.y(),
+                               screen_geometry.width(), screen_geometry.height() + 1);
+
+    if (Settings::values.fullscreen_mode.GetValue() == Settings::FullscreenMode::Exclusive) {
+        impl->render_window->showFullScreen();
+        return;
     }
+
+    impl->render_window->hide();
+    impl->render_window->setWindowFlags(impl->render_window->windowFlags() | Qt::FramelessWindowHint);
+    impl->render_window->raise();
+    impl->render_window->showNormal();
 }
 
 GPU::~GPU() {
@@ -975,12 +990,12 @@ const Core::SpeedLimiter& GPU::SpeedLimiter() const {
     return impl->speed_limiter;
 };
 
-EmuWindow_SDL2& GPU::EmuWindow() {
-    return *impl->emu_window;
+GRenderWindow& GPU::RenderWindow() {
+    return *impl->render_window;
 }
 
-const EmuWindow_SDL2& GPU::EmuWindow() const {
-    return *impl->emu_window;
+const GRenderWindow& GPU::RenderWindow() const {
+    return *impl->render_window;
 }
 
 ::pid_t GPU::SessionPid() const {

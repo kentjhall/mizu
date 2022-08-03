@@ -14,7 +14,8 @@ namespace VideoCore {
 
 using namespace Core::Memory;
 
-RasterizerAccelerated::RasterizerAccelerated() {}
+RasterizerAccelerated::RasterizerAccelerated(Tegra::GPU& gpu_)
+    : RasterizerInterface(gpu_) {}
 
 RasterizerAccelerated::~RasterizerAccelerated() = default;
 

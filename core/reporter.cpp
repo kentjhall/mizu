@@ -20,7 +20,6 @@
 #include "core/hle/kernel/hle_ipc.h"
 #include "core/hle/service/service.h"
 #include "core/hle/result.h"
-#include "core/memory.h"
 #include "core/reporter.h"
 #include "mizu_servctl.h"
 

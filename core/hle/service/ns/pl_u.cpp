@@ -6,6 +6,7 @@
 #include <cstring>
 #include <vector>
 #include <sys/mman.h>
+#include <fcntl.h>
 
 #include "common/assert.h"
 #include "common/common_types.h"
@@ -158,6 +159,24 @@ PL_U::PL_U()
     };
     // clang-format on
     RegisterHandlers(functions);
+
+    shared_mem_fd = ::memfd_create("mizu_pl_u", MFD_ALLOW_SEALING);
+    if (shared_mem_fd == -1) {
+        LOG_CRITICAL(Service_HID, "memfd_create failed: {}", ::strerror(errno));
+    } else {
+        if (::ftruncate(shared_mem_fd, shared_mem_size) == -1 ||
+            ::fcntl(shared_mem_fd, F_ADD_SEALS, F_SEAL_SHRINK) == -1) {
+            LOG_CRITICAL(Service_HID, "memfd setup failed: {}", ::strerror(errno));
+        } else {
+            u8 *shared_mapping = static_cast<u8 *>(::mmap(NULL, shared_mem_size, PROT_READ | PROT_WRITE,
+                                                          MAP_SHARED, shared_mem_fd, 0));
+            if (shared_mapping == MAP_FAILED) {
+                LOG_CRITICAL(Service_HID, "mmap failed: {}", ::strerror(errno));
+            } else {
+                shared_mem.reset(shared_mapping);
+            }
+        }
+    }
 
     // Attempt to load shared font data from disk
     const auto* nand = SharedReader(filesystem_controller)->GetSystemNANDContents();

@@ -22,7 +22,7 @@ void SetupServiceContext(std::string name) {
 int CreateEvent(std::string&& name) {
     int fd = ::eventfd(0, EFD_NONBLOCK);
     if (fd == -1) {
-        LOG_CRITICAL(Service, "eventfd failed: %s", ::strerror(errno));
+        LOG_CRITICAL(Service, "eventfd failed: {}", ::strerror(errno));
     }
     return fd;
 }
@@ -33,14 +33,14 @@ void CloseEvent(int efd) {
 
 void SignalEvent(int efd) {
     if (::eventfd_write(efd, 1) == -1) {
-        LOG_CRITICAL(Service, "eventfd_write failed: %s", ::strerror(errno));
+        LOG_CRITICAL(Service, "eventfd_write failed: {}", ::strerror(errno));
     }
 }
 
 void ClearEvent(int efd) {
     static eventfd_t whocares;
     if (::eventfd_read(efd, &whocares) == -1 && errno != EAGAIN) {
-        LOG_CRITICAL(Service, "eventfd_read failed: %s", ::strerror(errno));
+        LOG_CRITICAL(Service, "eventfd_read failed: {}", ::strerror(errno));
     }
 }
 
@@ -52,7 +52,7 @@ void ClearEvent(int efd) {
     sev.sigev_notify_attributes = NULL;
     ::timer_t timerid;
     if (::timer_create(CLOCK_MONOTONIC, &sev, &timerid) == -1) {
-        LOG_CRITICAL(Service, "timer_create failed: %s", ::strerror(errno));
+        LOG_CRITICAL(Service, "timer_create failed: {}", ::strerror(errno));
         return nullptr;
     }
     return timerid;
@@ -78,7 +78,7 @@ void ScheduleRepeatTimerEvent(std::chrono::nanoseconds interval, ::timer_t event
     };
 
     if (timer_settime(event, 0, &its, NULL) == -1) {
-        LOG_CRITICAL(Service, "timer_settime failed: %s", ::strerror(errno));
+        LOG_CRITICAL(Service, "timer_settime failed: {}", ::strerror(errno));
     }
 }
 
@@ -95,7 +95,7 @@ void ScheduleTimerEvent(std::chrono::nanoseconds delay, ::timer_t event) {
     };
 
     if (timer_settime(event, 0, &its, NULL) == -1) {
-        LOG_CRITICAL(Service, "timer_settime failed: %s", ::strerror(errno));
+        LOG_CRITICAL(Service, "timer_settime failed: {}", ::strerror(errno));
     }
 }
 
@@ -103,7 +103,7 @@ void UnscheduleTimerEvent(::timer_t event) {
     static constexpr ::itimerspec its = { 0 };
 
     if (timer_settime(event, 0, &its, NULL) == -1) {
-        LOG_CRITICAL(Service, "timer_settime failed: %s", ::strerror(errno));
+        LOG_CRITICAL(Service, "timer_settime failed: {}", ::strerror(errno));
     }
 }
 

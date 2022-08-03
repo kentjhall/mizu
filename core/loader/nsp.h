@@ -58,8 +58,8 @@ public:
     ResultStatus ReadBanner(std::vector<u8>& buffer) override;
     ResultStatus ReadLogo(std::vector<u8>& buffer) override;
 
-    bool LoadedIs64Bit() const override {
-        return secondary_loader->LoadedIs64Bit();
+    FileSys::ProgramMetadata LoadedMetadata() const override {
+        return secondary_loader->LoadedMetadata();
     }
 
 private:

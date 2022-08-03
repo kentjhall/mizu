@@ -195,7 +195,6 @@ private:
     /// End a transform feedback
     void EndTransformFeedback();
 
-    Tegra::GPU& gpu;
     Tegra::Engines::Maxwell3D& maxwell3d;
     Tegra::Engines::KeplerCompute& kepler_compute;
     Tegra::MemoryManager& gpu_memory;

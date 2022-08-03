@@ -8,6 +8,8 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <stop_token>
+#include <condition_variable>
 
 #include "audio_core/behavior_info.h"
 #include "audio_core/command_generator.h"
@@ -64,6 +66,9 @@ private:
     std::size_t elapsed_frame_count{};
     ::timer_t process_event;
     std::mutex mutex;
+    std::stop_source stop_source;
+    std::condition_variable done_cv;
+    bool is_done = false;
 };
 
 } // namespace AudioCore

@@ -1,13 +1,13 @@
 CXX := g++
 CC := g++
-INCLUDES := -I ~/mizu-services -I ~/mizu-services/glad/include -I ~/yuzu/src -I ~/yuzu/externals/dynarmic/externals/fmt/include -I ~/yuzu/src/externals/opus/opus/include -I ~/yuzu/externals/cubeb/include -I ~/yuzu/externals/soundtouch/include -I ~/yuzu/src/exports -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/microprofile -I ~/yuzu/externals/opus/opus/include -I ~/yuzu/externals/ffmpeg -I ~/yuzu/build/externals/ffmpeg -I ~/yuzu/externals/Vulkan-Headers/include -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/sirit/externals/SPIRV-Headers/include -I ~/yuzu/externals/sirit/include
-DEBUG-y := -O0 -ggdb -D_DEBUG
+INCLUDES := -I ~/mizu-services -I ~/mizu-services/glad/include -I ~/yuzu/externals/dynarmic/externals/fmt/include -I ~/yuzu/src/externals/opus/opus/include -I ~/yuzu/externals/cubeb/include -I ~/yuzu/externals/soundtouch/include -I ~/yuzu/src/exports -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/microprofile -I ~/yuzu/externals/opus/opus/include -I ~/yuzu/externals/ffmpeg -I ~/yuzu/build/externals/ffmpeg -I ~/yuzu/externals/Vulkan-Headers/include -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/sirit/externals/SPIRV-Headers/include -I ~/yuzu/externals/sirit/include
+DEBUG-y := -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
 CXXFLAGS := -DYUZU_UNIX -DHAS_OPENGL -DFMT_HEADER_ONLY -DMBEDTLS_CMAC_C -DSDL_VIDEO_DRIVER_X11 -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale INIReader liblz4 opus) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui -I ~/soundtouch/include $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
-LDFLAGS := -L ~/sirit/build/src -L ~/soundtouch/build
+LDFLAGS := -L ~/sirit/build/src -L ~/soundtouch/build $(DEBUG-$(DEBUG))
 LDLIBS := -lmbedcrypto -lsirit -lrt -ldl -lcubeb -lSoundTouch -pthread $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 sdl2 libavutil libavcodec libswscale INIReader liblz4 opus)
 
-services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm
+services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend
 
 shader_headers := astc_decoder_comp.h \
                   block_linear_unswizzle_2d_comp.h \
@@ -33,15 +33,15 @@ shader_headers := astc_decoder_comp.h \
                   vulkan_quad_indexed_comp_spv.h \
                   vulkan_uint8_comp_spv.h
 
-subdirs := common common/fs common/logging config \
+subdirs := common common/fs common/logging configuration \
 	   core core/file_sys core/file_sys/system_archive core/file_sys/system_archive/data core/crypto \
 	   core/frontend core/loader core/frontend/applets core/hle core/hle/kernel \
 	   $(shell find video_core -type d) $(shell find audio_core -type d) $(shell find shader_recompiler -type d) \
 	   input_common $(shell find input_common -type d)  \
 	   core/hle/service $(shell find $(addprefix core/hle/service/,$(services)) -type d)
-sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs)))
+sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs))) video_core/bootmanager.moc.cpp
 headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/host_shaders/,$(shader_headers)) \
-	   mizu_servctl.h
+	   glad/include/glad/glad.h mizu_servctl.h
 objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
 
 .PHONY: default
@@ -54,6 +54,9 @@ hlaunch: hlaunch.c
 	gcc $(DEBUG-$(DEBUG)) -Wall -o $@ $^ -lrt
 
 $(objects): $(headers)
+
+%.moc.cpp: %.h
+	moc -o $@ $^
 
 video_core/host_shaders/%_comp.h: video_core/host_shaders/%.comp video_core/host_shaders/source_shader.h.in
 	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
@@ -80,6 +83,7 @@ ld_err.txt: $(objects)
 clean:
 	rm -f horizon-services
 	find . -name '*.o' -exec rm {} \;
+	find . -name '*.moc.cpp' -exec rm {} \;
 	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;
 	find video_core/host_shaders -name '*_frag.h' -exec rm {} \;
 	find video_core/host_shaders -name '*_vert.h' -exec rm {} \;

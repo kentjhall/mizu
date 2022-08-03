@@ -275,6 +275,8 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 }
 
 [[ noreturn ]] void RunForever() {
+    ::signal(SIGCHLD, SIG_IGN);
+
     // ensure we start with a fresh queue
     ::mq_unlink("/horizon_loader");
 
@@ -501,11 +503,13 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         ssize_t w;
         size_t total = 0;
         bool fail = false;
+        auto metadata = app_loader->LoadedMetadata();
         mizu_hdr hdr = {
             .magic = MIZU_MAGIC,
-            .is_64bit = app_loader->LoadedIs64Bit(),
             .title_id = title_id,
-            .system_resource_size = app_loader->LoadedSystemResourceSize(),
+            .is_64bit = metadata.Is64BitProgram(),
+            .address_space_type = static_cast<enum mizu_address_space_type>(metadata.GetAddressSpaceType()),
+            .system_resource_size = metadata.GetSystemResourceSize(),
             .num_codesets = static_cast<u32>(codesets.size()),
         };
         static_assert(sizeof(hdr) <= BINPRM_BUF_SIZE);

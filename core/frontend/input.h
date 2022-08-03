@@ -132,7 +132,7 @@ std::unique_ptr<InputDeviceType> CreateDevice(const std::string& params) {
     const auto pair = list_reader->find(engine);
     if (pair == list_reader->end()) {
         if (engine != "null") {
-            LOG_ERROR(Input, "Unknown engine name: {}", engine);
+            LOG_DEBUG(Input, "Unknown engine name: {}", engine);
         }
         return std::make_unique<InputDeviceType>();
     }

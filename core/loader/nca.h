@@ -44,9 +44,9 @@ public:
     ResultStatus ReadBanner(std::vector<u8>& buffer) override;
     ResultStatus ReadLogo(std::vector<u8>& buffer) override;
 
-    bool LoadedIs64Bit() const override {
+    FileSys::ProgramMetadata LoadedMetadata() const override {
         ASSERT(is_loaded);
-        return directory_loader->LoadedIs64Bit();
+        return directory_loader->LoadedMetadata();
     }
 
 private:

@@ -97,7 +97,15 @@ AudioRenderer::AudioRenderer(AudioCommon::AudioRendererParameter params,
     }
 }
 
-AudioRenderer::~AudioRenderer() = default;
+AudioRenderer::~AudioRenderer() {
+    ASSERT(stop_source.request_stop());
+    {
+        std::unique_lock lock{mutex};
+        while (!is_done)
+            done_cv.wait(lock);
+    }
+    Service::KernelHelpers::CloseTimerEvent(process_event);
+}
 
 ResultCode AudioRenderer::Start() {
     audio_out->StartStream(stream);
@@ -317,6 +325,13 @@ void AudioRenderer::QueueMixedBuffer(Buffer::Tag tag) {
 }
 
 void AudioRenderer::ReleaseAndQueueBuffers() {
+    if (stop_source.stop_requested()) {
+        std::scoped_lock lock{mutex};
+        is_done = true;
+        done_cv.notify_all();
+        return;
+    }
+
     if (!stream->IsPlaying()) {
         return;
     }

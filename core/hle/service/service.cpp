@@ -33,7 +33,7 @@
 /* #include "core/hle/service/fatal/fatal.h" */
 /* #include "core/hle/service/fgm/fgm.h" */
 #include "core/hle/service/filesystem/filesystem.h"
-/* #include "core/hle/service/friend/friend.h" */
+#include "core/hle/service/friend/friend.h"
 #include "core/hle/service/glue/glue.h"
 #include "core/hle/service/glue/glue_manager.h"
 /* #include "core/hle/service/grc/grc.h" */
@@ -248,7 +248,7 @@ void StartServices() {
     /* Fatal::InstallInterfaces(*sm, system); */
     /* FGM::InstallInterfaces(*sm, system); */
     FileSystem::InstallInterfaces();
-    /* Friend::InstallInterfaces(*sm, system); */
+    Friend::InstallInterfaces();
     Glue::InstallInterfaces();
     /* GRC::InstallInterfaces(*sm, system); */
     HID::InstallInterfaces();
@@ -284,7 +284,6 @@ void StartServices() {
     /* USB::InstallInterfaces(*sm, system); */
     VI::InstallInterfaces();
     /* WLAN::InstallInterfaces(*sm, system); */
-
 }
 
 [[ noreturn ]] void RunForever(Kernel::SessionRequestHandlerPtr handler)

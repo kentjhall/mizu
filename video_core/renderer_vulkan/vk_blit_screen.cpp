@@ -14,7 +14,6 @@
 #include "common/math_util.h"
 #include "core/core.h"
 #include "core/frontend/emu_window.h"
-#include "core/memory.h"
 #include "video_core/gpu.h"
 #include "video_core/host_shaders/vulkan_present_frag_spv.h"
 #include "video_core/host_shaders/vulkan_present_vert_spv.h"

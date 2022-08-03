@@ -131,6 +131,31 @@ extern Shared<Glue::ARPManager> arp_manager;
 extern Shared<Core::Hardware::InterruptManager> interrupt_manager;
 extern const Core::Reporter reporter;
 
+inline u64 GetProcessID()
+{
+    pid_t pid = mizu_servctl(MIZU_SCTL_GET_PROCESS_ID);
+    if (pid == -1) {
+        LOG_CRITICAL(Service, "MIZU_SCTL_GET_PROCESS_ID failed: {}", ResultCode(errno).description.Value());
+    }
+    return pid;
+}
+
+inline u64 GetTitleID()
+{
+    long title_id = mizu_servctl(MIZU_SCTL_GET_TITLE_ID);
+    if (title_id == -1) {
+        LOG_CRITICAL(Service, "MIZU_SCTL_GET_TITLE_ID failed: {}", ResultCode(errno).description.Value());
+    }
+    return static_cast<u64>(title_id);
+}
+
+using CurrentBuildProcessID = std::array<u8, 0x20>;
+inline const CurrentBuildProcessID& GetCurrentProcessBuildID() {
+    static CurrentBuildProcessID build_id = { 0 }; // TODO TEMP
+    LOG_CRITICAL(Service, "mizu TODO GetCurrentProcessBuildID");
+    return build_id;
+}
+
 /*
  * Per-session GPUs
  */
@@ -157,11 +182,21 @@ inline void GrabGPU(::pid_t req_pid) {
                                   std::forward_as_tuple(req_pid),
 				  std::forward_as_tuple(use_async, use_nvdec, req_pid)).first;
 	auto& gpu = *SharedUnlocked(it->second.gpu);
-        auto context = gpu.EmuWindow().CreateSharedContext();
         try {
-            auto renderer = VideoCore::CreateRenderer(gpu, std::move(context));
-            gpu.BindRenderer(std::move(renderer));
+            {
+		auto context = gpu.RenderWindow().CreateSharedContext();
+                auto scope = context->Acquire();
+                auto renderer = VideoCore::CreateRenderer(gpu, std::move(context));
+                gpu.BindRenderer(std::move(renderer));
+            }
             gpu.Start();
+	    gpu.ObtainContext();
+            if (Settings::values.use_disk_shader_cache.GetValue()) {
+                gpu.Renderer().ReadRasterizer()->LoadDiskResources(
+                    GetTitleID(), std::stop_token{},
+                    [](VideoCore::LoadCallbackStage, size_t value, size_t total) {});
+            }
+	    gpu.ReleaseContext();
         } catch (const std::runtime_error& exception) {
             LOG_ERROR(HW_GPU, "Failed to initialize GPU: {}", exception.what());
         }
@@ -184,31 +219,6 @@ inline void PutGPU(::pid_t req_pid) {
 
 inline Shared<Tegra::GPU>& GPU(::pid_t req_pid) {
     return const_cast<Service::Shared<Tegra::GPU>&>(SharedReader(gpus)->at(req_pid).gpu);
-}
-
-inline u64 GetProcessID()
-{
-    pid_t pid = mizu_servctl(MIZU_SCTL_GET_PROCESS_ID);
-    if (pid == -1) {
-        LOG_CRITICAL(Service, "MIZU_SCTL_GET_PROCESS_ID failed: {}", ResultCode(errno).description.Value());
-    }
-    return pid;
-}
-
-inline u64 GetTitleID()
-{
-    long title_id = mizu_servctl(MIZU_SCTL_GET_TITLE_ID);
-    if (title_id == -1) {
-        LOG_CRITICAL(Service, "MIZU_SCTL_GET_TITLE_ID failed: {}", ResultCode(errno).description.Value());
-    }
-    return static_cast<u64>(title_id);
-}
-
-using CurrentBuildProcessID = std::array<u8, 0x20>;
-inline const CurrentBuildProcessID& GetCurrentProcessBuildID() {
-    static CurrentBuildProcessID build_id = { 0 }; // TODO TEMP
-    LOG_CRITICAL(Service, "mizu TODO GetCurrentProcessBuildID");
-    return build_id;
 }
 
 inline std::chrono::nanoseconds GetGlobalTimeNs() {

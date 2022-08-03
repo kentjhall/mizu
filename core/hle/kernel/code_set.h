@@ -9,7 +9,6 @@
 #include <linux/mizu.h>
 
 #include "common/common_types.h"
-#include "core/hle/kernel/physical_memory.h"
 
 namespace Kernel {
 

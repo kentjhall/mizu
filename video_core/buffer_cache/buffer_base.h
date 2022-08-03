@@ -147,7 +147,7 @@ public:
                         GPUVAddr gpu_addr_)
         : rasterizer{&rasterizer_}, cpu_addr{Common::AlignDown(cpu_addr_, BYTES_PER_PAGE)},
           words(Common::AlignUp(size_bytes + (cpu_addr_ - cpu_addr), BYTES_PER_PAGE)),
-          gpu_addr(gpu_addr_) {}
+          gpu_addr(Common::AlignDown(gpu_addr_, BYTES_PER_PAGE)) {}
 
     explicit BufferBase(NullBufferParams) {}
 
@@ -214,7 +214,7 @@ public:
     void FlushCachedWrites() noexcept {
         flags &= ~BufferFlagBits::CachedWrites;
         const u64 num_words = NumWords();
-        const u64* const cached_words = Array<Type::CachedCPU>();
+        u64* const cached_words = Array<Type::CachedCPU>();
         u64* const untracked_words = Array<Type::Untracked>();
         u64* const cpu_words = Array<Type::CPU>();
         for (u64 word_index = 0; word_index < num_words; ++word_index) {
@@ -222,6 +222,7 @@ public:
             NotifyRasterizer<false>(word_index, untracked_words[word_index], cached_bits);
             untracked_words[word_index] |= cached_bits;
             cpu_words[word_index] |= cached_bits;
+	    cached_words[word_index] = 0;
         }
     }
 

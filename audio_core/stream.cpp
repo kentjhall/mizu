@@ -44,12 +44,24 @@ Stream::Stream(u32 sample_rate_, Format format_,
         });
 }
 
+Stream::~Stream() {
+    ASSERT(stop_source.request_stop());
+    {
+        std::unique_lock lock{mutex};
+        while (!is_done)
+            done_cv.wait(lock);
+    }
+    Service::KernelHelpers::CloseTimerEvent(release_event);
+}
+
 void Stream::Play() {
+    std::unique_lock lock{mutex};
     state = State::Playing;
     PlayNextBuffer();
 }
 
 void Stream::Stop() {
+    std::unique_lock lock{mutex};
     state = State::Stopped;
     UNIMPLEMENTED();
 }
@@ -90,7 +102,13 @@ static void VolumeAdjustSamples(std::vector<s16>& samples, float game_volume) {
 }
 
 void Stream::PlayNextBuffer() {
-    if (!IsPlaying()) {
+    if (stop_source.stop_requested()) {
+        is_done = true;
+        done_cv.notify_all();
+        return;
+    }
+
+    if (!IsPlaying(true)) {
         // Ensure we are in playing state before playing the next buffer
         sink_stream.Flush();
         return;
@@ -123,6 +141,7 @@ void Stream::PlayNextBuffer() {
 }
 
 void Stream::ReleaseActiveBuffer() {
+    std::unique_lock lock{mutex};
     ASSERT(active_buffer);
     released_buffers.push(std::move(active_buffer));
     release_callback();
@@ -130,6 +149,7 @@ void Stream::ReleaseActiveBuffer() {
 }
 
 bool Stream::QueueBuffer(BufferPtr&& buffer) {
+    std::unique_lock lock{mutex};
     if (queued_buffers.size() < MaxAudioBufferCount) {
         queued_buffers.push(std::move(buffer));
         PlayNextBuffer();

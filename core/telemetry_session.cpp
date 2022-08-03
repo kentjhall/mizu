@@ -16,7 +16,6 @@
 
 #include "common/settings.h"
 #include "core/file_sys/control_metadata.h"
-#include "core/file_sys/patch_manager.h"
 #include "core/hle/service/service.h"
 #include "core/telemetry_session.h"
 

@@ -127,10 +127,10 @@ void APIENTRY DebugHandler(GLenum source, GLenum type, GLuint id, GLenum severit
 
 RendererOpenGL::RendererOpenGL(Tegra::GPU& gpu_,
                                std::unique_ptr<Core::Frontend::GraphicsContext> context_)
-    : RendererBase{gpu_.EmuWindow(), std::move(context_)}, telemetry_session{gpu_.TelemetrySession()},
-      emu_window{gpu_.EmuWindow()}, gpu{gpu_}, state_tracker{gpu},
+    : RendererBase{gpu_.RenderWindow(), std::move(context_)}, telemetry_session{gpu_.TelemetrySession()},
+      emu_window{gpu_.RenderWindow()}, gpu{gpu_}, state_tracker{gpu},
       program_manager{device},
-      rasterizer(gpu_.EmuWindow(), gpu, device, screen_info, program_manager, state_tracker) {
+      rasterizer(gpu_.RenderWindow(), gpu, device, screen_info, program_manager, state_tracker) {
     if (Settings::values.renderer_debug && GLAD_GL_KHR_debug) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -220,10 +220,10 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
     const u32 bytes_per_pixel{VideoCore::Surface::BytesPerBlock(pixel_format)};
     const u64 size_in_bytes{Tegra::Texture::CalculateSize(
         true, bytes_per_pixel, framebuffer.stride, framebuffer.height, 1, block_height_log2, 0)};
-    u8 host_data[size_in_bytes];
-    mizu_servctl_read_buffer_from(framebuffer_addr, (u8 *)host_data, size_in_bytes,
+    std::unique_ptr<u8[]> host_data(new u8[size_in_bytes]);
+    mizu_servctl_read_buffer_from(framebuffer_addr, (u8 *)host_data.get(), size_in_bytes,
                                   framebuffer.session_pid);
-    const std::span<const u8> input_data(host_data, size_in_bytes);
+    const std::span<const u8> input_data(host_data.get(), size_in_bytes);
     Tegra::Texture::UnswizzleTexture(gl_framebuffer_data, input_data, bytes_per_pixel,
                                      framebuffer.width, framebuffer.height, 1, block_height_log2,
                                      0);

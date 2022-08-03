@@ -48,7 +48,11 @@ public:
         renderer = std::make_unique<AudioCore::AudioRenderer>(
             audren_params,
             [this]() {
-                const auto guard = LockService();
+                // mizu: commenting the following line because it can create a
+                // crazy three-way deadlock when things get fast enough, and is
+                // technically unnecessary since system_event is just an
+                // immutable file descriptor
+                /* const auto guard = LockService(); */
                 KernelHelpers::SignalEvent(system_event);
             },
             instance_number, pid);

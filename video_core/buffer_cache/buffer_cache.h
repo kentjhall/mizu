@@ -24,7 +24,6 @@
 #include "common/microprofile.h"
 #include "common/scope_exit.h"
 #include "common/settings.h"
-#include "core/memory.h"
 #include "video_core/buffer_cache/buffer_base.h"
 #include "video_core/delayed_destruction_ring.h"
 #include "video_core/dirty_flags.h"

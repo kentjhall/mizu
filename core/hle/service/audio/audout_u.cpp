@@ -69,7 +69,10 @@ public:
 
         stream = audio_core.OpenStream(audio_params.sample_rate,
                                        audio_params.channel_count, std::move(unique_name), [this] {
-                                           const auto guard = LockService();
+                                           // mizu: commenting this for parity
+                                           // with audren_u.cpp (see the comment
+                                           // there)
+                                           /* const auto guard = LockService(); */
                                            KernelHelpers::SignalEvent(buffer_event);
                                        });
     }
