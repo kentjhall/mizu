@@ -308,7 +308,7 @@ ISelfController::ISelfController()
     launchable_event = KernelHelpers::CreateEvent("ISelfController:LaunchableEvent");
 
     // This event is created by AM on the first time GetAccumulatedSuspendedTickChangedEvent() is
-    // called. Yuzu can just create it unconditionally, since it doesn't need to support multiple
+    // called. Mizu can just create it unconditionally, since it doesn't need to support multiple
     // ISelfControllers. The event is signaled on creation, and on transition from suspended -> not
     // suspended if the event has previously been created by a call to
     // GetAccumulatedSuspendedTickChangedEvent.
@@ -563,7 +563,7 @@ void ISelfController::GetAccumulatedSuspendedTickValue(Kernel::HLERequestContext
     LOG_DEBUG(Service_AM, "called.");
 
     // This command returns the total number of system ticks since ISelfController creation
-    // where the game was suspended. Since Yuzu doesn't implement game suspension, this command
+    // where the game was suspended. Since Mizu doesn't implement game suspension, this command
     // can just always return 0 ticks.
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(ResultSuccess);

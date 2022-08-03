@@ -190,7 +190,7 @@ Device::Device() {
 
         if (version_major >= 495) {
             LOG_WARNING(Render_OpenGL, "NVIDIA drivers 495 and later causes significant problems "
-                                       "with yuzu. Forcing GLASM as a mitigation.");
+                                       "with mizu. Forcing GLASM as a mitigation.");
             shader_backend = Settings::ShaderBackend::GLASM;
             use_assembly_shaders = true;
         }

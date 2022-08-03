@@ -87,7 +87,7 @@ public:
 
 private:
     void UpdateThread(std::stop_token stop_token);
-    void UpdateYuzuSettings();
+    void UpdateMizuSettings();
     void StopPanning();
 
     struct MouseInfo {

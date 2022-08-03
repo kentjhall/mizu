@@ -127,7 +127,7 @@ private:
     void OnPortInfo(Response::PortInfo);
     void OnPadData(Response::PadData, std::size_t client);
     void StartCommunication(std::size_t client, const std::string& host, u16 port);
-    void UpdateYuzuSettings(std::size_t client, std::size_t pad_index,
+    void UpdateMizuSettings(std::size_t client, std::size_t pad_index,
                             const Common::Vec3<float>& acc, const Common::Vec3<float>& gyro);
 
     // Returns an unused finger id, if there is no fingers available std::nullopt will be

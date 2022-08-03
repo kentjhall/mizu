@@ -129,7 +129,7 @@ bool VKScheduler::UpdateGraphicsPipeline(GraphicsPipeline* pipeline) {
 }
 
 void VKScheduler::WorkerThread(std::stop_token stop_token) {
-    Common::SetCurrentThreadName("yuzu:VulkanWorker");
+    Common::SetCurrentThreadName("mizu:VulkanWorker");
     do {
         if (work_queue.empty()) {
             wait_cv.notify_all();

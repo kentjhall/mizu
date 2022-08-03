@@ -770,21 +770,21 @@ void FileSystemController::CreateFactories(bool overwrite) {
         sdmc_factory = nullptr;
     }
 
-    using YuzuPath = Common::FS::YuzuPath;
-    const auto sdmc_dir_path = Common::FS::GetYuzuPath(YuzuPath::SDMCDir);
+    using MizuPath = Common::FS::MizuPath;
+    const auto sdmc_dir_path = Common::FS::GetMizuPath(MizuPath::SDMCDir);
     const auto sdmc_load_dir_path = sdmc_dir_path / "atmosphere/contents";
     const auto rw_mode = FileSys::Mode::ReadWrite;
 
     auto nand_directory = SharedWriter(filesystem)->OpenDirectory(
-            Common::FS::GetYuzuPathString(YuzuPath::NANDDir), rw_mode);
+            Common::FS::GetMizuPathString(MizuPath::NANDDir), rw_mode);
     auto sd_directory = SharedWriter(filesystem)->
         OpenDirectory(Common::FS::PathToUTF8String(sdmc_dir_path), rw_mode);
     auto load_directory = SharedWriter(filesystem)->
-        OpenDirectory(Common::FS::GetYuzuPathString(YuzuPath::LoadDir), FileSys::Mode::Read);
+        OpenDirectory(Common::FS::GetMizuPathString(MizuPath::LoadDir), FileSys::Mode::Read);
     auto sd_load_directory = SharedWriter(filesystem)->
         OpenDirectory(Common::FS::PathToUTF8String(sdmc_load_dir_path), FileSys::Mode::Read);
     auto dump_directory = SharedWriter(filesystem)->
-        OpenDirectory(Common::FS::GetYuzuPathString(YuzuPath::DumpDir), rw_mode);
+        OpenDirectory(Common::FS::GetMizuPathString(MizuPath::DumpDir), rw_mode);
 
     if (bis_factory == nullptr) {
         bis_factory = std::make_unique<FileSys::BISFactory>(

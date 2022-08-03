@@ -12,10 +12,10 @@ int main(int argc, char **argv)
 	}
 
 	// open message queue to talk to loader
-	mqd_t mqd = mq_open("/horizon_loader", O_WRONLY);
+	mqd_t mqd = mq_open("/mizu_loader", O_WRONLY);
 	if (mqd == -1) {
 		if (errno == ENOENT)
-			fprintf(stderr, "mq_open failed, is horizon-services running?\n");
+			fprintf(stderr, "mq_open failed, is mizu-services running?\n");
 		else
 			perror("mq_open failed");
 		return 1;
@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	// send request to horizon loader
+	// send request to mizu loader
 	if (mq_send(mqd, path, strlen(path), 0) == -1) {
 		perror("mq_send failed");
 		return 1;

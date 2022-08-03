@@ -85,7 +85,7 @@ VirtualDir BISFactory::OpenPartition(BisPartitionId id) const {
 VirtualFile BISFactory::OpenPartitionStorage(BisPartitionId id) const {
     auto& keys = Core::Crypto::KeyManager::Instance();
     Core::Crypto::PartitionDataManager pdm{Service::SharedWriter(Service::filesystem)->OpenDirectory(
-        Common::FS::GetYuzuPathString(Common::FS::YuzuPath::NANDDir), Mode::Read)};
+        Common::FS::GetMizuPathString(Common::FS::MizuPath::NANDDir), Mode::Read)};
     keys.PopulateFromPartitionData(pdm);
 
     switch (id) {

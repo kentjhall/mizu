@@ -4,12 +4,12 @@
 
 #pragma once
 
-// yuzu data directories
+// mizu data directories
 
-#define YUZU_DIR "yuzu"
+#define MIZU_DIR "mizu"
 #define PORTABLE_DIR "user"
 
-// Sub-directories contained within a yuzu data directory
+// Sub-directories contained within a mizu data directory
 
 #define CACHE_DIR "cache"
 #define CONFIG_DIR "config"
@@ -23,6 +23,6 @@
 #define SHADER_DIR "shader"
 #define TAS_DIR "tas"
 
-// yuzu-specific files
+// mizu-specific files
 
-#define LOG_FILE "yuzu_log.txt"
+#define LOG_FILE "mizu_log.txt"

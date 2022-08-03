@@ -65,7 +65,7 @@ void Tas::LoadTasFile(size_t player_index) {
         commands[player_index].clear();
     }
     std::string file =
-        Common::FS::ReadStringFromFile(Common::FS::GetYuzuPath(Common::FS::YuzuPath::TASDir) /
+        Common::FS::ReadStringFromFile(Common::FS::GetMizuPath(Common::FS::MizuPath::TASDir) /
                                            fmt::format("script0-{}.txt", player_index + 1),
                                        Common::FS::FileType::BinaryFile);
     std::stringstream command_line(file);
@@ -117,7 +117,7 @@ void Tas::WriteTasFile(std::u8string file_name) {
                        WriteCommandAxis(line.l_axis) + " " + WriteCommandAxis(line.r_axis);
     }
     const auto bytes_written = Common::FS::WriteStringToFile(
-        Common::FS::GetYuzuPath(Common::FS::YuzuPath::TASDir) / file_name,
+        Common::FS::GetMizuPath(Common::FS::MizuPath::TASDir) / file_name,
         Common::FS::FileType::TextFile, output_text);
     if (bytes_written == output_text.size()) {
         LOG_INFO(Input, "TAS file written to file!");

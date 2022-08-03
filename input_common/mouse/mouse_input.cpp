@@ -38,7 +38,7 @@ void Mouse::UpdateThread(std::stop_token stop_token) {
             }
         }
         if (configuring) {
-            UpdateYuzuSettings();
+            UpdateMizuSettings();
         }
         if (mouse_panning_timout++ > 20) {
             StopPanning();
@@ -47,7 +47,7 @@ void Mouse::UpdateThread(std::stop_token stop_token) {
     }
 }
 
-void Mouse::UpdateYuzuSettings() {
+void Mouse::UpdateMizuSettings() {
     if (buttons == 0) {
         return;
     }

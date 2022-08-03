@@ -234,7 +234,7 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
     // Update existing texture
     // TODO: Test what happens on hardware when you change the framebuffer dimensions so that
     //       they differ from the LCD resolution.
-    // TODO: Applications could theoretically crash yuzu here by specifying too large
+    // TODO: Applications could theoretically crash mizu here by specifying too large
     //       framebuffer sizes. We should make sure that this cannot happen.
     glTextureSubImage2D(screen_info.texture.resource.handle, 0, 0, 0, framebuffer.width,
                         framebuffer.height, screen_info.texture.gl_format,

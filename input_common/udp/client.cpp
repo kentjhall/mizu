@@ -297,7 +297,7 @@ void Client::OnPadData(Response::PadData data, std::size_t client) {
         if (configuring) {
             const Common::Vec3f gyroscope = pads[pad_index].motion.GetGyroscope();
             const Common::Vec3f accelerometer = pads[pad_index].motion.GetAcceleration();
-            UpdateYuzuSettings(client, data.info.id, accelerometer, gyroscope);
+            UpdateMizuSettings(client, data.info.id, accelerometer, gyroscope);
         }
     }
 }
@@ -331,7 +331,7 @@ void Client::Reset() {
     }
 }
 
-void Client::UpdateYuzuSettings(std::size_t client, std::size_t pad_index,
+void Client::UpdateMizuSettings(std::size_t client, std::size_t pad_index,
                                 const Common::Vec3<float>& acc, const Common::Vec3<float>& gyro) {
     if (gyro.Length() > 0.2f) {
         LOG_DEBUG(Input, "UDP Controller {}: gyro=({}, {}, {}), accel=({}, {}, {})", client,

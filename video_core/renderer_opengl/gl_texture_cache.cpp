@@ -1058,7 +1058,7 @@ Framebuffer::Framebuffer(TextureCacheRuntime& runtime, std::span<ImageView*, NUM
                          ImageView* depth_buffer, const VideoCommon::RenderTargets& key) {
     // Bind to READ_FRAMEBUFFER to stop Nvidia's driver from creating an EXT_framebuffer instead of
     // a core framebuffer. EXT framebuffer attachments have to match in size and can be shared
-    // across contexts. yuzu doesn't share framebuffers across contexts and we need attachments with
+    // across contexts. mizu doesn't share framebuffers across contexts and we need attachments with
     // mismatching size, this is why core framebuffers are preferred.
     GLuint handle;
     glGenFramebuffers(1, &handle);

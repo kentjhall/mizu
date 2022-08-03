@@ -53,10 +53,10 @@ namespace fs = std::filesystem;
 
 /**
  * The PathManagerImpl is a singleton allowing to manage the mapping of
- * YuzuPath enums to real filesystem paths.
- * This class provides 2 functions: GetYuzuPathImpl and SetYuzuPathImpl.
- * These are used by GetYuzuPath and SetYuzuPath respectively to get or modify
- * the path mapped by the YuzuPath enum.
+ * MizuPath enums to real filesystem paths.
+ * This class provides 2 functions: GetMizuPathImpl and SetMizuPathImpl.
+ * These are used by GetMizuPath and SetMizuPath respectively to get or modify
+ * the path mapped by the MizuPath enum.
  */
 class PathManagerImpl {
 public:
@@ -72,65 +72,65 @@ public:
     PathManagerImpl(PathManagerImpl&&) = delete;
     PathManagerImpl& operator=(PathManagerImpl&&) = delete;
 
-    [[nodiscard]] const fs::path& GetYuzuPathImpl(YuzuPath yuzu_path) {
-        return yuzu_paths.at(yuzu_path);
+    [[nodiscard]] const fs::path& GetMizuPathImpl(MizuPath mizu_path) {
+        return mizu_paths.at(mizu_path);
     }
 
-    void SetYuzuPathImpl(YuzuPath yuzu_path, const fs::path& new_path) {
-        yuzu_paths.insert_or_assign(yuzu_path, new_path);
+    void SetMizuPathImpl(MizuPath mizu_path, const fs::path& new_path) {
+        mizu_paths.insert_or_assign(mizu_path, new_path);
     }
 
 private:
     PathManagerImpl() {
-        fs::path yuzu_path;
-        fs::path yuzu_path_cache;
-        fs::path yuzu_path_config;
+        fs::path mizu_path;
+        fs::path mizu_path_cache;
+        fs::path mizu_path_config;
 
 #ifdef _WIN32
-        yuzu_path = GetExeDirectory() / PORTABLE_DIR;
+        mizu_path = GetExeDirectory() / PORTABLE_DIR;
 
-        if (!IsDir(yuzu_path)) {
-            yuzu_path = GetAppDataRoamingDirectory() / YUZU_DIR;
+        if (!IsDir(mizu_path)) {
+            mizu_path = GetAppDataRoamingDirectory() / MIZU_DIR;
         }
 
-        yuzu_path_cache = yuzu_path / CACHE_DIR;
-        yuzu_path_config = yuzu_path / CONFIG_DIR;
+        mizu_path_cache = mizu_path / CACHE_DIR;
+        mizu_path_config = mizu_path / CONFIG_DIR;
 #else
-        yuzu_path = GetCurrentDir() / PORTABLE_DIR;
+        mizu_path = GetCurrentDir() / PORTABLE_DIR;
 
-        if (Exists(yuzu_path) && IsDir(yuzu_path)) {
-            yuzu_path_cache = yuzu_path / CACHE_DIR;
-            yuzu_path_config = yuzu_path / CONFIG_DIR;
+        if (Exists(mizu_path) && IsDir(mizu_path)) {
+            mizu_path_cache = mizu_path / CACHE_DIR;
+            mizu_path_config = mizu_path / CONFIG_DIR;
         } else {
-            yuzu_path = GetDataDirectory("XDG_DATA_HOME") / YUZU_DIR;
-            yuzu_path_cache = GetDataDirectory("XDG_CACHE_HOME") / YUZU_DIR;
-            yuzu_path_config = GetDataDirectory("XDG_CONFIG_HOME") / YUZU_DIR;
+            mizu_path = GetDataDirectory("XDG_DATA_HOME") / MIZU_DIR;
+            mizu_path_cache = GetDataDirectory("XDG_CACHE_HOME") / MIZU_DIR;
+            mizu_path_config = GetDataDirectory("XDG_CONFIG_HOME") / MIZU_DIR;
         }
 #endif
 
-        GenerateYuzuPath(YuzuPath::YuzuDir, yuzu_path);
-        GenerateYuzuPath(YuzuPath::CacheDir, yuzu_path_cache);
-        GenerateYuzuPath(YuzuPath::ConfigDir, yuzu_path_config);
-        GenerateYuzuPath(YuzuPath::DumpDir, yuzu_path / DUMP_DIR);
-        GenerateYuzuPath(YuzuPath::KeysDir, yuzu_path / KEYS_DIR);
-        GenerateYuzuPath(YuzuPath::LoadDir, yuzu_path / LOAD_DIR);
-        GenerateYuzuPath(YuzuPath::LogDir, yuzu_path / LOG_DIR);
-        GenerateYuzuPath(YuzuPath::NANDDir, yuzu_path / NAND_DIR);
-        GenerateYuzuPath(YuzuPath::ScreenshotsDir, yuzu_path / SCREENSHOTS_DIR);
-        GenerateYuzuPath(YuzuPath::SDMCDir, yuzu_path / SDMC_DIR);
-        GenerateYuzuPath(YuzuPath::ShaderDir, yuzu_path / SHADER_DIR);
-        GenerateYuzuPath(YuzuPath::TASDir, yuzu_path / TAS_DIR);
+        GenerateMizuPath(MizuPath::MizuDir, mizu_path);
+        GenerateMizuPath(MizuPath::CacheDir, mizu_path_cache);
+        GenerateMizuPath(MizuPath::ConfigDir, mizu_path_config);
+        GenerateMizuPath(MizuPath::DumpDir, mizu_path / DUMP_DIR);
+        GenerateMizuPath(MizuPath::KeysDir, mizu_path / KEYS_DIR);
+        GenerateMizuPath(MizuPath::LoadDir, mizu_path / LOAD_DIR);
+        GenerateMizuPath(MizuPath::LogDir, mizu_path / LOG_DIR);
+        GenerateMizuPath(MizuPath::NANDDir, mizu_path / NAND_DIR);
+        GenerateMizuPath(MizuPath::ScreenshotsDir, mizu_path / SCREENSHOTS_DIR);
+        GenerateMizuPath(MizuPath::SDMCDir, mizu_path / SDMC_DIR);
+        GenerateMizuPath(MizuPath::ShaderDir, mizu_path / SHADER_DIR);
+        GenerateMizuPath(MizuPath::TASDir, mizu_path / TAS_DIR);
     }
 
     ~PathManagerImpl() = default;
 
-    void GenerateYuzuPath(YuzuPath yuzu_path, const fs::path& new_path) {
+    void GenerateMizuPath(MizuPath mizu_path, const fs::path& new_path) {
         void(FS::CreateDir(new_path));
 
-        SetYuzuPathImpl(yuzu_path, new_path);
+        SetMizuPathImpl(mizu_path, new_path);
     }
 
-    std::unordered_map<YuzuPath, fs::path> yuzu_paths;
+    std::unordered_map<MizuPath, fs::path> mizu_paths;
 };
 
 bool ValidatePath(const fs::path& path) {
@@ -210,22 +210,22 @@ fs::path RemoveTrailingSeparators(const fs::path& path) {
     return fs::path{string_path};
 }
 
-const fs::path& GetYuzuPath(YuzuPath yuzu_path) {
-    return PathManagerImpl::GetInstance().GetYuzuPathImpl(yuzu_path);
+const fs::path& GetMizuPath(MizuPath mizu_path) {
+    return PathManagerImpl::GetInstance().GetMizuPathImpl(mizu_path);
 }
 
-std::string GetYuzuPathString(YuzuPath yuzu_path) {
-    return PathToUTF8String(GetYuzuPath(yuzu_path));
+std::string GetMizuPathString(MizuPath mizu_path) {
+    return PathToUTF8String(GetMizuPath(mizu_path));
 }
 
-void SetYuzuPath(YuzuPath yuzu_path, const fs::path& new_path) {
+void SetMizuPath(MizuPath mizu_path, const fs::path& new_path) {
     if (!FS::IsDir(new_path)) {
         LOG_ERROR(Common_Filesystem, "Filesystem object at new_path={} is not a directory",
                   PathToUTF8String(new_path));
         return;
     }
 
-    PathManagerImpl::GetInstance().SetYuzuPathImpl(yuzu_path, new_path);
+    PathManagerImpl::GetInstance().SetMizuPathImpl(mizu_path, new_path);
 }
 
 #ifdef _WIN32

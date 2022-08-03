@@ -177,7 +177,7 @@ public:
             return;
         }
         using namespace Common::FS;
-        const auto& log_dir = GetYuzuPath(YuzuPath::LogDir);
+        const auto& log_dir = GetMizuPath(MizuPath::LogDir);
         void(CreateDir(log_dir));
         Filter filter;
         filter.ParseFilterString(Settings::values.log_filter.GetValue());
@@ -212,7 +212,7 @@ public:
 private:
     Impl(const std::filesystem::path& file_backend_filename, const Filter& filter_)
         : filter{filter_}, file_backend{file_backend_filename}, backend_thread{std::thread([this] {
-              Common::SetCurrentThreadName("yuzu:Log");
+              Common::SetCurrentThreadName("mizu:Log");
               Entry entry;
               const auto write_logs = [this, &entry]() {
                   ForEachBackend([&entry](Backend& backend) { backend.Write(entry); });

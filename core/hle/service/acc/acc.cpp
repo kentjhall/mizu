@@ -40,7 +40,7 @@ constexpr ResultCode ERR_FAILED_SAVE_DATA{ErrorModule::Account, 100};
 constexpr std::size_t THUMBNAIL_SIZE = 0x24000;
 
 static std::filesystem::path GetImagePath(Common::UUID uuid) {
-    return Common::FS::GetYuzuPath(Common::FS::YuzuPath::NANDDir) /
+    return Common::FS::GetMizuPath(Common::FS::MizuPath::NANDDir) /
            fmt::format("system/save/8000000000000010/su/avators/{}.jpg", uuid.FormatSwitch());
 }
 
@@ -773,7 +773,7 @@ ResultCode Module::Interface::InitializeApplicationInfoBase() {
     case FileSys::StorageId::Host:
     case FileSys::StorageId::NandUser:
     case FileSys::StorageId::SdCard:
-    case FileSys::StorageId::None: // Yuzu specific, differs from hardware
+    case FileSys::StorageId::None: // Mizu specific, differs from hardware
         application_info.application_type = ApplicationType::Digital;
         break;
     default:

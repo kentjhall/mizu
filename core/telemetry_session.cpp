@@ -34,7 +34,7 @@ static u64 GenerateTelemetryId() {
     mbedtls_entropy_context entropy;
     mbedtls_entropy_init(&entropy);
     mbedtls_ctr_drbg_context ctr_drbg;
-    constexpr std::array<char, 18> personalization{{"yuzu Telemetry ID"}};
+    constexpr std::array<char, 18> personalization{{"mizu Telemetry ID"}};
 
     mbedtls_ctr_drbg_init(&ctr_drbg);
     ASSERT(mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
@@ -85,7 +85,7 @@ static const char* TranslateNvdecEmulation(Settings::NvdecEmulation backend) {
 
 u64 GetTelemetryId() {
     u64 telemetry_id{};
-    const auto filename = Common::FS::GetYuzuPath(Common::FS::YuzuPath::ConfigDir) / "telemetry_id";
+    const auto filename = Common::FS::GetMizuPath(Common::FS::MizuPath::ConfigDir) / "telemetry_id";
 
     bool generate_new_id = !Common::FS::Exists(filename);
 
@@ -127,7 +127,7 @@ u64 GetTelemetryId() {
 
 u64 RegenerateTelemetryId() {
     const u64 new_telemetry_id{GenerateTelemetryId()};
-    const auto filename = Common::FS::GetYuzuPath(Common::FS::YuzuPath::ConfigDir) / "telemetry_id";
+    const auto filename = Common::FS::GetMizuPath(Common::FS::MizuPath::ConfigDir) / "telemetry_id";
 
     Common::FS::IOFile file{filename, Common::FS::FileAccessMode::Write,
                             Common::FS::FileType::BinaryFile};
@@ -163,8 +163,8 @@ TelemetrySession::~TelemetrySession() {
 
 #ifdef ENABLE_WEB_SERVICE
     auto backend = std::make_unique<WebService::TelemetryJson>(
-        Settings::values.web_api_url.GetValue(), Settings::values.yuzu_username.GetValue(),
-        Settings::values.yuzu_token.GetValue());
+        Settings::values.web_api_url.GetValue(), Settings::values.mizu_username.GetValue(),
+        Settings::values.mizu_token.GetValue());
 #else
     auto backend = std::make_unique<Telemetry::NullVisitor>();
 #endif
@@ -253,8 +253,8 @@ void TelemetrySession::AddInitialInfo() {
 bool TelemetrySession::SubmitTestcase() {
 #ifdef ENABLE_WEB_SERVICE
     auto backend = std::make_unique<WebService::TelemetryJson>(
-        Settings::values.web_api_url.GetValue(), Settings::values.yuzu_username.GetValue(),
-        Settings::values.yuzu_token.GetValue());
+        Settings::values.web_api_url.GetValue(), Settings::values.mizu_username.GetValue(),
+        Settings::values.mizu_token.GetValue());
     field_collection.Accept(*backend);
     return backend->SubmitTestcase();
 #else

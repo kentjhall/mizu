@@ -369,7 +369,7 @@ std::optional<NcaID> RegisteredCache::GetNcaIDFromMetadata(u64 title_id,
     if (type == ContentRecordType::Meta && meta_id.find(title_id) != meta_id.end())
         return meta_id.at(title_id);
 
-    const auto res1 = CheckMapForContentRecord(yuzu_meta, title_id, type);
+    const auto res1 = CheckMapForContentRecord(mizu_meta, title_id, type);
     if (res1)
         return res1;
     return CheckMapForContentRecord(meta, title_id, type);
@@ -434,8 +434,8 @@ void RegisteredCache::ProcessFiles(const std::vector<NcaID>& ids) {
     }
 }
 
-void RegisteredCache::AccumulateYuzuMeta() {
-    const auto meta_dir = dir->GetSubdirectory("yuzu_meta");
+void RegisteredCache::AccumulateMizuMeta() {
+    const auto meta_dir = dir->GetSubdirectory("mizu_meta");
     if (meta_dir == nullptr) {
         return;
     }
@@ -446,7 +446,7 @@ void RegisteredCache::AccumulateYuzuMeta() {
         }
 
         CNMT cnmt(file);
-        yuzu_meta.insert_or_assign(cnmt.GetTitleID(), std::move(cnmt));
+        mizu_meta.insert_or_assign(cnmt.GetTitleID(), std::move(cnmt));
     }
 }
 
@@ -457,7 +457,7 @@ void RegisteredCache::Refresh() {
 
     const auto ids = AccumulateFiles();
     ProcessFiles(ids);
-    AccumulateYuzuMeta();
+    AccumulateMizuMeta();
 }
 
 RegisteredCache::RegisteredCache(VirtualDir dir_, ContentProviderParsingFunction parsing_function)
@@ -482,9 +482,9 @@ std::optional<u32> RegisteredCache::GetEntryVersion(u64 title_id) const {
         return meta_iter->second.GetTitleVersion();
     }
 
-    const auto yuzu_meta_iter = yuzu_meta.find(title_id);
-    if (yuzu_meta_iter != yuzu_meta.cend()) {
-        return yuzu_meta_iter->second.GetTitleVersion();
+    const auto mizu_meta_iter = mizu_meta.find(title_id);
+    if (mizu_meta_iter != mizu_meta.cend()) {
+        return mizu_meta_iter->second.GetTitleVersion();
     }
 
     return std::nullopt;
@@ -516,7 +516,7 @@ void RegisteredCache::IterateAllMetadata(
             }
         }
     }
-    for (const auto& kv : yuzu_meta) {
+    for (const auto& kv : mizu_meta) {
         const auto& cnmt = kv.second;
         for (const auto& rec : cnmt.GetContentRecords()) {
             if (GetFileAtID(rec.nca_id) != nullptr && filter(cnmt, rec)) {
@@ -655,7 +655,7 @@ InstallResult RegisteredCache::InstallEntry(const NCA& nca, TitleType type,
     mbedtls_sha256_ret(data.data(), data.size(), c_rec.hash.data(), 0);
     std::memcpy(&c_rec.nca_id, &c_rec.hash, 16);
     const CNMT new_cnmt(header, opt_header, {c_rec}, {});
-    if (!RawInstallYuzuMeta(new_cnmt)) {
+    if (!RawInstallMizuMeta(new_cnmt)) {
         return InstallResult::ErrorMetaFailed;
     }
     return RawInstallNCA(nca, copy, overwrite_if_exists, c_rec.nca_id);
@@ -753,9 +753,9 @@ InstallResult RegisteredCache::RawInstallNCA(const NCA& nca, const VfsCopyFuncti
                                                   : InstallResult::ErrorCopyFailed;
 }
 
-bool RegisteredCache::RawInstallYuzuMeta(const CNMT& cnmt) {
+bool RegisteredCache::RawInstallMizuMeta(const CNMT& cnmt) {
     // Reasoning behind this method can be found in the comment for InstallEntry, NCA overload.
-    const auto meta_dir = dir->CreateDirectoryRelative("yuzu_meta");
+    const auto meta_dir = dir->CreateDirectoryRelative("mizu_meta");
     const auto filename = GetCNMTName(cnmt.GetType(), cnmt.GetTitleID());
     if (meta_dir->GetFile(filename) == nullptr) {
         auto out = meta_dir->CreateFile(filename);
@@ -774,11 +774,11 @@ bool RegisteredCache::RawInstallYuzuMeta(const CNMT& cnmt) {
         }
     }
     Refresh();
-    return std::find_if(yuzu_meta.begin(), yuzu_meta.end(),
+    return std::find_if(mizu_meta.begin(), mizu_meta.end(),
                         [&cnmt](const std::pair<u64, CNMT>& kv) {
                             return kv.second.GetType() == cnmt.GetType() &&
                                    kv.second.GetTitleID() == cnmt.GetTitleID();
-                        }) != yuzu_meta.end();
+                        }) != mizu_meta.end();
 }
 
 ContentProviderUnion::~ContentProviderUnion() = default;

@@ -26,7 +26,7 @@
 namespace {
 
 std::filesystem::path GetPath(std::string_view type, u64 title_id, std::string_view timestamp) {
-    return Common::FS::GetYuzuPath(Common::FS::YuzuPath::LogDir) / type /
+    return Common::FS::GetMizuPath(Common::FS::MizuPath::LogDir) / type /
            fmt::format("{:016X}_{}.json", title_id, timestamp);
 }
 
@@ -363,7 +363,7 @@ void Reporter::SaveErrorReport(u64 title_id, ResultCode result,
 
 void Reporter::SaveFSAccessLog(std::string_view log_message) const {
     const auto access_log_path =
-        Common::FS::GetYuzuPath(Common::FS::YuzuPath::SDMCDir) / "FsAccessLog.txt";
+        Common::FS::GetMizuPath(Common::FS::MizuPath::SDMCDir) / "FsAccessLog.txt";
 
     void(Common::FS::AppendStringToFile(access_log_path, Common::FS::FileType::TextFile,
                                         log_message));
@@ -383,7 +383,7 @@ void Reporter::SaveUserReport() const {
 
 void Reporter::ClearFSAccessLog() const {
     const auto access_log_path =
-        Common::FS::GetYuzuPath(Common::FS::YuzuPath::SDMCDir) / "FsAccessLog.txt";
+        Common::FS::GetMizuPath(Common::FS::MizuPath::SDMCDir) / "FsAccessLog.txt";
 
     Common::FS::IOFile access_log_file{access_log_path, Common::FS::FileAccessMode::Write,
                                        Common::FS::FileType::TextFile};

@@ -11,8 +11,8 @@
 
 namespace Common::FS {
 
-enum class YuzuPath {
-    YuzuDir,        // Where yuzu stores its data.
+enum class MizuPath {
+    MizuDir,        // Where mizu stores its data.
     CacheDir,       // Where cached filesystem data is stored.
     ConfigDir,      // Where config files are stored.
     DumpDir,        // Where dumped data is stored.
@@ -20,7 +20,7 @@ enum class YuzuPath {
     LoadDir,        // Where cheat/mod files are stored.
     LogDir,         // Where log files are stored.
     NANDDir,        // Where the emulated NAND is stored.
-    ScreenshotsDir, // Where yuzu screenshots are stored.
+    ScreenshotsDir, // Where mizu screenshots are stored.
     SDMCDir,        // Where the emulated SDMC is stored.
     ShaderDir,      // Where shaders are stored.
     TASDir,         // Where TAS scripts are stored.
@@ -182,39 +182,39 @@ template <typename Path>
 #endif
 
 /**
- * Gets the filesystem path associated with the YuzuPath enum.
+ * Gets the filesystem path associated with the MizuPath enum.
  *
- * @param yuzu_path YuzuPath enum
+ * @param mizu_path MizuPath enum
  *
- * @returns The filesystem path associated with the YuzuPath enum.
+ * @returns The filesystem path associated with the MizuPath enum.
  */
-[[nodiscard]] const std::filesystem::path& GetYuzuPath(YuzuPath yuzu_path);
+[[nodiscard]] const std::filesystem::path& GetMizuPath(MizuPath mizu_path);
 
 /**
- * Gets the filesystem path associated with the YuzuPath enum as a UTF-8 encoded std::string.
+ * Gets the filesystem path associated with the MizuPath enum as a UTF-8 encoded std::string.
  *
- * @param yuzu_path YuzuPath enum
+ * @param mizu_path MizuPath enum
  *
- * @returns The filesystem path associated with the YuzuPath enum as a UTF-8 encoded std::string.
+ * @returns The filesystem path associated with the MizuPath enum as a UTF-8 encoded std::string.
  */
-[[nodiscard]] std::string GetYuzuPathString(YuzuPath yuzu_path);
+[[nodiscard]] std::string GetMizuPathString(MizuPath mizu_path);
 
 /**
- * Sets a new filesystem path associated with the YuzuPath enum.
+ * Sets a new filesystem path associated with the MizuPath enum.
  * If the filesystem object at new_path is not a directory, this function will not do anything.
  *
- * @param yuzu_path YuzuPath enum
+ * @param mizu_path MizuPath enum
  * @param new_path New filesystem path
  */
-void SetYuzuPath(YuzuPath yuzu_path, const std::filesystem::path& new_path);
+void SetMizuPath(MizuPath mizu_path, const std::filesystem::path& new_path);
 
 #ifdef _WIN32
 template <typename Path>
-void SetYuzuPath(YuzuPath yuzu_path, const Path& new_path) {
+void SetMizuPath(MizuPath mizu_path, const Path& new_path) {
     if constexpr (IsChar<typename Path::value_type>) {
-        SetYuzuPath(yuzu_path, ToU8String(new_path));
+        SetMizuPath(mizu_path, ToU8String(new_path));
     } else {
-        SetYuzuPath(yuzu_path, std::filesystem::path{new_path});
+        SetMizuPath(mizu_path, std::filesystem::path{new_path});
     }
 }
 #endif
@@ -246,14 +246,14 @@ void SetYuzuPath(YuzuPath yuzu_path, const Path& new_path) {
 [[nodiscard]] std::filesystem::path GetHomeDirectory();
 
 /**
- * Gets the relevant paths for yuzu to store its data based on the given XDG environment variable.
+ * Gets the relevant paths for mizu to store its data based on the given XDG environment variable.
  * See https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
  * Defaults to $HOME/.local/share for main application data,
  * $HOME/.cache for cached data, and $HOME/.config for configuration files.
  *
  * @param env_name XDG environment variable name
  *
- * @returns The path where yuzu should store its data.
+ * @returns The path where mizu should store its data.
  */
 [[nodiscard]] std::filesystem::path GetDataDirectory(const std::string& env_name);
 
@@ -277,7 +277,7 @@ enum class DirectorySeparator {
 };
 
 // Splits the path on '/' or '\' and put the components into a vector
-// i.e. "C:\Users\Yuzu\Documents\save.bin" becomes {"C:", "Users", "Yuzu", "Documents", "save.bin" }
+// i.e. "C:\Users\Mizu\Documents\save.bin" becomes {"C:", "Users", "Mizu", "Documents", "save.bin" }
 [[nodiscard]] std::vector<std::string> SplitPathComponents(std::string_view filename);
 
 // Removes trailing slash, makes all '\\' into '/', and removes duplicate '/'. Makes '/' into '\\'

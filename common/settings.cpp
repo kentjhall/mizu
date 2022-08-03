@@ -38,7 +38,7 @@ void LogSettings() {
         LOG_INFO(Config, "{}: {}", name, Common::FS::PathToUTF8String(path));
     };
 
-    LOG_INFO(Config, "yuzu Configuration:");
+    LOG_INFO(Config, "mizu Configuration:");
     log_setting("Controls_UseDockedMode", values.use_docked_mode.GetValue());
     log_setting("System_RngSeed", values.rng_seed.GetValue().value_or(0));
     log_setting("System_CurrentUser", values.current_user.GetValue());
@@ -63,11 +63,11 @@ void LogSettings() {
     log_setting("Audio_OutputEngine", values.sink_id.GetValue());
     log_setting("Audio_OutputDevice", values.audio_device_id.GetValue());
     log_setting("DataStorage_UseVirtualSd", values.use_virtual_sd.GetValue());
-    log_path("DataStorage_CacheDir", Common::FS::GetYuzuPath(Common::FS::YuzuPath::CacheDir));
-    log_path("DataStorage_ConfigDir", Common::FS::GetYuzuPath(Common::FS::YuzuPath::ConfigDir));
-    log_path("DataStorage_LoadDir", Common::FS::GetYuzuPath(Common::FS::YuzuPath::LoadDir));
-    log_path("DataStorage_NANDDir", Common::FS::GetYuzuPath(Common::FS::YuzuPath::NANDDir));
-    log_path("DataStorage_SDMCDir", Common::FS::GetYuzuPath(Common::FS::YuzuPath::SDMCDir));
+    log_path("DataStorage_CacheDir", Common::FS::GetMizuPath(Common::FS::MizuPath::CacheDir));
+    log_path("DataStorage_ConfigDir", Common::FS::GetMizuPath(Common::FS::MizuPath::ConfigDir));
+    log_path("DataStorage_LoadDir", Common::FS::GetMizuPath(Common::FS::MizuPath::LoadDir));
+    log_path("DataStorage_NANDDir", Common::FS::GetMizuPath(Common::FS::MizuPath::NANDDir));
+    log_path("DataStorage_SDMCDir", Common::FS::GetMizuPath(Common::FS::MizuPath::SDMCDir));
     log_setting("Debugging_ProgramArgs", values.program_args.GetValue());
     log_setting("Input_EnableMotion", values.motion_enabled.GetValue());
     log_setting("Input_EnableVibration", values.vibration_enabled.GetValue());

@@ -1311,7 +1311,7 @@ void Hid::SendVibrationGcErmCommand(Kernel::HLERequestContext& ctx) {
     const auto parameters{rp.PopRaw<Parameters>()};
 
     /**
-     * Note: This uses yuzu-specific behavior such that the StopHard command produces
+     * Note: This uses mizu-specific behavior such that the StopHard command produces
      * vibrations where freq_low == 0.0f and freq_high == 0.0f, as defined below,
      * in order to differentiate between Stop and StopHard commands.
      * This is done to reuse the controller vibration functions made for regular controllers.
@@ -1378,7 +1378,7 @@ void Hid::GetActualVibrationGcErmCommand(Kernel::HLERequestContext& ctx) {
         }
 
         /**
-         * Note: This uses yuzu-specific behavior such that the StopHard command produces
+         * Note: This uses mizu-specific behavior such that the StopHard command produces
          * vibrations where freq_low == 0.0f and freq_high == 0.0f, as defined in the HID function
          * SendVibrationGcErmCommand, in order to differentiate between Stop and StopHard commands.
          * This is done to reuse the controller vibration functions made for regular controllers.

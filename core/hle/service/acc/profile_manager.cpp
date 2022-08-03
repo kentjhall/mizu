@@ -45,7 +45,7 @@ ProfileManager::ProfileManager() {
 
     // Create an user if none are present
     if (user_count == 0) {
-        CreateNewUser(UUID::Generate(), "yuzu");
+        CreateNewUser(UUID::Generate(), "mizu");
     }
 
     auto current =
@@ -329,20 +329,20 @@ bool ProfileManager::SetProfileBaseAndData(Common::UUID uuid, const ProfileBase&
 }
 
 void ProfileManager::ParseUserSaveFile() {
-    const auto save_path(FS::GetYuzuPath(FS::YuzuPath::NANDDir) / ACC_SAVE_AVATORS_BASE_PATH /
+    const auto save_path(FS::GetMizuPath(FS::MizuPath::NANDDir) / ACC_SAVE_AVATORS_BASE_PATH /
                          "profiles.dat");
     const FS::IOFile save(save_path, FS::FileAccessMode::Read, FS::FileType::BinaryFile);
 
     if (!save.IsOpen()) {
         LOG_WARNING(Service_ACC, "Failed to load profile data from save data... Generating new "
-                                 "user 'yuzu' with random UUID.");
+                                 "user 'mizu' with random UUID.");
         return;
     }
 
     ProfileDataRaw data;
     if (!save.ReadObject(data)) {
         LOG_WARNING(Service_ACC, "profiles.dat is smaller than expected... Generating new user "
-                                 "'yuzu' with random UUID.");
+                                 "'mizu' with random UUID.");
         return;
     }
 
@@ -377,12 +377,12 @@ void ProfileManager::WriteUserSaveFile() {
         };
     }
 
-    const auto raw_path(FS::GetYuzuPath(FS::YuzuPath::NANDDir) / "system/save/8000000000000010");
+    const auto raw_path(FS::GetMizuPath(FS::MizuPath::NANDDir) / "system/save/8000000000000010");
     if (FS::IsFile(raw_path) && !FS::RemoveFile(raw_path)) {
         return;
     }
 
-    const auto save_path(FS::GetYuzuPath(FS::YuzuPath::NANDDir) / ACC_SAVE_AVATORS_BASE_PATH /
+    const auto save_path(FS::GetMizuPath(FS::MizuPath::NANDDir) / ACC_SAVE_AVATORS_BASE_PATH /
                          "profiles.dat");
 
     if (!FS::CreateParentDirs(save_path)) {

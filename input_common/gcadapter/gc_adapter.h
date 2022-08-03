@@ -104,7 +104,7 @@ private:
 
     void UpdatePadType(std::size_t port, ControllerTypes pad_type);
     void UpdateControllers(const AdapterPayload& adapter_payload);
-    void UpdateYuzuSettings(std::size_t port);
+    void UpdateMizuSettings(std::size_t port);
     void UpdateStateButtons(std::size_t port, u8 b1, u8 b2);
     void UpdateStateAxes(std::size_t port, const AdapterPayload& adapter_payload);
     void UpdateVibrations();

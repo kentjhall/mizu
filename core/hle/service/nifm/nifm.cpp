@@ -322,11 +322,11 @@ private:
                     .mtu{1500},
                 },
                 .uuid{0xdeadbeef, 0xdeadbeef},
-                .network_name{"yuzu Network"},
+                .network_name{"mizu Network"},
                 .wireless_setting_data{
                     .ssid_length{12},
-                    .ssid{"yuzu Network"},
-                    .passphrase{"yuzupassword"},
+                    .ssid{"mizu Network"},
+                    .passphrase{"mizupassword"},
                 },
             };
         }();

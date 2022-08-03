@@ -85,7 +85,7 @@ void Adapter::UpdateControllers(const AdapterPayload& adapter_payload) {
             UpdateStateButtons(port, b1, b2);
             UpdateStateAxes(port, adapter_payload);
             if (configuring) {
-                UpdateYuzuSettings(port);
+                UpdateMizuSettings(port);
             }
         }
     }
@@ -160,7 +160,7 @@ void Adapter::UpdateStateAxes(std::size_t port, const AdapterPayload& adapter_pa
     }
 }
 
-void Adapter::UpdateYuzuSettings(std::size_t port) {
+void Adapter::UpdateMizuSettings(std::size_t port) {
     if (port >= pads.size()) {
         return;
     }

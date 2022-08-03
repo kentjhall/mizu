@@ -566,9 +566,9 @@ struct Values {
 
     // WebService
     BasicSetting<bool> enable_telemetry{true, "enable_telemetry"};
-    BasicSetting<std::string> web_api_url{"https://api.yuzu-emu.org", "web_api_url"};
-    BasicSetting<std::string> yuzu_username{std::string(), "yuzu_username"};
-    BasicSetting<std::string> yuzu_token{std::string(), "yuzu_token"};
+    BasicSetting<std::string> web_api_url{"https://api.mizu-emu.org", "web_api_url"};
+    BasicSetting<std::string> mizu_username{std::string(), "mizu_username"};
+    BasicSetting<std::string> mizu_token{std::string(), "mizu_token"};
 
     // Add-Ons
     std::map<u64, std::vector<std::string>> disabled_addons;

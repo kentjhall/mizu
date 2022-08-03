@@ -1,8 +1,8 @@
 CXX := g++
 CC := g++
-INCLUDES := -I ~/mizu-services -I ~/mizu-services/glad/include -I ~/yuzu/externals/dynarmic/externals/fmt/include -I ~/yuzu/src/externals/opus/opus/include -I ~/yuzu/externals/cubeb/include -I ~/yuzu/externals/soundtouch/include -I ~/yuzu/src/exports -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/microprofile -I ~/yuzu/externals/opus/opus/include -I ~/yuzu/externals/ffmpeg -I ~/yuzu/build/externals/ffmpeg -I ~/yuzu/externals/Vulkan-Headers/include -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/sirit/externals/SPIRV-Headers/include -I ~/yuzu/externals/sirit/include
+INCLUDES := -I ~/mizu-services -I ~/mizu-services/glad/include -I ~/yuzu/externals/dynarmic/externals/fmt/include -I ~/yuzu/externals/cubeb/include -I ~/yuzu/externals/soundtouch/include -I ~/yuzu/src/exports -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/microprofile -I ~/yuzu/externals/opus/opus/include -I ~/yuzu/externals/ffmpeg -I ~/yuzu/build/externals/ffmpeg -I ~/yuzu/externals/Vulkan-Headers/include -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/sirit/externals/SPIRV-Headers/include -I ~/yuzu/externals/sirit/include
 DEBUG-y := -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
-CXXFLAGS := -DYUZU_UNIX -DHAS_OPENGL -DFMT_HEADER_ONLY -DMBEDTLS_CMAC_C -DSDL_VIDEO_DRIVER_X11 -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale INIReader liblz4 opus) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui -I ~/soundtouch/include $(DEBUG-$(DEBUG))
+CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DMBEDTLS_CMAC_C -DSDL_VIDEO_DRIVER_X11 -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale INIReader liblz4 opus) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui -I ~/soundtouch/include $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
 LDFLAGS := -L ~/sirit/build/src -L ~/soundtouch/build $(DEBUG-$(DEBUG))
 LDLIBS := -lmbedcrypto -lsirit -lrt -ldl -lcubeb -lSoundTouch -pthread $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 sdl2 libavutil libavcodec libswscale INIReader liblz4 opus)
@@ -45,12 +45,12 @@ headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/h
 objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
 
 .PHONY: default
-default: horizon-services hlaunch
+default: mizu-services mlaunch
 
-horizon-services: $(objects)
+mizu-services: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-hlaunch: hlaunch.c
+mlaunch: mlaunch.c
 	gcc $(DEBUG-$(DEBUG)) -Wall -o $@ $^ -lrt
 
 $(objects): $(headers)
@@ -81,7 +81,7 @@ ld_err.txt: $(objects)
 
 .PHONY: clean
 clean:
-	rm -f horizon-services
+	rm -f mizu-services mlaunch
 	find . -name '*.o' -exec rm {} \;
 	find . -name '*.moc.cpp' -exec rm {} \;
 	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;

@@ -13,7 +13,7 @@
 
 namespace FileSys {
 
-constexpr char SAVE_DATA_SIZE_FILENAME[] = ".yuzu_save_size";
+constexpr char SAVE_DATA_SIZE_FILENAME[] = ".mizu_save_size";
 
 namespace {
 

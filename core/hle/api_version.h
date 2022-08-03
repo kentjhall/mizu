@@ -6,7 +6,7 @@
 
 #include "common/common_types.h"
 
-// This file contains yuzu's HLE API version constants.
+// This file contains mizu's HLE API version constants.
 
 namespace HLE::ApiVersion {
 

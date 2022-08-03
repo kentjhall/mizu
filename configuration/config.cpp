@@ -220,7 +220,7 @@ const std::array<int, Settings::NativeKeyboard::NumKeyboardMods> Config::default
 // clang-format on
 
 void Config::Initialize(const std::string& config_name) {
-    const auto fs_config_loc = FS::GetYuzuPath(FS::YuzuPath::ConfigDir);
+    const auto fs_config_loc = FS::GetMizuPath(FS::MizuPath::ConfigDir);
     const auto config_file = fmt::format("{}.ini", config_name);
 
     switch (type) {
@@ -618,38 +618,38 @@ void Config::ReadDataStorageValues() {
     qt_config->beginGroup(QStringLiteral("Data Storage"));
 
     ReadBasicSetting(Settings::values.use_virtual_sd);
-    FS::SetYuzuPath(
-        FS::YuzuPath::NANDDir,
+    FS::SetMizuPath(
+        FS::MizuPath::NANDDir,
         qt_config
             ->value(QStringLiteral("nand_directory"),
-                    QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::NANDDir)))
+                    QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::NANDDir)))
             .toString()
             .toStdString());
-    FS::SetYuzuPath(
-        FS::YuzuPath::SDMCDir,
+    FS::SetMizuPath(
+        FS::MizuPath::SDMCDir,
         qt_config
             ->value(QStringLiteral("sdmc_directory"),
-                    QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::SDMCDir)))
+                    QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::SDMCDir)))
             .toString()
             .toStdString());
-    FS::SetYuzuPath(
-        FS::YuzuPath::LoadDir,
+    FS::SetMizuPath(
+        FS::MizuPath::LoadDir,
         qt_config
             ->value(QStringLiteral("load_directory"),
-                    QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::LoadDir)))
+                    QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::LoadDir)))
             .toString()
             .toStdString());
-    FS::SetYuzuPath(
-        FS::YuzuPath::DumpDir,
+    FS::SetMizuPath(
+        FS::MizuPath::DumpDir,
         qt_config
             ->value(QStringLiteral("dump_directory"),
-                    QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::DumpDir)))
+                    QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::DumpDir)))
             .toString()
             .toStdString());
-    FS::SetYuzuPath(FS::YuzuPath::TASDir,
+    FS::SetMizuPath(FS::MizuPath::TASDir,
                     qt_config
                         ->value(QStringLiteral("tas_directory"),
-                                QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::TASDir)))
+                                QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::TASDir)))
                         .toString()
                         .toStdString());
 
@@ -827,8 +827,8 @@ void Config::ReadWebServiceValues() {
 
     ReadBasicSetting(Settings::values.enable_telemetry);
     ReadBasicSetting(Settings::values.web_api_url);
-    ReadBasicSetting(Settings::values.yuzu_username);
-    ReadBasicSetting(Settings::values.yuzu_token);
+    ReadBasicSetting(Settings::values.mizu_username);
+    ReadBasicSetting(Settings::values.mizu_token);
 
     qt_config->endGroup();
 }
@@ -1051,20 +1051,20 @@ void Config::SaveDataStorageValues() {
 
     WriteBasicSetting(Settings::values.use_virtual_sd);
     WriteSetting(QStringLiteral("nand_directory"),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::NANDDir)),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::NANDDir)));
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::NANDDir)),
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::NANDDir)));
     WriteSetting(QStringLiteral("sdmc_directory"),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::SDMCDir)),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::SDMCDir)));
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::SDMCDir)),
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::SDMCDir)));
     WriteSetting(QStringLiteral("load_directory"),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::LoadDir)),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::LoadDir)));
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::LoadDir)),
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::LoadDir)));
     WriteSetting(QStringLiteral("dump_directory"),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::DumpDir)),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::DumpDir)));
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::DumpDir)),
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::DumpDir)));
     WriteSetting(QStringLiteral("tas_directory"),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::TASDir)),
-                 QString::fromStdString(FS::GetYuzuPathString(FS::YuzuPath::TASDir)));
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::TASDir)),
+                 QString::fromStdString(FS::GetMizuPathString(FS::MizuPath::TASDir)));
 
     WriteBasicSetting(Settings::values.gamecard_inserted);
     WriteBasicSetting(Settings::values.gamecard_current_game);
@@ -1237,8 +1237,8 @@ void Config::SaveWebServiceValues() {
 
     WriteBasicSetting(Settings::values.enable_telemetry);
     WriteBasicSetting(Settings::values.web_api_url);
-    WriteBasicSetting(Settings::values.yuzu_username);
-    WriteBasicSetting(Settings::values.yuzu_token);
+    WriteBasicSetting(Settings::values.mizu_username);
+    WriteBasicSetting(Settings::values.mizu_token);
 
     qt_config->endGroup();
 }
