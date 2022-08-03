@@ -278,13 +278,13 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
     ::signal(SIGCHLD, SIG_IGN);
 
     // ensure we start with a fresh queue
-    ::mq_unlink("/horizon_loader");
+    ::mq_unlink("/mizu_loader");
 
     // open the message queue for receiving requests
     mq_attr attr = { 0 };
     attr.mq_maxmsg = 10; // default per mq_overview(7)
     attr.mq_msgsize = PATH_MAX;
-    mqd_t mqd = ::mq_open("/horizon_loader", O_RDONLY | O_CLOEXEC | O_CREAT | O_EXCL,
+    mqd_t mqd = ::mq_open("/mizu_loader", O_RDONLY | O_CLOEXEC | O_CREAT | O_EXCL,
                           0666, &attr);
     if (mqd == -1) {
         ::perror("mq_open failed");
@@ -292,7 +292,7 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
     }
 
     // cleanup on exit
-    ::atexit([](){ ::mq_unlink("/horizon_loader"); });
+    ::atexit([](){ ::mq_unlink("/mizu_loader"); });
 
     std::unordered_map<::pid_t, std::string> to_unlink;
     char path[PATH_MAX];
@@ -378,7 +378,7 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 
         // open temporary file
         static const std::string tmp_template =
-            std::filesystem::temp_directory_path().string() + "/horizon_loader.XXXXXX";
+            std::filesystem::temp_directory_path().string() + "/mizu_loader.XXXXXX";
         char tmp_path[tmp_template.length() + 1];
         ::strcpy(tmp_path, tmp_template.c_str());
         int fd = ::mkostemp(tmp_path, O_CLOEXEC);
@@ -427,16 +427,17 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
             ::close(pipefd[1]);
             ssize_t r = ::read(pipefd[0], &whocares, 1);
             ::close(pipefd[0]);
-            if (r == -1) {
-                perror("read from pipe failed");
-                ::exit(1);
+            if (r < 1) {
+                if (r == -1)
+                    perror("read from pipe failed");
+                ::_exit(1);
             }
 
             // exec the temporary
             char *av[] = { path, NULL }, *ev[] = { NULL };
             ::syscall(__NR_mizu_execve, tmp_path, av, ev);
             perror("mizu_execve failed");
-            ::exit(1);
+            ::_exit(1);
         }
         ::close(pipefd[0]);
 
@@ -534,7 +535,7 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
             continue;
         }
         if (lseek(fd, PageAlignSize(total), SEEK_SET) == -1) {
-            LOG_CRITICAL(Core, "ftruncate failed: {}", ::strerror(errno));
+            LOG_CRITICAL(Core, "lseek failed: {}", ::strerror(errno));
             ::close(fd);
             ::close(pipefd[1]);
             continue;
