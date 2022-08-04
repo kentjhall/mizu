@@ -25,11 +25,11 @@ void Controller::CloneCurrentObject(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service, "called");
 
     // Create a session.
-    int session_handle = mizu_servctl(MIZU_SCTL_CREATE_SESSION_HANDLE, 0,
+    int session_handle = mizu_servctl(HZN_SCTL_CREATE_SESSION_HANDLE, 0,
                                       AddSessionManager(ctx.GetSessionRequestManagerShared()));
     if (session_handle < 0) {
         ResultCode result(errno);
-        LOG_CRITICAL(Service, "MIZU_SCTL_CREATE_SESSION_HANDLE failed with error 0x{:08X}", result.raw);
+        LOG_CRITICAL(Service, "HZN_SCTL_CREATE_SESSION_HANDLE failed with error 0x{:08X}", result.raw);
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(result);
     }

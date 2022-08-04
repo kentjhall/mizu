@@ -227,8 +227,8 @@ void StartServices() {
     /// Reset all glue registrations
     SharedWriter(arp_manager)->ResetAll();
 
-    if (mizu_servctl(MIZU_SCTL_REGISTER_NAMED_SERVICE, (unsigned long)"sm:") == -1) {
-        LOG_CRITICAL(Service, "MIZU_SCTL_REGISTER_NAMED_SERVICE failed");
+    if (mizu_servctl(HZN_SCTL_REGISTER_NAMED_SERVICE, (unsigned long)"sm:") == -1) {
+        LOG_CRITICAL(Service, "HZN_SCTL_REGISTER_NAMED_SERVICE failed");
         ::exit(1);
     }
 
@@ -291,12 +291,12 @@ void StartServices() {
     for (;;) {
         unsigned long session_id;
 
-        long cmdptr = mizu_servctl(MIZU_SCTL_GET_CMD, &session_id);
+        long cmdptr = mizu_servctl(HZN_SCTL_GET_CMD, &session_id);
         if (cmdptr == -1) {
             ResultCode rc(errno);
             if (rc == Kernel::ResultCancelled) // this means EINTR
                 continue;
-            LOG_CRITICAL(Service, "Unexpected error on MIZU_SCTL_GET_CMD: {}", rc.description.Value());
+            LOG_CRITICAL(Service, "Unexpected error on HZN_SCTL_GET_CMD: {}", rc.description.Value());
 	    ::exit(1);
         }
 	if (cmdptr == 0) {
@@ -305,7 +305,7 @@ void StartServices() {
                 pthread_getname_np(pthread_self(), name, sizeof(name));
                 if (it == session_managers.end()) {
                     LOG_WARNING(Service,
-                                "Unexpected session ID from MIZU_SCTL_GET_CMD close request: {}",
+                                "Unexpected session ID from HZN_SCTL_GET_CMD close request: {}",
                                 session_id);
 		} else {
                     session_managers.erase(it);
@@ -378,12 +378,12 @@ out:
             context.convert_to_domain = false;
         }
 
-        if (mizu_servctl(MIZU_SCTL_PUT_CMD, session_id, (long)context.IsDomain()) == -1) {
+        if (mizu_servctl(HZN_SCTL_PUT_CMD, session_id, (long)context.IsDomain()) == -1) {
             // Just give up on the new session if this fails
             if (new_session) {
                 session_managers.erase(FindSessionManager(session_id));
             }
-            LOG_ERROR(Service, "MIZU_SCTL_PUT_CMD failed: {}", ResultCode(errno).description.Value());
+            LOG_ERROR(Service, "HZN_SCTL_PUT_CMD failed: {}", ResultCode(errno).description.Value());
         }
     }
 }

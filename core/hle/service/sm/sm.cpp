@@ -79,7 +79,7 @@ ResultVal<Kernel::Handle> ServiceManager::GetServicePort(const std::string& name
         return ERR_SERVICE_NOT_REGISTERED;
     }
 
-    int port = mizu_servctl(MIZU_SCTL_CREATE_SESSION_HANDLE, it->second.second, 0);
+    int port = mizu_servctl(HZN_SCTL_CREATE_SESSION_HANDLE, it->second.second, 0);
     if (port == -1) {
         return ResultCode(errno);
     }
@@ -176,10 +176,10 @@ void SM::RegisterService(Kernel::HLERequestContext& ctx) {
         return;
     }
 
-    int port = mizu_servctl(MIZU_SCTL_CREATE_SESSION_HANDLE, -1, 0);
+    int port = mizu_servctl(HZN_SCTL_CREATE_SESSION_HANDLE, -1, 0);
     if (port == -1) {
         ResultCode result(errno);
-        LOG_ERROR(Service_SM, "failed to MIZU_SCTL_CREATE_SESSION_HANDLE with error_code={:08X}", result.raw);
+        LOG_ERROR(Service_SM, "failed to HZN_SCTL_CREATE_SESSION_HANDLE with error_code={:08X}", result.raw);
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(result);
         return;

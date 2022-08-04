@@ -6,7 +6,7 @@
 
 #include <cstddef>
 #include <vector>
-#include <linux/mizu.h>
+#include <linux/horizon.h>
 
 #include "common/common_types.h"
 
@@ -32,7 +32,7 @@ namespace Kernel {
  * entities within this segment can be modified.
  */
 struct CodeSet final {
-    struct mizu_codeset_hdr hdr;
+    struct horizon_codeset_hdr hdr;
 
     void SetMemory(std::vector<u8>&& memory_) {
         memory = std::move(memory_);

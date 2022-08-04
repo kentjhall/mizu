@@ -147,11 +147,11 @@ public:
         if (context->IsDomain()) {
             context->AddDomainObject(iface);
         } else {
-            int session_handle = mizu_servctl(MIZU_SCTL_CREATE_SESSION_HANDLE, 0,
+            int session_handle = mizu_servctl(HZN_SCTL_CREATE_SESSION_HANDLE, 0,
 			                      AddSessionManager(std::move(iface)));
             if (session_handle < 0) {
                 ResultCode result(errno);
-                LOG_CRITICAL(IPC, "PushIpcInterface MIZU_SCTL_CREATE_SESSION_HANDLE failed with error 0x{:08X}", result.raw);
+                LOG_CRITICAL(IPC, "PushIpcInterface HZN_SCTL_CREATE_SESSION_HANDLE failed with error 0x{:08X}", result.raw);
 		session_handle = Kernel::Svc::InvalidHandle;
             }
 

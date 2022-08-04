@@ -12,7 +12,7 @@
 #include <sys/wait.h>
 #include <linux/limits.h>
 #include <linux/binfmts.h>
-#include <linux/mizu.h>
+#include <linux/horizon.h>
 #include "common/concepts.h"
 #include "common/fs/path_util.h"
 #include "common/logging/log.h"
@@ -419,9 +419,11 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 
             // set process name by app title
             std::string title;
-            if (app_loader->ReadTitle(title) == ResultStatus::Success) {
-                Common::SetCurrentThreadName(title.c_str());
-            }
+            const char *procname;
+            if (app_loader->ReadTitle(title) == ResultStatus::Success)
+                procname = title.c_str();
+            else
+                procname = basename(path);
 
             // wait for parent to write temporary and setup fs controller
             ::close(pipefd[1]);
@@ -434,9 +436,9 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
             }
 
             // exec the temporary
-            char *av[] = { path, NULL }, *ev[] = { NULL };
-            ::syscall(__NR_mizu_execve, tmp_path, av, ev);
-            perror("mizu_execve failed");
+            const char *av[] = { procname, NULL }, *ev[] = { NULL };
+            ::syscall(__NR_horizon_execve, tmp_path, av, ev);
+            perror("horizon_execve failed");
             ::_exit(1);
         }
         ::close(pipefd[0]);
@@ -505,11 +507,11 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         size_t total = 0;
         bool fail = false;
         auto metadata = app_loader->LoadedMetadata();
-        mizu_hdr hdr = {
-            .magic = MIZU_MAGIC,
+        horizon_hdr hdr = {
+            .magic = HORIZON_MAGIC,
             .title_id = title_id,
             .is_64bit = metadata.Is64BitProgram(),
-            .address_space_type = static_cast<enum mizu_address_space_type>(metadata.GetAddressSpaceType()),
+            .address_space_type = static_cast<enum horizon_address_space_type>(metadata.GetAddressSpaceType()),
             .system_resource_size = metadata.GetSystemResourceSize(),
             .num_codesets = static_cast<u32>(codesets.size()),
         };

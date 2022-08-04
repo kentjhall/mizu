@@ -25,9 +25,9 @@ SessionRequestHandler::SessionRequestHandler(const char* service_name_) {}
 SessionRequestHandler::~SessionRequestHandler() = default;
 
 SessionRequestManager::SessionRequestManager() {
-    requester_pid = mizu_servctl(MIZU_SCTL_GET_PROCESS_ID);
+    requester_pid = mizu_servctl(HZN_SCTL_GET_PROCESS_ID);
     ASSERT_MSG(requester_pid != -1,
-               "MIZU_SCTL_GET_PROCESS_ID failed: {}",
+               "HZN_SCTL_GET_PROCESS_ID failed: {}",
                ResultCode(errno).description.Value());
 }
 
@@ -175,9 +175,9 @@ ResultCode HLERequestContext::WriteToOutgoingCommandBuffer() {
     auto current_offset = handles_offset;
 
     for (int fd : outgoing_copy_fds) {
-        Handle copy_handle = mizu_servctl(MIZU_SCTL_CREATE_COPY_HANDLE, fd);
+        Handle copy_handle = mizu_servctl(HZN_SCTL_CREATE_COPY_HANDLE, fd);
         if (copy_handle == Svc::InvalidHandle) {
-            LOG_CRITICAL(Core, "MIZU_SCTL_CREATE_COPY_HANDLE failed: {}", ResultCode(errno).description.Value());
+            LOG_CRITICAL(Core, "HZN_SCTL_CREATE_COPY_HANDLE failed: {}", ResultCode(errno).description.Value());
         }
         cmd_buf[current_offset++] = copy_handle;
     }

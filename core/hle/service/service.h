@@ -133,18 +133,18 @@ extern const Core::Reporter reporter;
 
 inline u64 GetProcessID()
 {
-    pid_t pid = mizu_servctl(MIZU_SCTL_GET_PROCESS_ID);
+    pid_t pid = mizu_servctl(HZN_SCTL_GET_PROCESS_ID);
     if (pid == -1) {
-        LOG_CRITICAL(Service, "MIZU_SCTL_GET_PROCESS_ID failed: {}", ResultCode(errno).description.Value());
+        LOG_CRITICAL(Service, "HZN_SCTL_GET_PROCESS_ID failed: {}", ResultCode(errno).description.Value());
     }
     return pid;
 }
 
 inline u64 GetTitleID()
 {
-    long title_id = mizu_servctl(MIZU_SCTL_GET_TITLE_ID);
+    long title_id = mizu_servctl(HZN_SCTL_GET_TITLE_ID);
     if (title_id == -1) {
-        LOG_CRITICAL(Service, "MIZU_SCTL_GET_TITLE_ID failed: {}", ResultCode(errno).description.Value());
+        LOG_CRITICAL(Service, "HZN_SCTL_GET_TITLE_ID failed: {}", ResultCode(errno).description.Value());
     }
     return static_cast<u64>(title_id);
 }
