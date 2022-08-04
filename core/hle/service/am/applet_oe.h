@@ -23,15 +23,18 @@ class AppletMessageQueue;
 
 class AppletOE final : public ServiceFramework<AppletOE> {
 public:
-    explicit AppletOE(std::shared_ptr<Shared<AppletMessageQueue>> msg_queue_);
+    explicit AppletOE(std::shared_ptr<Shared<AppletMessageQueueMap>> msg_queue_map_);
     ~AppletOE() override;
 
-    const std::shared_ptr<Shared<AppletMessageQueue>>& GetMessageQueue() const;
+    void SetupSession(::pid_t req_pid) override;
+    void CleanupSession(::pid_t req_pid) override;
+
+    const std::shared_ptr<Shared<AppletMessageQueue>>& GetMessageQueue(::pid_t req_pid) const;
 
 private:
     void OpenApplicationProxy(Kernel::HLERequestContext& ctx);
 
-    std::shared_ptr<Shared<AppletMessageQueue>> msg_queue;
+    std::shared_ptr<Shared<AppletMessageQueueMap>> msg_queue_map;
 };
 
 } // namespace AM

@@ -222,7 +222,8 @@ void AppletAE::OpenSystemAppletProxy(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<ISystemAppletProxy>(msg_queue);
+    rb.PushIpcInterface<ISystemAppletProxy>(
+            GetMessageQueue(ctx.GetRequesterPid()));
 }
 
 void AppletAE::OpenLibraryAppletProxy(Kernel::HLERequestContext& ctx) {
@@ -230,7 +231,8 @@ void AppletAE::OpenLibraryAppletProxy(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<ILibraryAppletProxy>(msg_queue);
+    rb.PushIpcInterface<ILibraryAppletProxy>(
+            GetMessageQueue(ctx.GetRequesterPid()));
 }
 
 void AppletAE::OpenLibraryAppletProxyOld(Kernel::HLERequestContext& ctx) {
@@ -238,11 +240,12 @@ void AppletAE::OpenLibraryAppletProxyOld(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<ILibraryAppletProxy>(msg_queue);
+    rb.PushIpcInterface<ILibraryAppletProxy>(
+            GetMessageQueue(ctx.GetRequesterPid()));
 }
 
-AppletAE::AppletAE(std::shared_ptr<Shared<AppletMessageQueue>> msg_queue_)
-    : ServiceFramework{"appletAE"}, msg_queue{std::move(msg_queue_)} {
+AppletAE::AppletAE(std::shared_ptr<Shared<AppletMessageQueueMap>> msg_queue_map_)
+    : ServiceFramework{"appletAE"}, msg_queue_map{std::move(msg_queue_map_)} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {100, &AppletAE::OpenSystemAppletProxy, "OpenSystemAppletProxy"},
@@ -261,8 +264,28 @@ AppletAE::AppletAE(std::shared_ptr<Shared<AppletMessageQueue>> msg_queue_)
 
 AppletAE::~AppletAE() = default;
 
-const std::shared_ptr<Shared<AppletMessageQueue>>& AppletAE::GetMessageQueue() const {
-    return msg_queue;
+void AppletAE::SetupSession(::pid_t req_pid) {
+    auto emplaced = SharedWriter(*msg_queue_map)->emplace(
+            std::piecewise_construct,
+            std::forward_as_tuple(req_pid),
+            std::forward_as_tuple(1, std::make_shared<Shared<AppletMessageQueue>>()));
+    if (emplaced.second)
+        // Needed on game boot
+        SharedWriter(*emplaced.first->second.second)->PushMessage(
+                AppletMessageQueue::AppletMessage::FocusStateChanged);
+    else
+        ++emplaced.first->second.first;
+}
+
+void AppletAE::CleanupSession(::pid_t req_pid) {
+    SharedWriter map_locked(*msg_queue_map);
+    ASSERT(map_locked->at(req_pid).first != 0);
+    if (--map_locked->at(req_pid).first == 0)
+        map_locked->erase(req_pid);
+}
+
+const std::shared_ptr<Shared<AppletMessageQueue>>& AppletAE::GetMessageQueue(::pid_t req_pid) const {
+    return SharedReader(*msg_queue_map)->at(req_pid).second;
 }
 
 } // namespace Service::AM

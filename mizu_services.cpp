@@ -10,6 +10,8 @@
 #include "common/settings.h"
 #include "configuration/config.h"
 
+#include <QHBoxLayout>
+
 static void on_sig(int) {
     // this allows logging to flush gracefully
     ::exit(1);
@@ -43,6 +45,11 @@ int main(int argc, char **argv) {
 
     QCoreApplication::setAttribute(Qt::AA_DontCheckOpenGLContextThreadAffinity);
     QApplication app(argc, argv);
+    QWidget dummy; // prevents render window from telling the QApplication to exit
+    auto* layout = new QHBoxLayout(&dummy);
+    layout->setContentsMargins(0, 0, 0, 0);
+    dummy.setLayout(layout);
+    dummy.show();
 
     setlocale(LC_ALL, "C");
 
@@ -59,6 +66,5 @@ int main(int argc, char **argv) {
     });
     sm_thread.detach();
 
-    for (;;)
-        app.exec();
+    return app.exec();
 }

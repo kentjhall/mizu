@@ -275,6 +275,8 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 }
 
 [[ noreturn ]] void RunForever() {
+    Common::SetCurrentThreadName("mizu loader");
+
     // ensure we start with a fresh queue
     ::mq_unlink("/mizu_loader");
 

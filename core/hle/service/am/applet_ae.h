@@ -23,17 +23,20 @@ class AppletMessageQueue;
 
 class AppletAE final : public ServiceFramework<AppletAE> {
 public:
-    explicit AppletAE(std::shared_ptr<Shared<AppletMessageQueue>> msg_queue_);
+    explicit AppletAE(std::shared_ptr<Shared<AppletMessageQueueMap>> msg_queue_map_);
     ~AppletAE() override;
 
-    const std::shared_ptr<Shared<AppletMessageQueue>>& GetMessageQueue() const;
+    void SetupSession(::pid_t req_pid) override;
+    void CleanupSession(::pid_t req_pid) override;
+
+    const std::shared_ptr<Shared<AppletMessageQueue>>& GetMessageQueue(::pid_t req_pid) const;
 
 private:
     void OpenSystemAppletProxy(Kernel::HLERequestContext& ctx);
     void OpenLibraryAppletProxy(Kernel::HLERequestContext& ctx);
     void OpenLibraryAppletProxyOld(Kernel::HLERequestContext& ctx);
 
-    std::shared_ptr<Shared<AppletMessageQueue>> msg_queue;
+    std::shared_ptr<Shared<AppletMessageQueueMap>> msg_queue_map;
 };
 
 } // namespace AM

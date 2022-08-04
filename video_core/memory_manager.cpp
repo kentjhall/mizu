@@ -339,7 +339,7 @@ std::vector<MemoryManager::MapRange> MemoryManager::GetSubmappedRange(
 void MemoryManager::SyncCPUWrites()
 {
     for (const auto& mapping : map_ranges) {
-        size_t dirty_len = Common::DivCeil(mapping.size, PAGE_SIZE);
+        long dirty_len = Common::DivCeil(mapping.size, PAGE_SIZE);
         std::unique_ptr<::loff_t[]> dirty(new ::loff_t[dirty_len]);
         dirty_len = horizon_servctl_memwatch_get_clear(rasterizer->GPU().SessionPid(),
                                                     mapping.cpu_addr, mapping.size, dirty.get(), dirty_len);

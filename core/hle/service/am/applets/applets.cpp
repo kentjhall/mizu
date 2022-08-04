@@ -122,13 +122,14 @@ void AppletDataBroker::SignalStateChanged() {
         auto applet_oe = SharedReader(service_manager)->GetService<AppletOE>("appletOE");
         auto applet_ae = SharedReader(service_manager)->GetService<AppletAE>("appletAE");
 
+        ASSERT(requester_pid != -1);
         if (applet_oe) {
-            SharedWriter(*applet_oe->GetMessageQueue())->FocusStateChanged();
+            SharedWriter(*applet_oe->GetMessageQueue(requester_pid))->FocusStateChanged();
             break;
         }
 
         if (applet_ae) {
-            SharedWriter(*applet_ae->GetMessageQueue())->FocusStateChanged();
+            SharedWriter(*applet_ae->GetMessageQueue(requester_pid))->FocusStateChanged();
             break;
         }
         break;
@@ -264,32 +265,36 @@ void AppletManager::ClearAll() {
     frontend = {};
 }
 
-std::shared_ptr<Applet> AppletManager::GetApplet(AppletId id, LibraryAppletMode mode) const {
+std::shared_ptr<Applet> AppletManager::GetApplet(AppletId id, LibraryAppletMode mode,
+                                                 ::pid_t requester_pid) const {
+    std::shared_ptr<Applet> applet;
     switch (id) {
     case AppletId::Auth:
-        return std::make_shared<Auth>(mode, *frontend.parental_controls);
+        applet = std::make_shared<Auth>(mode, *frontend.parental_controls);
     case AppletId::Controller:
-        return std::make_shared<Controller>(mode, *frontend.controller);
+        applet = std::make_shared<Controller>(mode, *frontend.controller);
     case AppletId::Error:
-        return std::make_shared<Error>(mode, *frontend.error);
+        applet = std::make_shared<Error>(mode, *frontend.error);
     case AppletId::ProfileSelect:
-        return std::make_shared<ProfileSelect>(mode, *frontend.profile_select);
+        applet = std::make_shared<ProfileSelect>(mode, *frontend.profile_select);
     case AppletId::SoftwareKeyboard:
-        return std::make_shared<SoftwareKeyboard>(mode, *frontend.software_keyboard);
+        applet = std::make_shared<SoftwareKeyboard>(mode, *frontend.software_keyboard);
     case AppletId::Web:
     case AppletId::Shop:
     case AppletId::OfflineWeb:
     case AppletId::LoginShare:
     case AppletId::WebAuth:
-        return std::make_shared<WebBrowser>(mode, *frontend.web_browser);
+        applet = std::make_shared<WebBrowser>(mode, *frontend.web_browser);
     case AppletId::PhotoViewer:
-        return std::make_shared<PhotoViewer>(mode, *frontend.photo_viewer);
+        applet = std::make_shared<PhotoViewer>(mode, *frontend.photo_viewer);
     default:
         UNIMPLEMENTED_MSG(
             "No backend implementation exists for applet_id={:02X}! Falling back to stub applet.",
             static_cast<u8>(id));
-        return std::make_shared<StubApplet>(id, mode);
+        applet = std::make_shared<StubApplet>(id, mode);
     }
+    applet->GetBroker().SetRequesterPid(requester_pid);
+    return applet;
 }
 
 } // namespace Service::AM::Applets

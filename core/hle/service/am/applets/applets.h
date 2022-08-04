@@ -91,6 +91,10 @@ public:
     int GetInteractiveDataEvent();
     int GetStateChangedEvent();
 
+    void SetRequesterPid(::pid_t pid) {
+        requester_pid = pid;
+    }
+
 private:
     LibraryAppletMode applet_mode;
 
@@ -115,6 +119,8 @@ private:
 
     // Signaled on PushInteractiveDataFromApplet
     int pop_interactive_out_data_event;
+
+    ::pid_t requester_pid = -1;
 };
 
 class Applet {
@@ -160,6 +166,9 @@ protected:
     AppletDataBroker broker;
     LibraryAppletMode applet_mode;
     bool initialized = false;
+
+private:
+    ::pid_t requester_pid = -1;
 };
 
 struct AppletFrontendSet {
@@ -205,7 +214,8 @@ public:
     void SetDefaultAppletsIfMissing();
     void ClearAll();
 
-    std::shared_ptr<Applet> GetApplet(AppletId id, LibraryAppletMode mode) const;
+    std::shared_ptr<Applet> GetApplet(AppletId id, LibraryAppletMode mode,
+                                      ::pid_t requester_pid) const;
 
 private:
     AppletFrontendSet frontend;

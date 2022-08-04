@@ -1165,7 +1165,8 @@ void ILibraryAppletCreator::CreateLibraryApplet(Kernel::HLERequestContext& ctx) 
     LOG_DEBUG(Service_AM, "called with applet_id={:08X}, applet_mode={:08X}", applet_id,
               applet_mode);
 
-    const auto applet = SharedReader(applet_manager)->GetApplet(applet_id, applet_mode);
+    const auto applet = SharedReader(applet_manager)->GetApplet(applet_id, applet_mode,
+                                                                ctx.GetRequesterPid());
 
     if (applet == nullptr) {
         LOG_ERROR(Service_AM, "Applet doesn't exist! applet_id={}", applet_id);
@@ -1799,12 +1800,10 @@ void IApplicationFunctions::GetHealthWarningDisappearedSystemEvent(Kernel::HLERe
 }
 
 void InstallInterfaces() {
-    auto message_queue = std::make_shared<Shared<AppletMessageQueue>>();
-    // Needed on game boot
-    SharedWriter(*message_queue)->PushMessage(AppletMessageQueue::AppletMessage::FocusStateChanged);
+    auto message_queue_map = std::make_shared<Shared<AppletMessageQueueMap>>();
 
-    MakeService<AppletAE>(message_queue);
-    MakeService<AppletOE>(message_queue);
+    MakeService<AppletAE>(message_queue_map);
+    MakeService<AppletOE>(message_queue_map);
     MakeService<IdleSys>();
     MakeService<OMM>();
     MakeService<SPSM>();

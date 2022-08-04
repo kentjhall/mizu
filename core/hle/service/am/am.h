@@ -72,6 +72,10 @@ private:
     std::queue<AppletMessage> messages;
 };
 
+using AppletMessageQueueMap =
+	std::unordered_map<::pid_t, std::pair<size_t,
+	                   std::shared_ptr<Shared<AppletMessageQueue>>>>;
+
 class IWindowController final : public ServiceFramework<IWindowController> {
 public:
     explicit IWindowController();

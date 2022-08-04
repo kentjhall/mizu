@@ -301,8 +301,6 @@ void StartServices() {
         }
 	if (cmdptr == 0) {
                 auto it = FindSessionManager(session_id);
-                char name[20];
-                pthread_getname_np(pthread_self(), name, sizeof(name));
                 if (it == session_managers.end()) {
                     LOG_WARNING(Service,
                                 "Unexpected session ID from HZN_SCTL_GET_CMD close request: {}",

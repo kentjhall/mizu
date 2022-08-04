@@ -45,12 +45,12 @@ headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/h
 objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
 
 .PHONY: default
-default: mizu-services mlaunch
+default: mizu-services hlaunch
 
 mizu-services: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-mlaunch: mlaunch.c
+hlaunch: hlaunch.c
 	gcc $(DEBUG-$(DEBUG)) -Wall -o $@ $^ -lrt
 
 $(objects): $(headers)
@@ -81,7 +81,7 @@ ld_err.txt: $(objects)
 
 .PHONY: clean
 clean:
-	rm -f mizu-services mlaunch
+	rm -f mizu-services hlaunch
 	find . -name '*.o' -exec rm {} \;
 	find . -name '*.moc.cpp' -exec rm {} \;
 	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;

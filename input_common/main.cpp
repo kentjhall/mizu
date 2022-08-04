@@ -27,7 +27,8 @@ namespace InputCommon {
 
 struct InputSubsystem::Impl {
     void Initialize() {
-        gcadapter = std::make_shared<GCAdapter::Adapter>();
+        if (!gcadapter)
+            gcadapter = std::make_shared<GCAdapter::Adapter>();
         gcbuttons = std::make_shared<GCButtonFactory>(gcadapter);
         Input::RegisterFactory<Input::ButtonDevice>("gcpad", gcbuttons);
         gcanalog = std::make_shared<GCAnalogFactory>(gcadapter);
@@ -48,13 +49,15 @@ struct InputSubsystem::Impl {
         sdl = SDL::Init();
 #endif
 
-        udp = std::make_shared<InputCommon::CemuhookUDP::Client>();
+        if (!udp)
+            udp = std::make_shared<InputCommon::CemuhookUDP::Client>();
         udpmotion = std::make_shared<UDPMotionFactory>(udp);
         Input::RegisterFactory<Input::MotionDevice>("cemuhookudp", udpmotion);
         udptouch = std::make_shared<UDPTouchFactory>(udp);
         Input::RegisterFactory<Input::TouchDevice>("cemuhookudp", udptouch);
 
-        mouse = std::make_shared<MouseInput::Mouse>();
+        if (!mouse)
+            mouse = std::make_shared<MouseInput::Mouse>();
         mousebuttons = std::make_shared<MouseButtonFactory>(mouse);
         Input::RegisterFactory<Input::ButtonDevice>("mouse", mousebuttons);
         mouseanalog = std::make_shared<MouseAnalogFactory>(mouse);
@@ -64,7 +67,8 @@ struct InputSubsystem::Impl {
         mousetouch = std::make_shared<MouseTouchFactory>(mouse);
         Input::RegisterFactory<Input::TouchDevice>("mouse", mousetouch);
 
-        tas = std::make_shared<TasInput::Tas>();
+        if (!tas)
+            tas = std::make_shared<TasInput::Tas>();
         tasbuttons = std::make_shared<TasButtonFactory>(tas);
         Input::RegisterFactory<Input::ButtonDevice>("tas", tasbuttons);
         tasanalog = std::make_shared<TasAnalogFactory>(tas);
@@ -204,10 +208,10 @@ struct InputSubsystem::Impl {
     std::shared_ptr<MouseTouchFactory> mousetouch;
     std::shared_ptr<TasButtonFactory> tasbuttons;
     std::shared_ptr<TasAnalogFactory> tasanalog;
-    static inline std::shared_ptr<CemuhookUDP::Client> udp;
-    static inline std::shared_ptr<GCAdapter::Adapter> gcadapter;
-    static inline std::shared_ptr<MouseInput::Mouse> mouse;
-    static inline std::shared_ptr<TasInput::Tas> tas;
+    static inline std::shared_ptr<CemuhookUDP::Client> udp = nullptr;
+    static inline std::shared_ptr<GCAdapter::Adapter> gcadapter = nullptr;
+    static inline std::shared_ptr<MouseInput::Mouse> mouse = nullptr;
+    static inline std::shared_ptr<TasInput::Tas> tas = nullptr;
 };
 
 InputSubsystem::InputSubsystem() : impl{std::make_unique<Impl>()} {}
