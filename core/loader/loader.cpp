@@ -275,8 +275,6 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 }
 
 [[ noreturn ]] void RunForever() {
-    ::signal(SIGCHLD, SIG_IGN);
-
     // ensure we start with a fresh queue
     ::mq_unlink("/mizu_loader");
 
@@ -294,20 +292,13 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
     // cleanup on exit
     ::atexit([](){ ::mq_unlink("/mizu_loader"); });
 
-    std::unordered_map<::pid_t, std::string> to_unlink;
     char path[PATH_MAX];
     for (;;) {
         ::pid_t pid;
 
         // reap any exited children and cleanup state
-        while ((pid = ::waitpid(-1, NULL, WNOHANG)) > 0) {
-            auto it = to_unlink.find(pid);
-            if (it != to_unlink.end()) {
-                ::unlink(to_unlink[pid].c_str());
-                to_unlink.erase(it);
-            }
+        while ((pid = ::waitpid(-1, NULL, WNOHANG)) > 0)
             Service::SharedWriter(Service::filesystem_controller)->UnregisterRomFS(pid);
-        }
 
         // block until received load request
         ssize_t r = ::mq_receive(mqd, path, PATH_MAX, NULL);
@@ -377,27 +368,17 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         }
 
         // open temporary file
-        static const std::string tmp_template =
-            std::filesystem::temp_directory_path().string() + "/mizu_loader.XXXXXX";
-        char tmp_path[tmp_template.length() + 1];
-        ::strcpy(tmp_path, tmp_template.c_str());
-        int fd = ::mkostemp(tmp_path, O_CLOEXEC);
+        int fd = ::open(std::filesystem::temp_directory_path().string().c_str(),
+                        O_TMPFILE | O_WRONLY, S_IRWXU);
         if (fd == -1) {
-            LOG_CRITICAL(Core, "mkostemp failed: {}!", ::strerror(errno));
-            continue;
-        }
-        if (::fchmod(fd, 0700) == -1) {
-            LOG_CRITICAL(Core, "fchmod failed: {}!", ::strerror(errno));
-            ::unlink(tmp_path);
-            ::close(fd);
+            LOG_CRITICAL(Core, "open O_TMPFILE failed: {}!", ::strerror(errno));
             continue;
         }
 
         // synchronization pipe
         int pipefd[2];
-        if (::pipe2(pipefd, O_CLOEXEC) == -1) {
+        if (::pipe(pipefd) == -1) {
             LOG_CRITICAL(Core, "pipe2 failed: {}", ::strerror(errno));
-            ::unlink(tmp_path);
             ::close(fd);
             continue;
         }
@@ -408,20 +389,26 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         pid = ::fork();
         if (pid == -1) {
             LOG_CRITICAL(Core, "fork failed: {}", ::strerror(errno));
-            ::unlink(tmp_path);
             ::close(fd);
             ::close(pipefd[0]);
             ::close(pipefd[1]);
             continue;
         }
         if (pid == 0) {
+            // open temp executable O_PATH for execveat
+            int pfd = ::open(("/proc/self/fd/" + std::to_string(fd)).c_str(),
+                             O_PATH | O_CLOEXEC);
+            if (pfd == -1) {
+                ::perror("mizu loader child: open failed");
+                ::_exit(1);
+            }
             ::close(fd);
 
             // set process name by app title
             std::string title;
-            const char *procname;
+            char *procname;
             if (app_loader->ReadTitle(title) == ResultStatus::Success)
-                procname = title.c_str();
+                procname = const_cast<char *>(title.c_str());
             else
                 procname = basename(path);
 
@@ -431,20 +418,17 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
             ::close(pipefd[0]);
             if (r < 1) {
                 if (r == -1)
-                    perror("read from pipe failed");
+                    perror("mizu loader child: read from pipe failed");
                 ::_exit(1);
             }
 
             // exec the temporary
-            const char *av[] = { procname, NULL }, *ev[] = { NULL };
-            ::syscall(__NR_horizon_execve, tmp_path, av, ev);
-            perror("horizon_execve failed");
+            char * const av[] = { procname, NULL }, * const ev[] = { NULL };
+            ::syscall(__NR_horizon_execveat, pfd, std::string().c_str(), av, ev, AT_EMPTY_PATH);
+            perror("mizu loader child: horizon_execveat failed");
             ::_exit(1);
         }
         ::close(pipefd[0]);
-
-        // to be unlinked on child exit
-        to_unlink[pid] = tmp_path;
 
         // load data
         std::vector<Kernel::CodeSet> codesets;
