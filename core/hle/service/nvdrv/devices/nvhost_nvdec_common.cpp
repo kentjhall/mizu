@@ -90,7 +90,7 @@ NvResult nvhost_nvdec_common::Submit(const std::vector<u8>& input, std::vector<u
         const auto object = nvmap_dev->ReadLocked()->GetObject(cmd_buffer.memory_id);
         ASSERT_OR_EXECUTE(object, return NvResult::InvalidState;);
         Tegra::ChCommandHeaderList cmdlist(cmd_buffer.word_count);
-        mizu_servctl_read_buffer(object->addr + cmd_buffer.offset,
+        horizon_servctl_read_buffer(object->addr + cmd_buffer.offset,
                                  cmdlist.data(), cmdlist.size() * sizeof(u32));
         SharedWriter(gpu)->PushCommandBuffer(cmdlist);
     }

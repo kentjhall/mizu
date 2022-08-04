@@ -10,7 +10,7 @@
 
 #include "common/common_types.h"
 #include "core/hle/result.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 extern const size_t PAGE_SIZE;
 

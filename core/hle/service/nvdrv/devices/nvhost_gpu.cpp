@@ -275,7 +275,7 @@ NvResult nvhost_gpu::SubmitGPFIFOBase(const std::vector<u8>& input, std::vector<
     Tegra::CommandList entries(params.num_entries);
 
     if (kickoff) {
-        mizu_servctl_read_buffer(params.address, entries.command_lists.data(),
+        horizon_servctl_read_buffer(params.address, entries.command_lists.data(),
                                  params.num_entries * sizeof(Tegra::CommandListHeader));
     } else {
         std::memcpy(entries.command_lists.data(), &input[sizeof(IoctlSubmitGpfifo)],

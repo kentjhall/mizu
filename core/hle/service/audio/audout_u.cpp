@@ -17,7 +17,7 @@
 #include "core/hle/service/audio/errors.h"
 #include "core/hle/service/kernel_helpers.h"
 #include "core/memory.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace Service::Audio {
 
@@ -145,7 +145,7 @@ private:
         const u64 tag{rp.Pop<u64>()};
 
         std::vector<s16> samples(audio_buffer.buffer_size / sizeof(s16));
-        mizu_servctl_read_buffer(audio_buffer.buffer, samples.data(), audio_buffer.buffer_size);
+        horizon_servctl_read_buffer(audio_buffer.buffer, samples.data(), audio_buffer.buffer_size);
 
         if (!audio_core.QueueBuffer(stream, tag, std::move(samples))) {
             IPC::ResponseBuilder rb{ctx, 2};

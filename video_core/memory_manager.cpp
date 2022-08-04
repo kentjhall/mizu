@@ -15,7 +15,7 @@
 #include "video_core/memory_manager.h"
 #include "video_core/rasterizer_interface.h"
 #include "video_core/renderer_base.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 const size_t PAGE_SIZE = ::sysconf(_SC_PAGESIZE);
 
@@ -37,7 +37,7 @@ GPUVAddr MemoryManager::Map(VAddr cpu_addr, GPUVAddr gpu_addr, std::size_t size)
     for (auto& alloc_range : alloc_ranges) {
         if (gpu_addr >= alloc_range.gpu_addr &&
             gpu_addr + size <= alloc_range.gpu_addr + alloc_range.size) {
-            mizu_servctl_map_memory(cpu_addr, gpu_addr, size);
+            horizon_servctl_map_memory(cpu_addr, gpu_addr, size);
             UnmapRegion(gpu_addr, size);
             map_ranges.emplace_back(gpu_addr, size, cpu_addr);
             return gpu_addr;
@@ -341,7 +341,7 @@ void MemoryManager::SyncCPUWrites()
     for (const auto& mapping : map_ranges) {
         size_t dirty_len = Common::DivCeil(mapping.size, PAGE_SIZE);
         std::unique_ptr<::loff_t[]> dirty(new ::loff_t[dirty_len]);
-        dirty_len = mizu_servctl_memwatch_get_clear(rasterizer->GPU().SessionPid(),
+        dirty_len = horizon_servctl_memwatch_get_clear(rasterizer->GPU().SessionPid(),
                                                     mapping.cpu_addr, mapping.size, dirty.get(), dirty_len);
         for (::loff_t *off = dirty.get(); off - dirty.get() < dirty_len; ++off) {
             rasterizer->OnCPUWrite(mapping.cpu_addr + *off, PAGE_SIZE);

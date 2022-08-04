@@ -25,7 +25,7 @@ SessionRequestHandler::SessionRequestHandler(const char* service_name_) {}
 SessionRequestHandler::~SessionRequestHandler() = default;
 
 SessionRequestManager::SessionRequestManager() {
-    requester_pid = mizu_servctl(HZN_SCTL_GET_PROCESS_ID);
+    requester_pid = horizon_servctl(HZN_SCTL_GET_PROCESS_ID);
     ASSERT_MSG(requester_pid != -1,
                "HZN_SCTL_GET_PROCESS_ID failed: {}",
                ResultCode(errno).description.Value());
@@ -175,7 +175,7 @@ ResultCode HLERequestContext::WriteToOutgoingCommandBuffer() {
     auto current_offset = handles_offset;
 
     for (int fd : outgoing_copy_fds) {
-        Handle copy_handle = mizu_servctl(HZN_SCTL_CREATE_COPY_HANDLE, fd);
+        Handle copy_handle = horizon_servctl(HZN_SCTL_CREATE_COPY_HANDLE, fd);
         if (copy_handle == Svc::InvalidHandle) {
             LOG_CRITICAL(Core, "HZN_SCTL_CREATE_COPY_HANDLE failed: {}", ResultCode(errno).description.Value());
         }
@@ -212,14 +212,14 @@ std::vector<u8> HLERequestContext::ReadBuffer(std::size_t buffer_index) const {
             BufferDescriptorA().size() > buffer_index, { return buffer; },
             "BufferDescriptorA invalid buffer_index {}", buffer_index);
         buffer.resize(BufferDescriptorA()[buffer_index].Size());
-        mizu_servctl_read_buffer(BufferDescriptorA()[buffer_index].Address(),
+        horizon_servctl_read_buffer(BufferDescriptorA()[buffer_index].Address(),
                                  buffer.data(), buffer.size());
     } else {
         ASSERT_OR_EXECUTE_MSG(
             BufferDescriptorX().size() > buffer_index, { return buffer; },
             "BufferDescriptorX invalid buffer_index {}", buffer_index);
         buffer.resize(BufferDescriptorX()[buffer_index].Size());
-        mizu_servctl_read_buffer(BufferDescriptorX()[buffer_index].Address(),
+        horizon_servctl_read_buffer(BufferDescriptorX()[buffer_index].Address(),
                                  buffer.data(), buffer.size());
     }
 
@@ -247,13 +247,13 @@ std::size_t HLERequestContext::WriteBuffer(const void* buffer, std::size_t size,
             BufferDescriptorB().size() > buffer_index &&
                 BufferDescriptorB()[buffer_index].Size() >= size,
             { return 0; }, "BufferDescriptorB is invalid, index={}, size={}", buffer_index, size);
-        mizu_servctl_write_buffer(BufferDescriptorB()[buffer_index].Address(), buffer, size);
+        horizon_servctl_write_buffer(BufferDescriptorB()[buffer_index].Address(), buffer, size);
     } else {
         ASSERT_OR_EXECUTE_MSG(
             BufferDescriptorC().size() > buffer_index &&
                 BufferDescriptorC()[buffer_index].Size() >= size,
             { return 0; }, "BufferDescriptorC is invalid, index={}, size={}", buffer_index, size);
-        mizu_servctl_write_buffer(BufferDescriptorC()[buffer_index].Address(), buffer, size);
+        horizon_servctl_write_buffer(BufferDescriptorC()[buffer_index].Address(), buffer, size);
     }
 
     return size;

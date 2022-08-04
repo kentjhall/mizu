@@ -29,7 +29,7 @@
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/svc_results.h"
 #include "core/hle/kernel/hle_ipc.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Namespace Service
@@ -133,7 +133,7 @@ extern const Core::Reporter reporter;
 
 inline u64 GetProcessID()
 {
-    pid_t pid = mizu_servctl(HZN_SCTL_GET_PROCESS_ID);
+    pid_t pid = horizon_servctl(HZN_SCTL_GET_PROCESS_ID);
     if (pid == -1) {
         LOG_CRITICAL(Service, "HZN_SCTL_GET_PROCESS_ID failed: {}", ResultCode(errno).description.Value());
     }
@@ -142,7 +142,7 @@ inline u64 GetProcessID()
 
 inline u64 GetTitleID()
 {
-    long title_id = mizu_servctl(HZN_SCTL_GET_TITLE_ID);
+    long title_id = horizon_servctl(HZN_SCTL_GET_TITLE_ID);
     if (title_id == -1) {
         LOG_CRITICAL(Service, "HZN_SCTL_GET_TITLE_ID failed: {}", ResultCode(errno).description.Value());
     }

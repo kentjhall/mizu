@@ -27,7 +27,7 @@
 #include "video_core/renderer_opengl/gl_shader_util.h"
 #include "video_core/renderer_opengl/renderer_opengl.h"
 #include "video_core/textures/decoders.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace OpenGL {
 namespace {
@@ -221,7 +221,7 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
     const u64 size_in_bytes{Tegra::Texture::CalculateSize(
         true, bytes_per_pixel, framebuffer.stride, framebuffer.height, 1, block_height_log2, 0)};
     std::unique_ptr<u8[]> host_data(new u8[size_in_bytes]);
-    mizu_servctl_read_buffer_from(framebuffer_addr, (u8 *)host_data.get(), size_in_bytes,
+    horizon_servctl_read_buffer_from(framebuffer_addr, (u8 *)host_data.get(), size_in_bytes,
                                   framebuffer.session_pid);
     const std::span<const u8> input_data(host_data.get(), size_in_bytes);
     Tegra::Texture::UnswizzleTexture(gl_framebuffer_data, input_data, bytes_per_pixel,

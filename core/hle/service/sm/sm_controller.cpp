@@ -7,7 +7,7 @@
 #include "core/core.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/service/sm/sm_controller.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace Service::SM {
 
@@ -25,7 +25,7 @@ void Controller::CloneCurrentObject(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service, "called");
 
     // Create a session.
-    int session_handle = mizu_servctl(HZN_SCTL_CREATE_SESSION_HANDLE, 0,
+    int session_handle = horizon_servctl(HZN_SCTL_CREATE_SESSION_HANDLE, 0,
                                       AddSessionManager(ctx.GetSessionRequestManagerShared()));
     if (session_handle < 0) {
         ResultCode result(errno);

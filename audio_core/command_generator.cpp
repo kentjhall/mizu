@@ -12,7 +12,7 @@
 #include "audio_core/mix_context.h"
 #include "audio_core/voice_context.h"
 #include "common/common_types.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace AudioCore {
 namespace {
@@ -644,21 +644,21 @@ void CommandGenerator::GenerateAuxCommand(s32 mix_buffer_offset, EffectBase* inf
             if (enabled) {
                 AuxInfoDSP send_info{};
                 AuxInfoDSP recv_info{};
-                mizu_servctl_read_buffer_from(aux->GetSendInfo(), &send_info, sizeof(AuxInfoDSP),
+                horizon_servctl_read_buffer_from(aux->GetSendInfo(), &send_info, sizeof(AuxInfoDSP),
                                               session_pid);
-                mizu_servctl_read_buffer_from(aux->GetRecvInfo(), &recv_info, sizeof(AuxInfoDSP),
+                horizon_servctl_read_buffer_from(aux->GetRecvInfo(), &recv_info, sizeof(AuxInfoDSP),
                                               session_pid);
 
                 WriteAuxBuffer(send_info, aux->GetSendBuffer(), params.sample_count,
                                GetMixBuffer(input_index), worker_params.sample_count, offset,
                                write_count);
-                mizu_servctl_write_buffer_to(aux->GetSendInfo(), &send_info, sizeof(AuxInfoDSP),
+                horizon_servctl_write_buffer_to(aux->GetSendInfo(), &send_info, sizeof(AuxInfoDSP),
                                              session_pid);
 
                 const auto samples_read = ReadAuxBuffer(
                     recv_info, aux->GetRecvBuffer(), params.sample_count,
                     GetMixBuffer(output_index), worker_params.sample_count, offset, write_count);
-                mizu_servctl_write_buffer_to(aux->GetRecvInfo(), &recv_info, sizeof(AuxInfoDSP),
+                horizon_servctl_write_buffer_to(aux->GetRecvInfo(), &recv_info, sizeof(AuxInfoDSP),
                                              session_pid);
 
                 if (samples_read != static_cast<int>(worker_params.sample_count) &&
@@ -668,9 +668,9 @@ void CommandGenerator::GenerateAuxCommand(s32 mix_buffer_offset, EffectBase* inf
                 }
             } else {
                 AuxInfoDSP empty{};
-                mizu_servctl_write_buffer_to(aux->GetSendInfo(), &empty, sizeof(AuxInfoDSP),
+                horizon_servctl_write_buffer_to(aux->GetSendInfo(), &empty, sizeof(AuxInfoDSP),
                                              session_pid);
-                mizu_servctl_write_buffer_to(aux->GetRecvInfo(), &empty, sizeof(AuxInfoDSP),
+                horizon_servctl_write_buffer_to(aux->GetRecvInfo(), &empty, sizeof(AuxInfoDSP),
                                              session_pid);
                 if (output_index != input_index) {
                     std::memcpy(GetMixBuffer(output_index).data(), GetMixBuffer(input_index).data(),
@@ -708,7 +708,7 @@ s32 CommandGenerator::WriteAuxBuffer(AuxInfoDSP& dsp_info, VAddr send_buffer, u3
         const auto base = send_buffer + (offset * sizeof(u32));
         const auto samples_to_grab = std::min(max_samples - offset, remaining);
         // Write to output
-        mizu_servctl_write_buffer_to(base, (data.data() + data_offset), samples_to_grab * sizeof(u32),
+        horizon_servctl_write_buffer_to(base, (data.data() + data_offset), samples_to_grab * sizeof(u32),
                                      session_pid);
         offset = (offset + samples_to_grab) % max_samples;
         remaining -= samples_to_grab;
@@ -739,7 +739,7 @@ s32 CommandGenerator::ReadAuxBuffer(AuxInfoDSP& recv_info, VAddr recv_buffer, u3
         const auto base = recv_buffer + (offset * sizeof(u32));
         const auto samples_to_grab = std::min(max_samples - offset, remaining);
         std::vector<s32> buffer(samples_to_grab);
-        mizu_servctl_read_buffer_from(base, buffer.data(), buffer.size() * sizeof(u32),
+        horizon_servctl_read_buffer_from(base, buffer.data(), buffer.size() * sizeof(u32),
                                       session_pid);
         std::memcpy(out_data.data() + data_offset, buffer.data(), buffer.size() * sizeof(u32));
         offset = (offset + samples_to_grab) % max_samples;
@@ -1055,7 +1055,7 @@ s32 CommandGenerator::DecodePcm(ServerVoiceInfo& voice_info, VoiceState& dsp_sta
 
     const auto channel_count = in_params.channel_count;
     std::vector<T> buffer(samples_processed * channel_count);
-    mizu_servctl_read_buffer_from(buffer_pos, buffer.data(), buffer.size() * sizeof(T),
+    horizon_servctl_read_buffer_from(buffer_pos, buffer.data(), buffer.size() * sizeof(T),
                                   session_pid);
 
     if constexpr (std::is_floating_point_v<T>) {
@@ -1116,7 +1116,7 @@ s32 CommandGenerator::DecodeAdpcm(ServerVoiceInfo& voice_info, VoiceState& dsp_s
     s16 yn2 = dsp_state.context.yn2;
 
     Codec::ADPCM_Coeff coeffs;
-    mizu_servctl_read_buffer_from(in_params.additional_params_address, coeffs.data(),
+    horizon_servctl_read_buffer_from(in_params.additional_params_address, coeffs.data(),
                                   sizeof(Codec::ADPCM_Coeff), session_pid);
 
     s32 coef1 = coeffs[idx * 2];
@@ -1148,7 +1148,7 @@ s32 CommandGenerator::DecodeAdpcm(ServerVoiceInfo& voice_info, VoiceState& dsp_s
     std::size_t buffer_offset{};
     std::vector<u8> buffer(
         std::max((samples_processed / FRAME_LEN) * SAMPLES_PER_FRAME, FRAME_LEN));
-    mizu_servctl_read_buffer_from(wave_buffer.buffer_address + (position_in_frame / 2), buffer.data(),
+    horizon_servctl_read_buffer_from(wave_buffer.buffer_address + (position_in_frame / 2), buffer.data(),
                                   buffer.size(), session_pid);
     std::size_t cur_mix_offset = mix_offset;
 
@@ -1278,7 +1278,7 @@ void CommandGenerator::DecodeFromWaveBuffers(ServerVoiceInfo& voice_info, std::s
 
             if (in_params.sample_format == SampleFormat::Adpcm && dsp_state.offset == 0 &&
                 wave_buffer.context_address != 0 && wave_buffer.context_size != 0) {
-                mizu_servctl_read_buffer_from(wave_buffer.context_address, &dsp_state.context,
+                horizon_servctl_read_buffer_from(wave_buffer.context_address, &dsp_state.context,
                                               sizeof(ADPCMContext), session_pid);
             }
 

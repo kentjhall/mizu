@@ -74,7 +74,7 @@
 #include "core/hle/service/vi/vi.h"
 /* #include "core/hle/service/wlan/wlan.h" */
 #include "core/reporter.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace Service {
 
@@ -227,7 +227,7 @@ void StartServices() {
     /// Reset all glue registrations
     SharedWriter(arp_manager)->ResetAll();
 
-    if (mizu_servctl(HZN_SCTL_REGISTER_NAMED_SERVICE, (unsigned long)"sm:") == -1) {
+    if (horizon_servctl(HZN_SCTL_REGISTER_NAMED_SERVICE, (unsigned long)"sm:") == -1) {
         LOG_CRITICAL(Service, "HZN_SCTL_REGISTER_NAMED_SERVICE failed");
         ::exit(1);
     }
@@ -291,7 +291,7 @@ void StartServices() {
     for (;;) {
         unsigned long session_id;
 
-        long cmdptr = mizu_servctl(HZN_SCTL_GET_CMD, &session_id);
+        long cmdptr = horizon_servctl(HZN_SCTL_GET_CMD, &session_id);
         if (cmdptr == -1) {
             ResultCode rc(errno);
             if (rc == Kernel::ResultCancelled) // this means EINTR
@@ -378,7 +378,7 @@ out:
             context.convert_to_domain = false;
         }
 
-        if (mizu_servctl(HZN_SCTL_PUT_CMD, session_id, (long)context.IsDomain()) == -1) {
+        if (horizon_servctl(HZN_SCTL_PUT_CMD, session_id, (long)context.IsDomain()) == -1) {
             // Just give up on the new session if this fails
             if (new_session) {
                 session_managers.erase(FindSessionManager(session_id));

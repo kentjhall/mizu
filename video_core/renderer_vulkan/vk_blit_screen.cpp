@@ -28,7 +28,7 @@
 #include "video_core/vulkan_common/vulkan_device.h"
 #include "video_core/vulkan_common/vulkan_memory_allocator.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace Vulkan {
 
@@ -165,7 +165,7 @@ VkSemaphore VKBlitScreen::Draw(const Tegra::FramebufferConfig& framebuffer,
                                                            framebuffer.stride, framebuffer.height,
                                                            1, block_height_log2, 0)};
         u8 host_data[size_bytes];
-        mizu_servctl_read_buffer_from(framebuffer_addr, (u8 *)host_data, size_bytes,
+        horizon_servctl_read_buffer_from(framebuffer_addr, (u8 *)host_data, size_bytes,
                                       framebuffer.session_pid);
         Tegra::Texture::UnswizzleTexture(
             mapped_span.subspan(image_offset, size_bytes), std::span(host_data, size_bytes),

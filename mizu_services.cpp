@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 
     // service manager thread
     std::thread sm_thread([](){
-        if (mizu_servctl(HZN_SCTL_REGISTER_NAMED_SERVICE, (unsigned long)"sm:") == -1) {
+        if (horizon_servctl(HZN_SCTL_REGISTER_NAMED_SERVICE, (unsigned long)"sm:") == -1) {
             LOG_CRITICAL(Service, "HZN_SCTL_REGISTER_NAMED_SERVICE failed");
             ::exit(1);
         }

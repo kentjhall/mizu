@@ -21,7 +21,7 @@
 #include "core/hle/service/service.h"
 #include "core/hle/result.h"
 #include "core/reporter.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace {
 
@@ -160,7 +160,7 @@ json GetHLEBufferDescriptorData(const std::vector<DescriptorType>& buffer) {
 
         if constexpr (read_value) {
             std::vector<u8> data(desc.Size());
-            mizu_servctl_read_buffer(desc.Address(), data.data(), desc.Size());
+            horizon_servctl_read_buffer(desc.Address(), data.data(), desc.Size());
             entry["data"] = Common::HexToString(data);
         }
 

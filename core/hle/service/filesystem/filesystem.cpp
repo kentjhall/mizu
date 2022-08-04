@@ -509,7 +509,7 @@ FileSys::SaveDataSize FileSystemController::ReadSaveDataSize(FileSys::SaveDataTy
         FileSys::SaveDataSize new_size{SUFFICIENT_SAVE_DATA_SIZE, SUFFICIENT_SAVE_DATA_SIZE};
 
         FileSys::NACP nacp;
-        int res = mizu_servctl(HZN_SCTL_LOADER_READ_CTL_DATA, (unsigned long)&nacp);
+        int res = horizon_servctl(HZN_SCTL_LOADER_READ_CTL_DATA, (unsigned long)&nacp);
 
         if (res == -1) {
             const FileSys::PatchManager pm{Service::GetTitleID()};

@@ -6,7 +6,7 @@
 
 #include "audio_core/behavior_info.h"
 #include "audio_core/voice_context.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace AudioCore {
 
@@ -537,7 +537,7 @@ s32 VoiceContext::DecodePcm16(s32* output_buffer, ServerWaveBuffer* wave_buffer,
 
     const auto samples_processed = std::min(sample_count, samples_remaining);
     s16 buffer_data[(samples_processed-1) * channel_count + channel + 1];
-    mizu_servctl_read_buffer_from(buffer_pos, buffer_data, sizeof(buffer_data), pid);
+    horizon_servctl_read_buffer_from(buffer_pos, buffer_data, sizeof(buffer_data), pid);
 
     // Fast path
     if (channel_count == 1) {

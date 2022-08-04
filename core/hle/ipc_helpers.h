@@ -13,7 +13,7 @@
 #include "core/hle/ipc.h"
 #include "core/hle/kernel/hle_ipc.h"
 #include "core/hle/result.h"
-#include "mizu_servctl.h"
+#include "horizon_servctl.h"
 
 namespace IPC {
 
@@ -147,7 +147,7 @@ public:
         if (context->IsDomain()) {
             context->AddDomainObject(iface);
         } else {
-            int session_handle = mizu_servctl(HZN_SCTL_CREATE_SESSION_HANDLE, 0,
+            int session_handle = horizon_servctl(HZN_SCTL_CREATE_SESSION_HANDLE, 0,
 			                      AddSessionManager(std::move(iface)));
             if (session_handle < 0) {
                 ResultCode result(errno);

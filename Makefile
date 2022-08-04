@@ -41,7 +41,7 @@ subdirs := common common/fs common/logging configuration \
 	   core/hle/service $(shell find $(addprefix core/hle/service/,$(services)) -type d)
 sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs))) video_core/bootmanager.moc.cpp
 headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/host_shaders/,$(shader_headers)) \
-	   glad/include/glad/glad.h mizu_servctl.h
+	   glad/include/glad/glad.h horizon_servctl.h
 objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
 
 .PHONY: default
