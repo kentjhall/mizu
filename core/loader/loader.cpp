@@ -497,7 +497,7 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
             .magic = HORIZON_MAGIC,
             .title_id = title_id,
             .is_64bit = metadata.Is64BitProgram(),
-            .address_space_type = static_cast<enum horizon_address_space_type>(metadata.GetAddressSpaceType()),
+            .address_space_type = static_cast<u8>(metadata.GetAddressSpaceType()),
             .system_resource_size = metadata.GetSystemResourceSize(),
             .num_codesets = static_cast<u32>(codesets.size()),
         };
