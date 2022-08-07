@@ -42,6 +42,9 @@ sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs))) video_co
 headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/host_shaders/,$(shader_headers)) \
 	   glad/include/glad/glad.h horizon_servctl.h
 objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
+externals = externals/cubeb/build/CMakeFiles externals/soundtouch/build/CMakeFiles \
+	    externals/sirit/build/CMakeFiles externals/SDL/build/CMakeFiles \
+	    externals/mbedtls/library/libmbedtls.a
 
 .PHONY: default
 default: externals mizu-services hlaunch
@@ -52,7 +55,7 @@ mizu-services: $(objects)
 hlaunch: hlaunch.c
 	gcc $(DEBUG-$(DEBUG)) -Wall -o $@ $^ -lrt
 
-$(objects): $(headers)
+$(objects): $(externals) $(headers)
 
 %.moc.cpp: %.h
 	moc -o $@ $^
@@ -70,29 +73,25 @@ video_core/host_shaders/%_frag_spv.h: video_core/host_shaders/%.frag video_core/
 video_core/host_shaders/%_vert_spv.h: video_core/host_shaders/%.vert video_core/host_shaders/source_shader.h.in
 	glslangValidator -V --quiet --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
 
+externals/%/build/CMakeFiles: $(filter %/CMakeFiles, $(externals)) # hack to ensure cmake doesn't run concurrently (seems to cause problems)
+	mkdir -p $(dir $@)
+	cd $(dir $@) ; cmake ..
+	make -C $(dir $@) -j$(shell nproc)
+
+externals/mbedtls/library/libmbedtls.a:
+	make -C $(dir $@) -j$(shell nproc)
+
 .PHONY: install
 install: mizu-services hlaunch
 	cp mizu-services hlaunch /usr/bin
-	cp mizu.service /etc/systemd/system
-	systemctl daemon-reload
-	systemctl enable mizu.service
-	systemctl start mizu.service
+	cp mizu.service /usr/lib/systemd/user
+	systemctl --global enable mizu
 
-.PHONY: externals
-externals:
-	mkdir -p externals/cubeb/build
-	cd externals/cubeb/build ; cmake ..
-	make -C externals/cubeb/build -j$(shell nproc)
-	mkdir -p externals/soundtouch/build
-	cd externals/soundtouch/build ; cmake ..
-	make -C externals/soundtouch/build -j$(shell nproc)
-	mkdir -p externals/sirit/build
-	cd externals/sirit/build ; cmake ..
-	make -C externals/sirit/build -j$(shell nproc)
-	mkdir -p externals/SDL/build
-	cd externals/SDL/build ; cmake ..
-	make -C externals/SDL/build -j$(shell nproc)
-	make -C externals/mbedtls/library -j$(shell nproc)
+.PHONY: uninstall
+uninstall:
+	systemctl --global disable mizu
+	rm -f /etc/systemd/user/mizu.service
+	rm -f /usr/bin/hlaunch
 
 .PHONY: clean
 clean:

@@ -2,10 +2,11 @@
 Description=Mizu services for serving Horizon programs.
 
 [Install]
-WantedBy=graphical.target
+WantedBy=graphical-session.target
 
 [Service]
 Type=simple
+Environment=MESA_GL_VERSION_OVERRIDE=4.6
 ExecStart=/usr/bin/mizu-services
 Restart=always
 RestartSec=2
