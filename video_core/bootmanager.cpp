@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <glad/glad.h>
+#include <csignal>
 
 #include <QApplication>
 #include <QHBoxLayout>
@@ -14,6 +15,7 @@
 #include <QStringList>
 #include <QWindow>
 #include <QDesktopWidget>
+#include <QAction>
 
 #ifdef HAS_OPENGL
 #include <QOffscreenSurface>
@@ -215,6 +217,40 @@ GRenderWindow::GRenderWindow(Tegra::GPU& gpu_)
     this->setMouseTracking(true);
 }
 
+void GRenderWindow::ToggleFullscreen() {
+    if (is_fullscreen)
+        HideFullscreen();
+    else
+        ShowFullscreen();
+}
+
+void GRenderWindow::ShowFullscreen() {
+    is_fullscreen = true;
+
+    if (Settings::values.fullscreen_mode.GetValue() == Settings::FullscreenMode::Exclusive) {
+        this->showFullScreen();
+        return;
+    }
+
+    this->hide();
+    this->setWindowFlags(this->windowFlags() | Qt::FramelessWindowHint);
+    this->raise();
+    this->showNormal();
+}
+
+void GRenderWindow::HideFullscreen() {
+    is_fullscreen = false;
+
+    if (Settings::values.fullscreen_mode.GetValue() == Settings::FullscreenMode::Exclusive) {
+        this->showNormal();
+    } else {
+        this->hide();
+        this->setWindowFlags(windowFlags() & ~Qt::FramelessWindowHint);
+        this->raise();
+        this->show();
+    }
+}
+
 void GRenderWindow::ExecuteProgram(std::size_t program_index) {
     emit ExecuteProgramSignal(program_index);
 }
@@ -291,9 +327,16 @@ std::pair<u32, u32> GRenderWindow::ScaleTouch(const QPointF& pos) const {
 void GRenderWindow::closeEvent(QCloseEvent* event) {
     emit Closed();
     QWidget::closeEvent(event);
+    ::kill(gpu.SessionPid(), SIGTERM);
 }
 
 void GRenderWindow::keyPressEvent(QKeyEvent* event) {
+    if (event->key() == Qt::Key_F11 &&
+        (event->modifiers() & Qt::ControlModifier)) {
+        ToggleFullscreen();
+        return;
+    }
+
     if (!event->isAutoRepeat()) {
         input_subsystem.GetKeyboard()->PressKey(event->key());
     }

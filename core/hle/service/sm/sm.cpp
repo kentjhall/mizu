@@ -5,6 +5,7 @@
 #include <tuple>
 #include "common/assert.h"
 #include "common/scope_exit.h"
+#include "configuration/config.h"
 #include "core/core.h"
 #include "core/hle/kernel/hle_ipc.h"
 #include "core/hle/ipc_helpers.h"
@@ -85,6 +86,10 @@ ResultVal<Kernel::Handle> ServiceManager::GetServicePort(const std::string& name
     }
 
     return MakeResult(Kernel::Handle(port));
+}
+
+void SM::SetupSession(::pid_t req_pid) {
+    Config::config->Reread();
 }
 
 void SM::CleanupSession(::pid_t req_pid) {

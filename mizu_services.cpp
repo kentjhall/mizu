@@ -2,6 +2,7 @@
 #include <clocale>
 #include <limits.h>
 #include <QApplication>
+#include <QHBoxLayout>
 #include "core/hle/service/service.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/hle/kernel/code_set.h"
@@ -9,8 +10,6 @@
 #include "common/logging/log.h"
 #include "common/settings.h"
 #include "configuration/config.h"
-
-#include <QHBoxLayout>
 
 static void on_sig(int) {
     // this allows logging to flush gracefully
@@ -27,18 +26,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    QCoreApplication::setOrganizationName(QStringLiteral("Kent Hall"));
+    QCoreApplication::setApplicationName(QStringLiteral("mizu"));
+
     // logger/config initialization
     Common::Log::Initialize();
-    Config config;
+    Config::config = std::make_shared<Config>();
 
     // loader thread for handling launch requests
     std::thread loader_thread(Loader::RunForever);
     loader_thread.detach();
 
     // setup for Qt
-    QCoreApplication::setOrganizationName(QStringLiteral("Kent Hall"));
-    QCoreApplication::setApplicationName(QStringLiteral("mizu"));
-
     if (QString::fromLocal8Bit(qgetenv("DISPLAY")).isEmpty()) {
         qputenv("DISPLAY", ":0");
     }

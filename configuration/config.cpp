@@ -217,6 +217,8 @@ const std::array<int, Settings::NativeKeyboard::NumKeyboardMods> Config::default
     Qt::Key_Control, Qt::Key_Shift, Qt::Key_AltGr, Qt::Key_ApplicationRight,
 };
 
+std::shared_ptr<Config> Config::config;
+
 // clang-format on
 
 void Config::Initialize(const std::string& config_name) {
@@ -1299,23 +1301,33 @@ void Config::WriteSetting(const QString& name, const QVariant& value, const QVar
     }
 }
 
+void Config::Reread() {
+    std::unique_lock lock{mutex};
+    qt_config->sync();
+    ReadValues();
+}
+
 void Config::Reload() {
+    std::unique_lock lock{mutex};
     ReadValues();
     // To apply default value changes
     SaveValues();
 }
 
 void Config::Save() {
+    std::unique_lock lock{mutex};
     SaveValues();
 }
 
 void Config::ReadControlPlayerValue(std::size_t player_index) {
+    std::unique_lock lock{mutex};
     qt_config->beginGroup(QStringLiteral("Controls"));
     ReadPlayerValue(player_index);
     qt_config->endGroup();
 }
 
 void Config::SaveControlPlayerValue(std::size_t player_index) {
+    std::unique_lock lock{mutex};
     qt_config->beginGroup(QStringLiteral("Controls"));
     SavePlayerValue(player_index);
     qt_config->endGroup();

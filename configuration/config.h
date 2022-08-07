@@ -7,6 +7,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <mutex>
 #include <QMetaType>
 #include <QVariant>
 #include "common/settings.h"
@@ -25,7 +26,10 @@ public:
                     ConfigType config_type = ConfigType::GlobalConfig);
     ~Config();
 
+    void Reread();
+
     void Reload();
+
     void Save();
 
     void ReadControlPlayerValue(std::size_t player_index);
@@ -42,9 +46,10 @@ public:
     static const std::array<int, Settings::NativeKeyboard::NumKeyboardKeys> default_keyboard_keys;
     static const std::array<int, Settings::NativeKeyboard::NumKeyboardMods> default_keyboard_mods;
 
+    static std::shared_ptr<Config> config;
+
 private:
     void Initialize(const std::string& config_name);
-
     void ReadValues();
     void ReadPlayerValue(std::size_t player_index);
     void ReadDebugValues();
@@ -162,6 +167,7 @@ private:
     std::unique_ptr<QSettings> qt_config;
     std::string qt_config_loc;
     bool global;
+    mutable std::mutex mutex;
 };
 
 // These metatype declarations cannot be in common/settings.h because core is devoid of QT

@@ -102,8 +102,9 @@ static void VolumeAdjustSamples(std::vector<s16>& samples, float game_volume) {
 }
 
 void Stream::PlayNextBuffer() {
+    is_done = true;
+
     if (stop_source.stop_requested()) {
-        is_done = true;
         done_cv.notify_all();
         return;
     }
@@ -111,19 +112,24 @@ void Stream::PlayNextBuffer() {
     if (!IsPlaying(true)) {
         // Ensure we are in playing state before playing the next buffer
         sink_stream.Flush();
+        done_cv.notify_all();
         return;
     }
 
     if (active_buffer) {
         // Do not queue a new buffer if we are already playing a buffer
+        done_cv.notify_all();
         return;
     }
 
     if (queued_buffers.empty()) {
         // No queued buffers - we are effectively paused
         sink_stream.Flush();
+        done_cv.notify_all();
         return;
     }
+
+    is_done = false;
 
     active_buffer = queued_buffers.front();
     queued_buffers.pop();

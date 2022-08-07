@@ -768,15 +768,7 @@ GPU::GPU(bool is_async, bool use_nvdec, ::pid_t session_pid)
     impl->render_window->setGeometry(screen_geometry.x(), screen_geometry.y(),
                                screen_geometry.width(), screen_geometry.height() + 1);
 
-    if (Settings::values.fullscreen_mode.GetValue() == Settings::FullscreenMode::Exclusive) {
-        impl->render_window->showFullScreen();
-        return;
-    }
-
-    impl->render_window->hide();
-    impl->render_window->setWindowFlags(impl->render_window->windowFlags() | Qt::FramelessWindowHint);
-    impl->render_window->raise();
-    impl->render_window->showNormal();
+    impl->render_window->ShowFullscreen();
 }
 
 GPU::~GPU() {

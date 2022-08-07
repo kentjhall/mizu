@@ -25,6 +25,7 @@ class SM final : public ServiceFramework<SM> {
 public:
     explicit SM();
 
+    void SetupSession(::pid_t req_pid) override;
     void CleanupSession(::pid_t req_pid) override;
 
 private:

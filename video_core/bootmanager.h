@@ -49,6 +49,10 @@ public:
     explicit GRenderWindow(Tegra::GPU& gpu_);
     ~GRenderWindow() override;
 
+    void ToggleFullscreen();
+    void ShowFullscreen();
+    void HideFullscreen();
+
     // EmuWindow implementation.
     void OnFrameDisplayed() override;
     bool IsShown() const override;
@@ -141,6 +145,8 @@ private:
     QWidget* child_widget = nullptr;
 
     bool first_frame = false;
+
+    bool is_fullscreen = false;
 
     std::array<std::size_t, 16> touch_ids{};
 
