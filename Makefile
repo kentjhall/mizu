@@ -1,11 +1,11 @@
 CXX := g++
 CC := g++
-INCLUDES := -I ~/mizu-services -I ~/mizu-services/glad/include -I ~/yuzu/externals/dynarmic/externals/fmt/include -I ~/yuzu/externals/cubeb/include -I ~/yuzu/externals/soundtouch/include -I ~/yuzu/src/exports -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/microprofile -I ~/yuzu/externals/opus/opus/include -I ~/yuzu/externals/ffmpeg -I ~/yuzu/build/externals/ffmpeg -I ~/yuzu/externals/Vulkan-Headers/include -I ~/yuzu/externals/SDL/include -I ~/yuzu/externals/sirit/externals/SPIRV-Headers/include -I ~/yuzu/externals/sirit/include
+INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include
 DEBUG-y := -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
-CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DMBEDTLS_CMAC_C -DSDL_VIDEO_DRIVER_X11 -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale INIReader liblz4 opus) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui -I ~/soundtouch/include $(DEBUG-$(DEBUG))
+CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
-LDFLAGS := -L ~/sirit/build/src -L ~/soundtouch/build $(DEBUG-$(DEBUG))
-LDLIBS := -lmbedcrypto -lsirit -lrt -ldl -lcubeb -lSoundTouch -pthread $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 sdl2 libavutil libavcodec libswscale INIReader liblz4 opus)
+LDFLAGS := -L ./externals/sirit/build/src -L ./externals/soundtouch/build -L ./externals/cubeb/build -L ./externals/mbedtls/library -L ./externals/SDL/build $(DEBUG-$(DEBUG))
+LDLIBS := -pthread -lrt -ldl -lmbedcrypto -lsirit -lcubeb -lSoundTouch -lSDL2 $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus)
 
 services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend
 
@@ -32,7 +32,6 @@ shader_headers := astc_decoder_comp.h \
                   vulkan_present_vert_spv.h \
                   vulkan_quad_indexed_comp_spv.h \
                   vulkan_uint8_comp_spv.h
-
 subdirs := common common/fs common/logging configuration \
 	   core core/file_sys core/file_sys/system_archive core/file_sys/system_archive/data core/crypto \
 	   core/frontend core/loader core/frontend/applets core/hle core/hle/kernel \
@@ -45,7 +44,7 @@ headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/h
 objects := $(patsubst %.cpp,%.o,$(sources)) glad/src/glad.o
 
 .PHONY: default
-default: mizu-services hlaunch
+default: externals mizu-services hlaunch
 
 mizu-services: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -71,20 +70,41 @@ video_core/host_shaders/%_frag_spv.h: video_core/host_shaders/%.frag video_core/
 video_core/host_shaders/%_vert_spv.h: video_core/host_shaders/%.vert video_core/host_shaders/source_shader.h.in
 	glslangValidator -V --quiet --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
 
-.PHONY: missing
-missing: missing_syms.txt
-	@cat missing_syms.txt
-missing_syms.txt: ld_err.txt
-	@grep 'undefined reference to `' ld_err.txt | cut -d '`' -f 2 | cut -d "'" -f 1 | sort | uniq > missing_syms.txt
-ld_err.txt: $(objects)
-	@$(CXX) $(LDFLAGS) -o /dev/null $^ $(LDLIBS) 2> ld_err.txt || true
+.PHONY: install
+install: mizu-services hlaunch
+	cp mizu-services hlaunch /usr/bin
+	cp mizu.service /etc/systemd/system
+	systemctl daemon-reload
+	systemctl enable mizu.service
+	systemctl start mizu.service
+
+.PHONY: externals
+externals:
+	mkdir -p externals/cubeb/build
+	cd externals/cubeb/build ; cmake ..
+	make -C externals/cubeb/build -j$(shell nproc)
+	mkdir -p externals/soundtouch/build
+	cd externals/soundtouch/build ; cmake ..
+	make -C externals/soundtouch/build -j$(shell nproc)
+	mkdir -p externals/sirit/build
+	cd externals/sirit/build ; cmake ..
+	make -C externals/sirit/build -j$(shell nproc)
+	mkdir -p externals/SDL/build
+	cd externals/SDL/build ; cmake ..
+	make -C externals/SDL/build -j$(shell nproc)
+	make -C externals/mbedtls/library -j$(shell nproc)
 
 .PHONY: clean
 clean:
 	rm -f mizu-services hlaunch
-	find . -name '*.o' -exec rm {} \;
-	find . -name '*.moc.cpp' -exec rm {} \;
+	find . -name '*.o' -not -path "./externals/*" -exec rm {} \;
+	find . -name '*.moc.cpp' -not -path "./externals/*" -exec rm {} \;
 	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;
 	find video_core/host_shaders -name '*_frag.h' -exec rm {} \;
 	find video_core/host_shaders -name '*_vert.h' -exec rm {} \;
 	find video_core/host_shaders -name '*_spv.h' -exec rm {} \;
+
+.PHONY: distclean
+distclean: clean
+	rm -rf externals/cubeb/build externals/soundtouch/build externals/sirit/build externals/SDL/build
+	make -C externals/mbedtls/library clean

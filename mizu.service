@@ -1,0 +1,14 @@
+[Unit]
+Description=Mizu services for serving Horizon programs.
+
+[Install]
+WantedBy=graphical.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/mizu-services
+Restart=always
+RestartSec=2
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=%n

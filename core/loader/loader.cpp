@@ -278,7 +278,10 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
     Common::SetCurrentThreadName("mizu:Loader");
 
     // ensure we start with a fresh queue
-    ::mq_unlink("/mizu_loader");
+    if (::mq_unlink("/mizu_loader") == -1 && errno != ENOENT) {
+        ::perror("mq_unlink failed");
+        ::exit(1);
+    }
 
     // open the message queue for receiving requests
     mq_attr attr = { 0 };
