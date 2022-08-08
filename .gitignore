@@ -1,4 +1,4 @@
-mizu-services
+mizu
 hlaunch
 *.o
 video_core/*.moc.cpp

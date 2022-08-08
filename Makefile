@@ -47,9 +47,9 @@ externals = externals/cubeb/build/CMakeFiles externals/soundtouch/build/CMakeFil
 	    externals/mbedtls/library/libmbedtls.a
 
 .PHONY: default
-default: externals mizu-services hlaunch
+default: externals mizu hlaunch
 
-mizu-services: $(objects)
+mizu: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 hlaunch: hlaunch.c
@@ -82,8 +82,8 @@ externals/mbedtls/library/libmbedtls.a:
 	make -C $(dir $@) -j$(shell nproc)
 
 .PHONY: install
-install: mizu-services hlaunch
-	cp mizu-services hlaunch /usr/bin
+install: mizu hlaunch
+	cp mizu hlaunch /usr/bin
 	cp mizu.service /usr/lib/systemd/user
 	systemctl --global enable mizu
 
@@ -95,7 +95,7 @@ uninstall:
 
 .PHONY: clean
 clean:
-	rm -f mizu-services hlaunch
+	rm -f mizu hlaunch
 	find . -name '*.o' -not -path "./externals/*" -exec rm {} \;
 	find . -name '*.moc.cpp' -not -path "./externals/*" -exec rm {} \;
 	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;

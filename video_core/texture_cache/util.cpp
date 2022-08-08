@@ -1,6 +1,8 @@
 // Copyright 2020 yuzu Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
+//
+// Adapted by Kent Hall for mizu on Horizon Linux.
 
 // This files contains code from Ryujinx
 // A copy of the code can be obtained from https://github.com/Ryujinx/Ryujinx

@@ -1,6 +1,8 @@
 // Copyright 2019 Yuzu Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
+//
+// Adapted by Kent Hall for mizu on Horizon Linux.
 
 #include <csignal>
 #include "core/core.h"

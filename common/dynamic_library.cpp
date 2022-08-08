@@ -1,6 +1,8 @@
 // Copyright 2019 Dolphin Emulator Project
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
+//
+// Adapted by Kent Hall for mizu on Horizon Linux.
 
 #include <cstring>
 #include <string>

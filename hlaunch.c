@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 	mqd_t mqd = mq_open("/mizu_loader", O_WRONLY);
 	if (mqd == -1) {
 		if (errno == ENOENT)
-			fprintf(stderr, "mq_open failed, is mizu-services running?\n");
+			fprintf(stderr, "mq_open failed, is mizu running?\n");
 		else
 			perror("mq_open failed");
 		return 1;
