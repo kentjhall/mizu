@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 #include <shared_mutex>
+#include <mutex>
 
 #include "common/common_types.h"
 #include "common/settings_input.h"

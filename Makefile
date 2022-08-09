@@ -1,8 +1,8 @@
 CXX := g++
 CC := g++
-INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include
+INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui -I /usr/include/qt5/QtGui/5.15.5/QtGui # these last two are just hardcoded because I don't know how to deal with Qt private headers :( really don't wanna learn qmake
 DEBUG-y := -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
-CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui $(DEBUG-$(DEBUG))
+CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
 LDFLAGS := -L ./externals/sirit/build/src -L ./externals/soundtouch/build -L ./externals/cubeb/build -L ./externals/mbedtls/library -L ./externals/SDL/build $(DEBUG-$(DEBUG))
 LDLIBS := -pthread -lrt -ldl -lmbedcrypto -lsirit -lcubeb -lSoundTouch -lSDL2 $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus)
@@ -58,7 +58,7 @@ hlaunch: hlaunch.c
 $(objects): $(externals) $(headers)
 
 %.moc.cpp: %.h
-	moc -o $@ $^
+	PATH=$$PATH:/usr/lib64/qt5/bin/ moc -o $@ $^
 
 video_core/host_shaders/%_comp.h: video_core/host_shaders/%.comp video_core/host_shaders/source_shader.h.in
 	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
@@ -75,8 +75,8 @@ video_core/host_shaders/%_vert_spv.h: video_core/host_shaders/%.vert video_core/
 
 externals/%/build/CMakeFiles: $(filter %/CMakeFiles, $(externals)) # hack to ensure cmake doesn't run concurrently (seems to cause problems)
 	mkdir -p $(dir $@)
-	cd $(dir $@) ; cmake ..
-	make -C $(dir $@) -j$(shell nproc)
+	cd $(dir $@) ; cmake .. || ( rm -rf $(dir $@) ; false )
+	make -C $(dir $@) -j$(shell nproc) || ( rm -rf $(dir $@) ; false )
 
 externals/mbedtls/library/libmbedtls.a:
 	make -C $(dir $@) -j$(shell nproc)

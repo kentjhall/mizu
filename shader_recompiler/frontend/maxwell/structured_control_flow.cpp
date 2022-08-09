@@ -982,7 +982,8 @@ private:
     bool uses_demote_to_helper{};
 
 // TODO: C++20 Remove this when all compilers support constexpr std::vector
-#if __cpp_lib_constexpr_vector >= 201907
+#if __cpp_lib_constexpr_vector >= 201907 && 0 // disabling this for mizu because
+                                              // it breaks my compile :(
     static constexpr Flow::Block dummy_flow_block;
 #else
     const Flow::Block dummy_flow_block;

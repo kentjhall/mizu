@@ -144,7 +144,7 @@ void Codec::Initialize() {
             return AV_CODEC_ID_NONE;
         }
     }();
-    av_codec = avcodec_find_decoder(codec);
+    av_codec = const_cast<AVCodec *>(avcodec_find_decoder(codec));
 
     InitializeAvCodecContext();
     if (Settings::values.nvdec_emulation.GetValue() == Settings::NvdecEmulation::GPU) {
