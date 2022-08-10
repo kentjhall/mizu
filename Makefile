@@ -1,6 +1,6 @@
 CXX := g++
 CC := g++
-INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include -I /usr/include/aarch64-linux-gnu/qt5/QtGui/5.15.2/QtGui -I /usr/include/qt5/QtGui/5.15.5/QtGui # these last two are just hardcoded because I don't know how to deal with Qt private headers :( really don't wanna learn qmake
+INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include -I /usr/include/aarch64-linux-gnu/qt5/QtGui/*/QtGui -I /usr/include/qt5/QtGui/*/QtGui # these last two are just hardcoded because I don't know how to deal with Qt private headers :( really don't wanna learn qmake
 DEBUG-y := -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
 CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
@@ -67,16 +67,17 @@ video_core/host_shaders/%_frag.h: video_core/host_shaders/%.frag video_core/host
 video_core/host_shaders/%_vert.h: video_core/host_shaders/%.vert video_core/host_shaders/source_shader.h.in
 	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
 video_core/host_shaders/%_comp_spv.h: video_core/host_shaders/%.comp
-	glslangValidator -V --quiet --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
+	glslangValidator -V --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
 video_core/host_shaders/%_frag_spv.h: video_core/host_shaders/%.frag video_core/host_shaders/source_shader.h.in
-	glslangValidator -V --quiet --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
+	glslangValidator -V --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
 video_core/host_shaders/%_vert_spv.h: video_core/host_shaders/%.vert video_core/host_shaders/source_shader.h.in
-	glslangValidator -V --quiet --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
+	glslangValidator -V --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
 
 externals/%/build/CMakeFiles: $(filter %/CMakeFiles, $(externals)) # hack to ensure cmake doesn't run concurrently (seems to cause problems)
 	mkdir -p $(dir $@)
 	cd $(dir $@) ; cmake .. || ( rm -rf $(dir $@) ; false )
 	make -C $(dir $@) -j$(shell nproc) || ( rm -rf $(dir $@) ; false )
+	bash
 
 externals/mbedtls/library/libmbedtls.a:
 	make -C $(dir $@) -j$(shell nproc)
