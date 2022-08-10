@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -103,6 +103,7 @@ keycode_to_SDL(int keycode)
         case AKEYCODE_BUTTON_THUMBR:
             button = SDL_CONTROLLER_BUTTON_RIGHTSTICK;
             break;
+        case AKEYCODE_MENU:
         case AKEYCODE_BUTTON_START:
             button = SDL_CONTROLLER_BUTTON_START;
             break;
@@ -557,6 +558,12 @@ ANDROID_JoystickGetDeviceName(int device_index)
     return JoystickByDevIndex(device_index)->name;
 }
 
+static const char *
+ANDROID_JoystickGetDevicePath(int device_index)
+{
+    return NULL;
+}
+
 static int
 ANDROID_JoystickGetDevicePlayerIndex(int device_index)
 {
@@ -616,10 +623,10 @@ ANDROID_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint1
     return SDL_Unsupported();
 }
 
-static SDL_bool
-ANDROID_JoystickHasLED(SDL_Joystick *joystick)
+static Uint32
+ANDROID_JoystickGetCapabilities(SDL_Joystick *joystick)
 {
-    return SDL_FALSE;
+    return 0;
 }
 
 static int
@@ -712,6 +719,7 @@ SDL_JoystickDriver SDL_ANDROID_JoystickDriver =
     ANDROID_JoystickGetCount,
     ANDROID_JoystickDetect,
     ANDROID_JoystickGetDeviceName,
+    ANDROID_JoystickGetDevicePath,
     ANDROID_JoystickGetDevicePlayerIndex,
     ANDROID_JoystickSetDevicePlayerIndex,
     ANDROID_JoystickGetDeviceGUID,
@@ -719,7 +727,7 @@ SDL_JoystickDriver SDL_ANDROID_JoystickDriver =
     ANDROID_JoystickOpen,
     ANDROID_JoystickRumble,
     ANDROID_JoystickRumbleTriggers,
-    ANDROID_JoystickHasLED,
+    ANDROID_JoystickGetCapabilities,
     ANDROID_JoystickSetLED,
     ANDROID_JoystickSendEffect,
     ANDROID_JoystickSetSensorsEnabled,

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -52,6 +52,14 @@ enum libdecor_window_state;
 #include "xkbcommon/xkbcommon.h"
 #include "xkbcommon/xkbcommon-compose.h"
 
+/* Must be included before our #defines, see Bugzilla #4957 */
+#include "wayland-client-core.h"
+
+#define SDL_WAYLAND_CHECK_VERSION(x, y, z) \
+  (WAYLAND_VERSION_MAJOR > x || \
+   (WAYLAND_VERSION_MAJOR == x && WAYLAND_VERSION_MINOR > y) || \
+   (WAYLAND_VERSION_MAJOR == x && WAYLAND_VERSION_MINOR == y && WAYLAND_VERSION_MICRO >= z))
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -70,9 +78,6 @@ void SDL_WAYLAND_UnloadSymbols(void);
 #ifdef __cplusplus
 }
 #endif
-
-/* Must be included before our #defines, see Bugzilla #4957 */
-#include "wayland-client-core.h"
 
 #ifdef SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC
 
@@ -95,6 +100,8 @@ void SDL_WAYLAND_UnloadSymbols(void);
 #define wl_proxy_marshal_constructor_versioned (*WAYLAND_wl_proxy_marshal_constructor_versioned)
 #define wl_proxy_set_tag (*WAYLAND_wl_proxy_set_tag)
 #define wl_proxy_get_tag (*WAYLAND_wl_proxy_get_tag)
+#define wl_proxy_marshal_flags (*WAYLAND_wl_proxy_marshal_flags)
+#define wl_proxy_marshal_array_flags (*WAYLAND_wl_proxy_marshal_array_flags)
 
 #define wl_seat_interface (*WAYLAND_wl_seat_interface)
 #define wl_surface_interface (*WAYLAND_wl_surface_interface)
@@ -140,11 +147,13 @@ void SDL_WAYLAND_UnloadSymbols(void);
 #define libdecor_frame_is_floating (*WAYLAND_libdecor_frame_is_floating)
 #define libdecor_frame_set_parent (*WAYLAND_libdecor_frame_set_parent)
 #define libdecor_frame_get_xdg_surface (*WAYLAND_libdecor_frame_get_xdg_surface)
+#define libdecor_frame_get_xdg_toplevel (*WAYLAND_libdecor_frame_get_xdg_toplevel)
 #define libdecor_frame_map (*WAYLAND_libdecor_frame_map)
 #define libdecor_state_new (*WAYLAND_libdecor_state_new)
 #define libdecor_state_free (*WAYLAND_libdecor_state_free)
 #define libdecor_configuration_get_content_size (*WAYLAND_libdecor_configuration_get_content_size)
 #define libdecor_configuration_get_window_state (*WAYLAND_libdecor_configuration_get_window_state)
+#define libdecor_dispatch (*WAYLAND_libdecor_dispatch)
 #endif
 
 #else /* SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC */

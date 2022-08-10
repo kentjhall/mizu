@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -33,13 +33,15 @@
 
 typedef struct SDL_EGL_VideoData
 {
-    void *egl_dll_handle, *dll_handle;
+    void *opengl_dll_handle, *egl_dll_handle;
     EGLDisplay egl_display;
     EGLConfig egl_config;
     int egl_swapinterval;
     int egl_surfacetype;
     int egl_version_major, egl_version_minor;
     EGLint egl_required_visual_id;
+    SDL_bool is_offscreen;  /* whether EGL display was offscreen */
+    EGLenum apitype;  /* EGL_OPENGL_ES_API, EGL_OPENGL_API, etc */
     
     EGLDisplay(EGLAPIENTRY *eglGetDisplay) (NativeDisplayType display);
     EGLDisplay(EGLAPIENTRY *eglGetPlatformDisplay) (EGLenum platform,
@@ -114,11 +116,6 @@ typedef struct SDL_EGL_VideoData
     EGLint(EGLAPIENTRY *eglClientWaitSyncKHR)(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags, EGLTimeKHR timeout);
 
     /* Atomic functions end */
-
-
-    /* whether EGL display was offscreen */
-    int is_offscreen;
-
 } SDL_EGL_VideoData;
 
 /* OpenGLES functions */

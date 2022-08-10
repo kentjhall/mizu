@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,7 +24,7 @@
 #include "../SDL_internal.h"
 #endif
 
-#if defined(__WIN32__) || defined(__WINRT__)
+#if defined(__WIN32__) || defined(__WINRT__) || defined(__GDK__)
 #include "../core/windows/SDL_windows.h"
 #endif
 #if defined(__OS2__)
@@ -50,10 +50,13 @@
 #endif
 #if defined(__MACOSX__) && (defined(__ppc__) || defined(__ppc64__))
 #include <sys/sysctl.h>         /* For AltiVec check */
-#elif (defined(__OpenBSD__) || defined(__FreeBSD__)) && defined(__powerpc__)
-#include <sys/param.h>
+#elif defined(__OpenBSD__) && defined(__powerpc__)
+#include <sys/types.h>
 #include <sys/sysctl.h> /* For AltiVec check */
 #include <machine/cpu.h>
+#elif defined(__FreeBSD__) && defined(__powerpc__)
+#include <machine/cpu.h>
+#include <sys/auxv.h>
 #elif SDL_ALTIVEC_BLITTERS && HAVE_SETJMP
 #include <signal.h>
 #include <setjmp.h>
@@ -95,6 +98,10 @@
 #include <swis.h>
 #endif
 
+#ifdef __PS2__
+#include <kernel.h>
+#endif
+
 #define CPU_HAS_RDTSC   (1 << 0)
 #define CPU_HAS_ALTIVEC (1 << 1)
 #define CPU_HAS_MMX     (1 << 2)
@@ -109,8 +116,14 @@
 #define CPU_HAS_NEON    (1 << 11)
 #define CPU_HAS_AVX512F (1 << 12)
 #define CPU_HAS_ARM_SIMD (1 << 13)
+#define CPU_HAS_LSX     (1 << 14)
+#define CPU_HAS_LASX    (1 << 15)
 
-#if SDL_ALTIVEC_BLITTERS && HAVE_SETJMP && !__MACOSX__ && !__OpenBSD__
+#define CPU_CFG2 0x2
+#define CPU_CFG2_LSX    (1 << 6)
+#define CPU_CFG2_LASX   (1 << 7)
+
+#if SDL_ALTIVEC_BLITTERS && HAVE_SETJMP && !__MACOSX__ && !__OpenBSD__ && !__FreeBSD__
 /* This is the brute force way of detecting instruction sets...
    the idea is borrowed from the libmpeg2 library - thanks!
  */
@@ -127,7 +140,7 @@ CPU_haveCPUID(void)
 {
     int has_CPUID = 0;
 
-/* *INDENT-OFF* */
+/* *INDENT-OFF* */ /* clang-format off */
 #ifndef SDL_CPUINFO_DISABLED
 #if (defined(__GNUC__) || defined(__llvm__)) && defined(__i386__)
     __asm__ (
@@ -147,8 +160,8 @@ CPU_haveCPUID(void)
     :
     : "%eax", "%ecx"
     );
-#elif (defined(__GNUC__) || defined(__llvm__)) && defined(__ARM64__)
-/* Technically, if this is being compiled under __ARM64__ then it has 
+#elif (defined(__GNUC__) || defined(__llvm__)) && defined(__x86_64__)
+/* Technically, if this is being compiled under __x86_64__ then it has 
    CPUid by definition.  But it's nice to be able to prove it.  :)      */
     __asm__ (
 "        pushfq                      # Get original EFLAGS             \n"
@@ -216,7 +229,7 @@ done:
     );
 #endif
 #endif
-/* *INDENT-ON* */
+/* *INDENT-ON* */ /* clang-format on */
     return has_CPUID;
 }
 
@@ -229,7 +242,7 @@ done:
 "        movl %%ebx, %%esi  \n" \
 "        popl %%ebx         \n" : \
             "=a" (a), "=S" (b), "=c" (c), "=d" (d) : "a" (func))
-#elif (defined(__GNUC__) || defined(__llvm__)) && defined(__ARM64__)
+#elif (defined(__GNUC__) || defined(__llvm__)) && defined(__x86_64__)
 #define cpuid(func, a, b, c, d) \
     __asm__ __volatile__ ( \
 "        pushq %%rbx        \n" \
@@ -289,7 +302,7 @@ CPU_calcCPUIDFeatures(void)
                 /* Check to make sure we can call xgetbv */
                 if (c & 0x08000000) {
                     /* Call xgetbv to see if YMM (etc) register state is saved */
-#if (defined(__GNUC__) || defined(__llvm__)) && (defined(__i386__) || defined(__ARM64__))
+#if (defined(__GNUC__) || defined(__llvm__)) && (defined(__i386__) || defined(__x86_64__))
                     __asm__(".byte 0x0f, 0x01, 0xd0" : "=a" (a) : "c" (0) : "%edx");
 #elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64)) && (_MSC_FULL_VER >= 160040219) /* VS2010 SP1 */
                     a = (int)_xgetbv(0);
@@ -314,11 +327,9 @@ CPU_haveAltiVec(void)
 {
     volatile int altivec = 0;
 #ifndef SDL_CPUINFO_DISABLED
-#if (defined(__MACOSX__) && (defined(__ppc__) || defined(__ppc64__))) || (defined(__OpenBSD__) && defined(__powerpc__)) || (defined(__FreeBSD__) && defined(__powerpc__))
+#if (defined(__MACOSX__) && (defined(__ppc__) || defined(__ppc64__))) || (defined(__OpenBSD__) && defined(__powerpc__))
 #ifdef __OpenBSD__
     int selectors[2] = { CTL_MACHDEP, CPU_ALTIVEC };
-#elif defined(__FreeBSD__)
-    int selectors[2] = { CTL_HW, PPC_FEATURE_HAS_ALTIVEC };
 #else
     int selectors[2] = { CTL_HW, HW_VECTORUNIT };
 #endif
@@ -327,6 +338,11 @@ CPU_haveAltiVec(void)
     int error = sysctl(selectors, 2, &hasVectorUnit, &length, NULL, 0);
     if (0 == error)
         altivec = (hasVectorUnit != 0);
+#elif defined(__FreeBSD__) && defined(__powerpc__)
+    unsigned long cpufeatures = 0;
+    elf_aux_info(AT_HWCAP, &cpufeatures, sizeof(cpufeatures));
+    altivec = cpufeatures & PPC_FEATURE_HAS_ALTIVEC;
+    return altivec;
 #elif SDL_ALTIVEC_BLITTERS && HAVE_SETJMP
     void (*handler) (int sig);
     handler = signal(SIGILL, illegal_instruction);
@@ -344,14 +360,14 @@ CPU_haveAltiVec(void)
 static int
 CPU_haveARMSIMD(void)
 {
-	return 1;
+    return 1;
 }
 
 #elif !defined(__arm__)
 static int
 CPU_haveARMSIMD(void)
 {
-	return 0;
+    return 0;
 }
 
 #elif defined(__LINUX__)
@@ -361,7 +377,7 @@ CPU_haveARMSIMD(void)
     int arm_simd = 0;
     int fd;
 
-    fd = open("/proc/self/auxv", O_RDONLY);
+    fd = open("/proc/self/auxv", O_RDONLY | O_CLOEXEC);
     if (fd >= 0)
     {
         Elf32_auxv_t aux;
@@ -371,8 +387,8 @@ CPU_haveARMSIMD(void)
             {
                 const char *plat = (const char *) aux.a_un.a_val;
                 if (plat) {
-                    arm_simd = strncmp(plat, "v6l", 3) == 0 ||
-                               strncmp(plat, "v7l", 3) == 0;
+                    arm_simd = SDL_strncmp(plat, "v6l", 3) == 0 ||
+                               SDL_strncmp(plat, "v7l", 3) == 0;
                 }
             }
         }
@@ -385,20 +401,20 @@ CPU_haveARMSIMD(void)
 static int
 CPU_haveARMSIMD(void)
 {
-	_kernel_swi_regs regs;
-	regs.r[0] = 0;
-	if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
-		return 0;
+    _kernel_swi_regs regs;
+    regs.r[0] = 0;
+    if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
+        return 0;
 
-	if (!(regs.r[0] & (1<<31)))
-		return 0;
+    if (!(regs.r[0] & (1<<31)))
+        return 0;
 
-	regs.r[0] = 34;
-	regs.r[1] = 29;
-	if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
-		return 0;
+    regs.r[0] = 34;
+    regs.r[1] = 29;
+    if (_kernel_swi(OS_PlatformFeatures, &regs, &regs) != NULL)
+        return 0;
 
-	return regs.r[0];
+    return regs.r[0];
 }
 
 #else
@@ -417,7 +433,7 @@ readProcAuxvForNeon(void)
     int neon = 0;
     int fd;
 
-    fd = open("/proc/self/auxv", O_RDONLY);
+    fd = open("/proc/self/auxv", O_RDONLY | O_CLOEXEC);
     if (fd >= 0)
     {
         Elf32_auxv_t aux;
@@ -440,7 +456,7 @@ CPU_haveNEON(void)
    query the OS kernel in a platform-specific way. :/ */
 #if defined(SDL_CPUINFO_DISABLED)
    return 0; /* disabled */
-#elif (defined(__WINDOWS__) || defined(__WINRT__)) && (defined(_M_ARM) || defined(_M_ARM64))
+#elif (defined(__WINDOWS__) || defined(__WINRT__) || defined(__GDK__)) && (defined(_M_ARM) || defined(_M_ARM64))
 /* Visual Studio, for ARM, doesn't define __ARM_ARCH. Handle this first. */
 /* Seems to have been removed */
 #  if !defined(PF_ARM_NEON_INSTRUCTIONS_AVAILABLE)
@@ -501,6 +517,23 @@ CPU_haveNEON(void)
     return 0;
 #endif
 }
+
+static int
+CPU_readCPUCFG(void)
+{
+    uint32_t cfg2 = 0;
+#if defined __loongarch__
+    __asm__ volatile(
+        "cpucfg %0, %1 \n\t"
+        : "+&r"(cfg2)
+        : "r"(CPU_CFG2)
+    );
+#endif
+    return cfg2;
+}
+
+#define CPU_haveLSX() (CPU_readCPUCFG() & CPU_CFG2_LSX)
+#define CPU_haveLASX() (CPU_readCPUCFG() & CPU_CFG2_LASX)
 
 #if defined(__e2k__)
 inline int
@@ -638,7 +671,7 @@ SDL_GetCPUCount(void)
             sysctlbyname("hw.ncpu", &SDL_CPUCount, &size, NULL, 0);
         }
 #endif
-#ifdef __WIN32__
+#if defined(__WIN32__) || defined(__GDK__)
         if (SDL_CPUCount <= 0) {
             SYSTEM_INFO info;
             GetSystemInfo(&info);
@@ -879,6 +912,14 @@ SDL_GetCPUFeatures(void)
             SDL_CPUFeatures |= CPU_HAS_NEON;
             SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
         }
+        if (CPU_haveLSX()) {
+            SDL_CPUFeatures |= CPU_HAS_LSX;
+            SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 16);
+        }
+        if (CPU_haveLASX()) {
+            SDL_CPUFeatures |= CPU_HAS_LASX;
+            SDL_SIMDAlignment = SDL_max(SDL_SIMDAlignment, 32);
+        }
     }
     return SDL_CPUFeatures;
 }
@@ -968,6 +1009,18 @@ SDL_HasNEON(void)
     return CPU_FEATURE_AVAILABLE(CPU_HAS_NEON);
 }
 
+SDL_bool
+SDL_HasLSX(void)
+{
+    return CPU_FEATURE_AVAILABLE(CPU_HAS_LSX);
+}
+
+SDL_bool
+SDL_HasLASX(void)
+{
+    return CPU_FEATURE_AVAILABLE(CPU_HAS_LASX);
+}
+
 static int SDL_SystemRAM = 0;
 
 int
@@ -1000,7 +1053,7 @@ SDL_GetSystemRAM(void)
             }
         }
 #endif
-#ifdef __WIN32__
+#if defined(__WIN32__) || defined(__GDK__)
         if (SDL_SystemRAM <= 0) {
             MEMORYSTATUSEX stat;
             stat.dwLength = sizeof(stat);
@@ -1032,6 +1085,12 @@ SDL_GetSystemRAM(void)
             SDL_SystemRAM = 536870912;
         }
 #endif
+#ifdef __PS2__
+        if (SDL_SystemRAM <= 0) {
+            /* PlayStation 2 has 32MiB however there are some special models with 64 and 128 */
+            SDL_SystemRAM = GetMemorySize();
+        }
+#endif
 #endif
     }
     return SDL_SystemRAM;
@@ -1052,12 +1111,20 @@ void *
 SDL_SIMDAlloc(const size_t len)
 {
     const size_t alignment = SDL_SIMDGetAlignment();
-    const size_t padding = alignment - (len % alignment);
-    const size_t padded = (padding != alignment) ? (len + padding) : len;
+    const size_t padding = (alignment - (len % alignment)) % alignment;
     Uint8 *retval = NULL;
-    Uint8 *ptr = (Uint8 *) SDL_malloc(padded + alignment + sizeof (void *));
+    Uint8 *ptr;
+    size_t to_allocate;
+
+    /* alignment + padding + sizeof (void *) is bounded (a few hundred
+     * bytes max), so no need to check for overflow within that argument */
+    if (SDL_size_add_overflow(len, alignment + padding + sizeof (void *), &to_allocate)) {
+        return NULL;
+    }
+
+    ptr = (Uint8 *) SDL_malloc(to_allocate);
     if (ptr) {
-        /* store the actual malloc pointer right before our aligned pointer. */
+        /* store the actual allocated pointer right before our aligned pointer. */
         retval = ptr + sizeof (void *);
         retval += alignment - (((size_t) retval) % alignment);
         *(((void **) retval) - 1) = ptr;
@@ -1069,12 +1136,18 @@ void *
 SDL_SIMDRealloc(void *mem, const size_t len)
 {
     const size_t alignment = SDL_SIMDGetAlignment();
-    const size_t padding = alignment - (len % alignment);
-    const size_t padded = (padding != alignment) ? (len + padding) : len;
+    const size_t padding = (alignment - (len % alignment)) % alignment;
     Uint8 *retval = (Uint8*) mem;
     void *oldmem = mem;
     size_t memdiff = 0, ptrdiff;
     Uint8 *ptr;
+    size_t to_allocate;
+
+    /* alignment + padding + sizeof (void *) is bounded (a few hundred
+     * bytes max), so no need to check for overflow within that argument */
+    if (SDL_size_add_overflow(len, alignment + padding + sizeof (void *), &to_allocate)) {
+        return NULL;
+    }
 
     if (mem) {
         void **realptr = (void **) mem;
@@ -1085,13 +1158,13 @@ SDL_SIMDRealloc(void *mem, const size_t len)
         memdiff = ((size_t) oldmem) - ((size_t) mem);
     }
 
-    ptr = (Uint8 *) SDL_realloc(mem, padded + alignment + sizeof (void *));
+    ptr = (Uint8 *) SDL_realloc(mem, to_allocate);
 
     if (ptr == NULL) {
         return NULL; /* Out of memory, bail! */
     }
 
-    /* Store the actual malloc pointer right before our aligned pointer. */
+    /* Store the actual allocated pointer right before our aligned pointer. */
     retval = ptr + sizeof (void *);
     retval += alignment - (((size_t) retval) % alignment);
 
@@ -1109,7 +1182,7 @@ SDL_SIMDRealloc(void *mem, const size_t len)
         }
     }
 
-    /* Actually store the malloc pointer, finally. */
+    /* Actually store the allocated pointer, finally. */
     *(((void **) retval) - 1) = ptr;
     return retval;
 }
@@ -1150,6 +1223,8 @@ main()
     printf("AVX-512F: %d\n", SDL_HasAVX512F());
     printf("ARM SIMD: %d\n", SDL_HasARMSIMD());
     printf("NEON: %d\n", SDL_HasNEON());
+    printf("LSX: %d\n", SDL_HasLSX());
+    printf("LASX: %d\n", SDL_HasLASX());
     printf("RAM: %d MB\n", SDL_GetSystemRAM());
     return 0;
 }

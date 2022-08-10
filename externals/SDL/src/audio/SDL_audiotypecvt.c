@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -32,8 +32,8 @@
 #define HAVE_SSE2_INTRINSICS 1
 #endif
 
-#if defined(__ARM64__) && HAVE_SSE2_INTRINSICS
-#define NEED_SCALAR_CONVERTER_FALLBACKS 0  /* ARM64 guarantees SSE2. */
+#if defined(__x86_64__) && HAVE_SSE2_INTRINSICS
+#define NEED_SCALAR_CONVERTER_FALLBACKS 0  /* x86_64 guarantees SSE2. */
 #elif __MACOSX__ && HAVE_SSE2_INTRINSICS
 #define NEED_SCALAR_CONVERTER_FALLBACKS 0  /* Mac OS X/Intel guarantees SSE2. */
 #elif defined(__ARM_ARCH) && (__ARM_ARCH >= 8) && HAVE_NEON_INTRINSICS

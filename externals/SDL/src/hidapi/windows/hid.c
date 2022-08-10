@@ -21,8 +21,6 @@
 ********************************************************/
 #include "../../SDL_internal.h"
 
-#ifdef SDL_JOYSTICK_HIDAPI
-
 #include <windows.h>
 
 #ifndef _WIN32_WINNT_WIN8
@@ -44,22 +42,6 @@
 #ifndef _NTDEF_
 typedef LONG NTSTATUS;
 #endif
-
-/* SDL C runtime functions */
-#include "SDL_stdinc.h"
-
-#define calloc SDL_calloc
-#define free SDL_free
-#define malloc SDL_malloc
-#define memcpy SDL_memcpy
-#define memset SDL_memset
-#define strcmp SDL_strcmp
-#define strlen SDL_strlen
-#define strncpy SDL_strlcpy
-#define strstr SDL_strstr
-#define strtol SDL_strtol
-#define wcscmp SDL_wcscmp
-#define _wcsdup SDL_wcsdup
 
 /* The maximum number of characters that can be passed into the
    HidD_Get*String() functions without it failing.*/
@@ -97,19 +79,31 @@ extern "C" {
 } /* extern "C" */
 #endif
 
+#include "../hidapi/hidapi.h"
+
 /*#include <stdio.h>*/
 /*#include <stdlib.h>*/
 
+/* SDL C runtime functions */
+#include "SDL_stdinc.h"
 
-#include "../hidapi/hidapi.h"
+#define calloc SDL_calloc
+#define free SDL_free
+#define malloc SDL_malloc
+#define memcpy SDL_memcpy
+#define memset SDL_memset
+#define strcmp SDL_strcmp
+#define strlen SDL_strlen
+#define strstr SDL_strstr
+#define strtol SDL_strtol
+#define wcscmp SDL_wcscmp
+#define _wcsdup SDL_wcsdup
+
 
 #undef MIN
 #define MIN(x,y) ((x) < (y)? (x): (y))
 
 #ifdef _MSC_VER
-	/* Thanks Microsoft, but I know how to use strncpy(). */
-	#pragma warning(disable:4996)
-
 	/* Yes, we have some unreferenced formal parameters */
 	#pragma warning(disable:4100)
 #endif
@@ -552,8 +546,7 @@ struct hid_device_info HID_API_EXPORT * HID_API_CALL hid_enumerate(unsigned shor
 			if (str) {
 				len = strlen(str);
 				cur_dev->path = (char*) calloc(len+1, sizeof(char));
-				strncpy(cur_dev->path, str, len+1);
-				cur_dev->path[len] = '\0';
+				memcpy(cur_dev->path, str, len+1);
 			}
 			else
 				cur_dev->path = NULL;
@@ -1099,5 +1092,3 @@ int __cdecl main(int argc, char* argv[])
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-
-#endif /* SDL_JOYSTICK_HIDAPI */

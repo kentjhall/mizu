@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -108,7 +108,7 @@ Wayland_StopTextInput(_THIS)
 }
 
 void
-Wayland_SetTextInputRect(_THIS, SDL_Rect *rect)
+Wayland_SetTextInputRect(_THIS, const SDL_Rect *rect)
 {
     SDL_VideoData *driverdata = _this->driverdata;
 
@@ -120,7 +120,7 @@ Wayland_SetTextInputRect(_THIS, SDL_Rect *rect)
     if (driverdata->text_input_manager) {
         struct SDL_WaylandInput *input = driverdata->input;
         if (input != NULL && input->text_input) {
-            SDL_memcpy(&input->text_input->cursor_rect, rect, sizeof(SDL_Rect));
+            SDL_copyp(&input->text_input->cursor_rect, rect);
             zwp_text_input_v3_set_cursor_rectangle(input->text_input->text_input,
                                                    rect->x,
                                                    rect->y,
@@ -140,8 +140,13 @@ Wayland_SetTextInputRect(_THIS, SDL_Rect *rect)
 SDL_bool
 Wayland_HasScreenKeyboardSupport(_THIS)
 {
+    /* In reality we just want to return true when the screen keyboard is the
+     * _only_ way to get text input. So, in addition to checking for the text
+     * input protocol, make sure we don't have any physical keyboards either.
+     */
     SDL_VideoData *driverdata = _this->driverdata;
-    return (driverdata->text_input_manager != NULL);
+    return (driverdata->input->keyboard == NULL &&
+            driverdata->text_input_manager != NULL);
 }
 
 #endif /* SDL_VIDEO_DRIVER_WAYLAND */

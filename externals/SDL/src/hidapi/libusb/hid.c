@@ -31,16 +31,29 @@
 #include "SDL_thread.h"
 #include "SDL_mutex.h"
 
-#ifdef SDL_JOYSTICK_HIDAPI
-
-#if defined(HAVE__WCSDUP) && !defined(HAVE_WCSDUP)
+#ifndef HAVE_WCSDUP
+#ifdef HAVE__WCSDUP
 #define wcsdup _wcsdup
+#else
+#define wcsdup _dupwcs
+static wchar_t *_dupwcs(const wchar_t *src)
+{
+    wchar_t *dst = NULL;
+    if (src) {
+        size_t len = SDL_wcslen(src) + 1;
+        len *= sizeof(wchar_t);
+        dst = (wchar_t *) malloc(len);
+        if (dst) memcpy(dst, src, len);
+    }
+    return dst;
+}
 #endif
+#endif /* HAVE_WCSDUP */
 
 #include <libusb.h>
 #include <locale.h> /* setlocale */
 
-#include "hidapi.h"
+#include "../hidapi/hidapi.h"
 
 #ifdef NAMESPACE
 namespace NAMESPACE
@@ -61,12 +74,8 @@ typedef struct _SDL_ThreadBarrier
 
 static int SDL_CreateThreadBarrier(SDL_ThreadBarrier *barrier, Uint32 count)
 {
-	if (barrier == NULL) {
-		return SDL_SetError("barrier must be non-NULL");
-	}
-	if (count == 0) {
-		return SDL_SetError("count must be > 0");
-	}
+	SDL_assert(barrier != NULL);
+	SDL_assert(count != 0);
 
 	barrier->mutex = SDL_CreateMutex();
 	if (barrier->mutex == NULL) {
@@ -375,12 +384,16 @@ static int is_language_supported(libusb_device_handle *dev, uint16_t lang)
 /* This function returns a newly allocated wide string containing the USB
    device string numbered by the index. The returned string must be freed
    by using free(). */
+#if defined(__OS2__) /* don't use iconv on OS/2: no support for wchar_t. */
+#define NO_ICONV
+#endif
 static wchar_t *get_usb_string(libusb_device_handle *dev, uint8_t idx)
 {
 	char buf[512];
 	int len;
 	wchar_t *str = NULL;
 
+#if !defined(NO_ICONV)
 	wchar_t wbuf[256];
 	SDL_iconv_t ic;
 	size_t inbytes;
@@ -388,6 +401,9 @@ static wchar_t *get_usb_string(libusb_device_handle *dev, uint8_t idx)
 	size_t res;
 	const char *inptr;
 	char *outptr;
+#else
+	int i;
+#endif
 
 	/* Determine which language to use. */
 	uint16_t lang;
@@ -404,6 +420,23 @@ static wchar_t *get_usb_string(libusb_device_handle *dev, uint8_t idx)
 	if (len < 0)
 		return NULL;
 
+#if defined(NO_ICONV) /* original hidapi code for NO_ICONV : */
+
+	/* Bionic does not have wchar_t iconv support, so it
+	   has to be done manually.  The following code will only work for
+	   code points that can be represented as a single UTF-16 character,
+	   and will incorrectly convert any code points which require more
+	   than one UTF-16 character.
+
+	   Skip over the first character (2-bytes).  */
+	len -= 2;
+	str = (wchar_t*) malloc((len / 2 + 1) * sizeof(wchar_t));
+	for (i = 0; i < len / 2; i++) {
+		str[i] = buf[i * 2 + 2] | (buf[i * 2 + 3] << 8);
+	}
+	str[len / 2] = 0x00000000;
+
+#else
 	/* buf does not need to be explicitly NULL-terminated because
 	   it is only passed into iconv() which does not need it. */
 
@@ -436,6 +469,7 @@ static wchar_t *get_usb_string(libusb_device_handle *dev, uint8_t idx)
 
 err:
 	SDL_iconv_close(ic);
+#endif
 
 	return str;
 }
@@ -493,6 +527,22 @@ static struct usb_string_cache_entry *usb_string_cache_insert()
 	new_entry = &usb_string_cache[usb_string_cache_insert_pos];
 	usb_string_cache_insert_pos++;
 	return new_entry;
+}
+
+static int usb_string_can_cache(uint16_t vid, uint16_t pid)
+{
+	if (!vid || !pid) {
+		/* We can't cache these, they aren't unique */
+		return 0;
+	}
+
+	if (vid == 0x0f0d && pid == 0x00dc) {
+		/* HORI reuses this VID/PID for many different products */
+		return 0;
+	}
+
+	/* We can cache these strings */
+	return 1;
 }
 
 static const struct usb_string_cache_entry *usb_string_cache_find(struct libusb_device_descriptor *desc, struct libusb_device_handle *handle)
@@ -601,6 +651,7 @@ static int is_xbox360(unsigned short vendor_id, const struct libusb_interface_de
 		0x1bad, /* Harmonix */
 		0x20d6, /* PowerA */
 		0x24c6, /* PowerA */
+		0x2c22, /* Qanba */
 	};
 
 	if (intf_desc->bInterfaceClass == LIBUSB_CLASS_VENDOR_SPEC &&
@@ -629,6 +680,7 @@ static int is_xboxone(unsigned short vendor_id, const struct libusb_interface_de
 		0x1532, /* Razer Wildcat */
 		0x20d6, /* PowerA */
 		0x24c6, /* PowerA */
+		0x2dc8, /* 8BitDo */
 		0x2e24, /* Hyperkin */
 	};
 
@@ -648,6 +700,8 @@ static int is_xboxone(unsigned short vendor_id, const struct libusb_interface_de
 
 static int should_enumerate_interface(unsigned short vendor_id, const struct libusb_interface_descriptor *intf_desc)
 {
+	//printf("Checking interface 0x%x %d/%d/%d/%d\n", vendor_id, intf_desc->bInterfaceNumber, intf_desc->bInterfaceClass, intf_desc->bInterfaceSubClass, intf_desc->bInterfaceProtocol);
+
 	if (intf_desc->bInterfaceClass == LIBUSB_CLASS_HID)
 		return 1;
 
@@ -730,7 +784,7 @@ struct hid_device_info  HID_API_EXPORT *hid_enumerate(unsigned short vendor_id, 
 										get_usb_string(handle, desc.iSerialNumber);
 
 								/* Manufacturer and Product strings */
-								if (dev_vid && dev_pid) {
+								if (usb_string_can_cache(dev_vid, dev_pid)) {
 									string_cache = usb_string_cache_find(&desc, handle);
 									if (string_cache) {
 										if (string_cache->vendor) {
@@ -960,7 +1014,7 @@ static void LIBUSB_CALL read_callback(struct libusb_transfer *transfer)
 }
 
 
-static int read_thread(void *param)
+static int SDLCALL read_thread(void *param)
 {
 	hid_device *dev = (hid_device *)param;
 	uint8_t *buf;
@@ -1031,8 +1085,22 @@ static int read_thread(void *param)
 	return 0;
 }
 
-static void init_xboxone(libusb_device_handle *device_handle, struct libusb_config_descriptor *conf_desc)
+static void init_xbox360(libusb_device_handle *device_handle, unsigned short idVendor, unsigned short idProduct, struct libusb_config_descriptor *conf_desc)
 {
+	if (idVendor == 0x0f0d && idProduct == 0x00dc) {
+		unsigned char data[20];
+
+		/* The HORIPAD FPS for Nintendo Switch requires this to enable input reports.
+		   This VID/PID is also shared with other HORI controllers, but they all seem
+		   to be fine with this as well.
+		 */
+		libusb_control_transfer(device_handle, 0xC1, 0x01, 0x100, 0x0, data, sizeof(data), 100);
+	}
+}
+
+static void init_xboxone(libusb_device_handle *device_handle, unsigned short idVendor, unsigned short idProduct, struct libusb_config_descriptor *conf_desc)
+{
+	static const int VENDOR_MICROSOFT = 0x045e;
 	static const int XB1_IFACE_SUBCLASS = 71;
 	static const int XB1_IFACE_PROTOCOL = 208;
 	int j, k, res;
@@ -1040,26 +1108,36 @@ static void init_xboxone(libusb_device_handle *device_handle, struct libusb_conf
 	for (j = 0; j < conf_desc->bNumInterfaces; j++) {
 		const struct libusb_interface *intf = &conf_desc->interface[j];
 		for (k = 0; k < intf->num_altsetting; k++) {
-			const struct libusb_interface_descriptor *intf_desc;
-			intf_desc = &intf->altsetting[k];
-
-			if (intf_desc->bInterfaceNumber != 0 &&
-			    intf_desc->bAlternateSetting == 0 &&
-			    intf_desc->bInterfaceClass == LIBUSB_CLASS_VENDOR_SPEC &&
+			const struct libusb_interface_descriptor *intf_desc = &intf->altsetting[k];
+			if (intf_desc->bInterfaceClass == LIBUSB_CLASS_VENDOR_SPEC &&
 			    intf_desc->bInterfaceSubClass == XB1_IFACE_SUBCLASS &&
 			    intf_desc->bInterfaceProtocol == XB1_IFACE_PROTOCOL) {
-				res = libusb_claim_interface(device_handle, intf_desc->bInterfaceNumber);
-				if (res < 0) {
-					LOG("can't claim interface %d: %d\n", intf_desc->bInterfaceNumber, res);
-					continue;
+				int bSetAlternateSetting = 0;
+
+				/* Newer Microsoft Xbox One controllers have a high speed alternate setting */
+				if (idVendor == VENDOR_MICROSOFT &&
+				    intf_desc->bInterfaceNumber == 0 && intf_desc->bAlternateSetting == 1) {
+					bSetAlternateSetting = 1;
+				} else if (intf_desc->bInterfaceNumber != 0 && intf_desc->bAlternateSetting == 0) {
+					bSetAlternateSetting = 1;
 				}
 
-				res = libusb_set_interface_alt_setting(device_handle, intf_desc->bInterfaceNumber, intf_desc->bAlternateSetting);
-				if (res < 0) {
-					LOG("xbox init: can't set alt setting %d: %d\n", intf_desc->bInterfaceNumber, res);
-				}
+				if (bSetAlternateSetting) {
+					res = libusb_claim_interface(device_handle, intf_desc->bInterfaceNumber);
+					if (res < 0) {
+						LOG("can't claim interface %d: %d\n", intf_desc->bInterfaceNumber, res);
+						continue;
+					}
 
-				libusb_release_interface(device_handle, intf_desc->bInterfaceNumber);
+					LOG("Setting alternate setting for VID/PID 0x%x/0x%x interface %d to %d\n",  idVendor, idProduct, intf_desc->bInterfaceNumber, intf_desc->bAlternateSetting);
+
+					res = libusb_set_interface_alt_setting(device_handle, intf_desc->bInterfaceNumber, intf_desc->bAlternateSetting);
+					if (res < 0) {
+						LOG("xbox init: can't set alt setting %d: %d\n", intf_desc->bInterfaceNumber, res);
+					}
+
+					libusb_release_interface(device_handle, intf_desc->bInterfaceNumber);
+				}
 			}
 		}
 	}
@@ -1139,9 +1217,14 @@ hid_device * HID_API_EXPORT hid_open_path(const char *path, int bExclusive)
 							break;
 						}
 
+						/* Initialize XBox 360 controllers */
+						if (is_xbox360(desc.idVendor, intf_desc)) {
+							init_xbox360(dev->device_handle, desc.idVendor, desc.idProduct, conf_desc);
+						}
+
 						/* Initialize XBox One controllers */
 						if (is_xboxone(desc.idVendor, intf_desc)) {
-							init_xboxone(dev->device_handle, conf_desc);
+							init_xboxone(dev->device_handle, desc.idVendor, desc.idProduct, conf_desc);
 						}
 
 						/* Store off the string descriptor indexes */
@@ -1452,6 +1535,7 @@ void HID_API_EXPORT hid_close(hid_device *dev)
 
 	/* Clean up the Transfer objects allocated in read_thread(). */
 	free(dev->transfer->buffer);
+	dev->transfer->buffer = NULL;
 	libusb_free_transfer(dev->transfer);
 
 	/* release the interface */
@@ -1731,5 +1815,3 @@ uint16_t get_usb_code_for_current_locale(void)
 #ifdef NAMESPACE
 }
 #endif
-
-#endif /* SDL_JOYSTICK_HIDAPI */

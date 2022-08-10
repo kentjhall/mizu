@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -227,7 +227,7 @@ DirectFB_SetWindowIcon(_THIS, SDL_Window * window, SDL_Surface * icon)
 
         p = surface->pixels;
         for (i = 0; i < surface->h; i++)
-            memcpy((char *) dest + i * pitch,
+            SDL_memcpy((char *) dest + i * pitch,
                    (char *) p + i * surface->pitch, 4 * surface->w);
 
         SDL_DFB_CHECK(windata->icon->Unlock(windata->icon));
@@ -482,16 +482,15 @@ DirectFB_GetWindowWMInfo(_THIS, SDL_Window * window,
         return SDL_FALSE;
     }
 
-    if (info->version.major == SDL_MAJOR_VERSION &&
-        info->version.minor == SDL_MINOR_VERSION) {
+    if (info->version.major == SDL_MAJOR_VERSION) {
         info->subsystem = SDL_SYSWM_DIRECTFB;
         info->info.dfb.dfb = devdata->dfb;
         info->info.dfb.window = windata->dfbwin;
         info->info.dfb.surface = windata->surface;
         return SDL_TRUE;
     } else {
-        SDL_SetError("Application not compiled with SDL %d.%d",
-                     SDL_MAJOR_VERSION, SDL_MINOR_VERSION);
+        SDL_SetError("Application not compiled with SDL %d",
+                     SDL_MAJOR_VERSION);
         return SDL_FALSE;
     }
 }

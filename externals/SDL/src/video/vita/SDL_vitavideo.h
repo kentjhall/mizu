@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2015 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,10 +24,12 @@
 
 #include "../../SDL_internal.h"
 #include "../SDL_sysvideo.h"
+#include "../SDL_egl_c.h"
 
 #include <psp2/types.h>
 #include <psp2/display.h>
 #include <psp2/ime_dialog.h>
+#include <psp2/sysmodule.h>
 
 typedef struct SDL_VideoData
 {
@@ -36,7 +38,6 @@ typedef struct SDL_VideoData
 
     SceWChar16 ime_buffer[SCE_IME_DIALOG_MAX_TEXT_LENGTH];
     SDL_bool ime_active;
-
 } SDL_VideoData;
 
 
@@ -51,7 +52,10 @@ typedef struct SDL_WindowData
     SDL_bool uses_gles;
     SceUID buffer_uid;
     void* buffer;
-
+#if defined(SDL_VIDEO_VITA_PVR)
+    EGLSurface egl_surface;
+    EGLContext egl_context;
+#endif
 } SDL_WindowData;
 
 extern SDL_Window * Vita_Window;
@@ -86,16 +90,23 @@ SDL_bool VITA_GetWindowWMInfo(_THIS, SDL_Window * window,
                              struct SDL_SysWMinfo *info);
 
 #if SDL_VIDEO_DRIVER_VITA
+#if defined(SDL_VIDEO_VITA_PVR_OGL)
 /* OpenGL functions */
 int VITA_GL_LoadLibrary(_THIS, const char *path);
-void *VITA_GL_GetProcAddress(_THIS, const char *proc);
-void VITA_GL_UnloadLibrary(_THIS);
 SDL_GLContext VITA_GL_CreateContext(_THIS, SDL_Window * window);
-int VITA_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context);
-int VITA_GL_SetSwapInterval(_THIS, int interval);
-int VITA_GL_GetSwapInterval(_THIS);
-int VITA_GL_SwapWindow(_THIS, SDL_Window * window);
-void VITA_GL_DeleteContext(_THIS, SDL_GLContext context);
+void *VITA_GL_GetProcAddress(_THIS, const char *proc);
+#endif
+
+/* OpenGLES functions */
+int VITA_GLES_LoadLibrary(_THIS, const char *path);
+void *VITA_GLES_GetProcAddress(_THIS, const char *proc);
+void VITA_GLES_UnloadLibrary(_THIS);
+SDL_GLContext VITA_GLES_CreateContext(_THIS, SDL_Window * window);
+int VITA_GLES_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context);
+int VITA_GLES_SetSwapInterval(_THIS, int interval);
+int VITA_GLES_GetSwapInterval(_THIS);
+int VITA_GLES_SwapWindow(_THIS, SDL_Window * window);
+void VITA_GLES_DeleteContext(_THIS, SDL_GLContext context);
 #endif
 
 /* VITA on screen keyboard */

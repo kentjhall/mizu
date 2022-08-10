@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -33,25 +33,43 @@
 SDL_COMPILE_TIME_ASSERT(surface_size_assumptions,
     sizeof(int) == sizeof(Sint32) && sizeof(size_t) >= sizeof(Sint32));
 
+SDL_COMPILE_TIME_ASSERT(can_indicate_overflow, SDL_SIZE_MAX > SDL_MAX_SINT32);
+
 /* Public routines */
 
 /*
- * Calculate the pad-aligned scanline width of a surface
+ * Calculate the pad-aligned scanline width of a surface.
+ * Return SDL_SIZE_MAX on overflow.
  */
-static Sint64
-SDL_CalculatePitch(Uint32 format, int width)
+static size_t
+SDL_CalculatePitch(Uint32 format, size_t width, SDL_bool minimal)
 {
-    Sint64 pitch;
+    size_t pitch;
 
     if (SDL_ISPIXELFORMAT_FOURCC(format) || SDL_BITSPERPIXEL(format) >= 8) {
-        pitch = ((Sint64)width * SDL_BYTESPERPIXEL(format));
+        if (SDL_size_mul_overflow(width, SDL_BYTESPERPIXEL(format), &pitch)) {
+            return SDL_SIZE_MAX;
+        }
     } else {
-        pitch = (((Sint64)width * SDL_BITSPERPIXEL(format)) + 7) / 8;
+        if (SDL_size_mul_overflow(width, SDL_BITSPERPIXEL(format), &pitch)) {
+            return SDL_SIZE_MAX;
+        }
+        if (SDL_size_add_overflow(pitch, 7, &pitch)) {
+            return SDL_SIZE_MAX;
+        }
+        pitch /= 8;
     }
-    pitch = (pitch + 3) & ~3;   /* 4-byte aligning for speed */
+    if (!minimal) {
+        /* 4-byte aligning for speed */
+        if (SDL_size_add_overflow(pitch, 3, &pitch)) {
+            return SDL_SIZE_MAX;
+        }
+        pitch &= ~3;
+    }
     return pitch;
 }
 
+/* TODO: In SDL 3, drop the unused flags and depth parameters */
 /*
  * Create an empty RGB surface of the appropriate depth using the given
  * enum SDL_PIXELFORMAT_* format
@@ -60,14 +78,24 @@ SDL_Surface *
 SDL_CreateRGBSurfaceWithFormat(Uint32 flags, int width, int height, int depth,
                                Uint32 format)
 {
-    Sint64 pitch;
+    size_t pitch;
     SDL_Surface *surface;
 
     /* The flags are no longer used, make the compiler happy */
     (void)flags;
 
-    pitch = SDL_CalculatePitch(format, width);
-    if (pitch < 0 || pitch > SDL_MAX_SINT32) {
+    if (width < 0) {
+        SDL_InvalidParamError("width");
+        return NULL;
+    }
+
+    if (height < 0) {
+        SDL_InvalidParamError("height");
+        return NULL;
+    }
+
+    pitch = SDL_CalculatePitch(format, width, SDL_FALSE);
+    if (pitch > SDL_MAX_SINT32) {
         /* Overflow... */
         SDL_OutOfMemory();
         return NULL;
@@ -113,15 +141,15 @@ SDL_CreateRGBSurfaceWithFormat(Uint32 flags, int width, int height, int depth,
     /* Get the pixels */
     if (surface->w && surface->h) {
         /* Assumptions checked in surface_size_assumptions assert above */
-        Sint64 size = ((Sint64)surface->h * surface->pitch);
-        if (size < 0 || size > SDL_MAX_SINT32) {
+        size_t size;
+        if (SDL_size_mul_overflow(surface->h, surface->pitch, &size)) {
             /* Overflow... */
             SDL_FreeSurface(surface);
             SDL_OutOfMemory();
             return NULL;
         }
 
-        surface->pixels = SDL_SIMDAlloc((size_t)size);
+        surface->pixels = SDL_SIMDAlloc(size);
         if (!surface->pixels) {
             SDL_FreeSurface(surface);
             SDL_OutOfMemory();
@@ -129,7 +157,7 @@ SDL_CreateRGBSurfaceWithFormat(Uint32 flags, int width, int height, int depth,
         }
         surface->flags |= SDL_SIMD_ALIGNED;
         /* This is important for bitmaps */
-        SDL_memset(surface->pixels, 0, surface->h * surface->pitch);
+        SDL_memset(surface->pixels, 0, size);
     }
 
     /* Allocate an empty mapping */
@@ -149,6 +177,7 @@ SDL_CreateRGBSurfaceWithFormat(Uint32 flags, int width, int height, int depth,
     return surface;
 }
 
+/* TODO: In SDL 3, drop the unused flags parameter */
 /*
  * Create an empty RGB surface of the appropriate depth
  */
@@ -179,8 +208,34 @@ SDL_CreateRGBSurfaceFrom(void *pixels,
                          Uint32 Amask)
 {
     SDL_Surface *surface;
+    Uint32 format;
+    size_t minimalPitch;
 
-    surface = SDL_CreateRGBSurface(0, 0, 0, depth, Rmask, Gmask, Bmask, Amask);
+    if (width < 0) {
+        SDL_InvalidParamError("width");
+        return NULL;
+    }
+
+    if (height < 0) {
+        SDL_InvalidParamError("height");
+        return NULL;
+    }
+
+    format = SDL_MasksToPixelFormatEnum(depth, Rmask, Gmask, Bmask, Amask);
+
+    if (format == SDL_PIXELFORMAT_UNKNOWN) {
+        SDL_SetError("Unknown pixel format");
+        return NULL;
+    }
+
+    minimalPitch = SDL_CalculatePitch(format, width, SDL_TRUE);
+
+    if (pitch < 0 || ((size_t) pitch) < minimalPitch) {
+        SDL_InvalidParamError("pitch");
+        return NULL;
+    }
+
+    surface = SDL_CreateRGBSurfaceWithFormat(0, 0, 0, depth, format);
     if (surface != NULL) {
         surface->flags |= SDL_PREALLOC;
         surface->pixels = pixels;
@@ -192,6 +247,7 @@ SDL_CreateRGBSurfaceFrom(void *pixels,
     return surface;
 }
 
+/* TODO: In SDL 3, drop the unused depth parameter */
 /*
  * Create an RGB surface from an existing memory buffer using the given given
  * enum SDL_PIXELFORMAT_* format
@@ -202,6 +258,24 @@ SDL_CreateRGBSurfaceWithFormatFrom(void *pixels,
                          Uint32 format)
 {
     SDL_Surface *surface;
+    size_t minimalPitch;
+
+    if (width < 0) {
+        SDL_InvalidParamError("width");
+        return NULL;
+    }
+
+    if (height < 0) {
+        SDL_InvalidParamError("height");
+        return NULL;
+    }
+
+    minimalPitch = SDL_CalculatePitch(format, width, SDL_TRUE);
+
+    if (pitch < 0 || ((size_t) pitch) < minimalPitch) {
+        SDL_InvalidParamError("pitch");
+        return NULL;
+    }
 
     surface = SDL_CreateRGBSurfaceWithFormat(0, 0, 0, depth, format);
     if (surface != NULL) {
@@ -219,7 +293,7 @@ int
 SDL_SetSurfacePalette(SDL_Surface * surface, SDL_Palette * palette)
 {
     if (!surface) {
-        return SDL_SetError("SDL_SetSurfacePalette() passed a NULL surface");
+        return SDL_InvalidParamError("SDL_SetSurfacePalette(): surface");
     }
     if (SDL_SetPixelFormatPalette(surface->format, palette) < 0) {
         return -1;
@@ -646,7 +720,7 @@ SDL_UpperBlit(SDL_Surface * src, const SDL_Rect * srcrect,
 
     /* Make sure the surfaces aren't locked */
     if (!src || !dst) {
-        return SDL_SetError("SDL_UpperBlit: passed a NULL surface");
+        return SDL_InvalidParamError("SDL_UpperBlit(): src/dst");
     }
     if (src->locked || dst->locked) {
         return SDL_SetError("Surfaces must not be locked during blit");
@@ -757,7 +831,7 @@ SDL_PrivateUpperBlitScaled(SDL_Surface * src, const SDL_Rect * srcrect,
 
     /* Make sure the surfaces aren't locked */
     if (!src || !dst) {
-        return SDL_SetError("SDL_UpperBlitScaled: passed a NULL surface");
+        return SDL_InvalidParamError("SDL_UpperBlitScaled(): src/dst");
     }
     if (src->locked || dst->locked) {
         return SDL_SetError("Surfaces must not be locked during blit");
@@ -1092,6 +1166,7 @@ SDL_ConvertSurface(SDL_Surface * surface, const SDL_PixelFormat * format,
     int palette_ck_value = 0;
     SDL_bool palette_has_alpha = SDL_FALSE;
     Uint8 *palette_saved_alpha = NULL;
+    int palette_saved_alpha_ncolors = 0;
 
     if (!surface) {
         SDL_InvalidParamError("surface");
@@ -1173,8 +1248,9 @@ SDL_ConvertSurface(SDL_Surface * surface, const SDL_PixelFormat * format,
         /* Set opaque and backup palette alpha values */
         if (set_opaque) {
             int i;
-            palette_saved_alpha = SDL_stack_alloc(Uint8, surface->format->palette->ncolors);
-            for (i = 0; i < surface->format->palette->ncolors; i++) {
+            palette_saved_alpha_ncolors = surface->format->palette->ncolors;
+            palette_saved_alpha = SDL_stack_alloc(Uint8, palette_saved_alpha_ncolors);
+            for (i = 0; i < palette_saved_alpha_ncolors; i++) {
                 palette_saved_alpha[i] = surface->format->palette->colors[i].a;
                 surface->format->palette->colors[i].a = SDL_ALPHA_OPAQUE;
             }
@@ -1201,7 +1277,7 @@ SDL_ConvertSurface(SDL_Surface * surface, const SDL_PixelFormat * format,
     /* Restore palette alpha values */
     if (palette_saved_alpha) {
         int i;
-        for (i = 0; i < surface->format->palette->ncolors; i++) {
+        for (i = 0; i < palette_saved_alpha_ncolors; i++) {
             surface->format->palette->colors[i].a = palette_saved_alpha[i];
         }
         SDL_stack_free(palette_saved_alpha);
@@ -1379,7 +1455,12 @@ int SDL_ConvertPixels(int width, int height,
     void *nonconst_src = (void *) src;
     int ret;
 
-    /* Check to make sure we are blitting somewhere, so we don't crash */
+    if (!src) {
+        return SDL_InvalidParamError("src");
+    }
+    if (!src_pitch) {
+        return SDL_InvalidParamError("src_pitch");
+    }
     if (!dst) {
         return SDL_InvalidParamError("dst");
     }
@@ -1397,8 +1478,7 @@ int SDL_ConvertPixels(int width, int height,
     }
 #else
     if (SDL_ISPIXELFORMAT_FOURCC(src_format) || SDL_ISPIXELFORMAT_FOURCC(dst_format)) {
-        SDL_SetError("SDL not built with YUV support");
-        return -1;
+        return SDL_SetError("SDL not built with YUV support");
     }
 #endif
 
@@ -1436,6 +1516,68 @@ int SDL_ConvertPixels(int width, int height,
     SDL_InvalidateMap(src_surface.map);
 
     return ret;
+}
+
+/*
+ * Premultiply the alpha on a block of pixels
+ *
+ * This is currently only implemented for SDL_PIXELFORMAT_ARGB8888
+ *
+ * Here are some ideas for optimization:
+ * https://github.com/Wizermil/premultiply_alpha/tree/master/premultiply_alpha
+ * https://developer.arm.com/documentation/101964/0201/Pre-multiplied-alpha-channel-data
+ */
+int SDL_PremultiplyAlpha(int width, int height,
+                         Uint32 src_format, const void * src, int src_pitch,
+                         Uint32 dst_format, void * dst, int dst_pitch)
+{
+    int c;
+    Uint32 srcpixel;
+    Uint32 srcR, srcG, srcB, srcA;
+    Uint32 dstpixel;
+    Uint32 dstR, dstG, dstB, dstA;
+
+    if (!src) {
+        return SDL_InvalidParamError("src");
+    }
+    if (!src_pitch) {
+        return SDL_InvalidParamError("src_pitch");
+    }
+    if (!dst) {
+        return SDL_InvalidParamError("dst");
+    }
+    if (!dst_pitch) {
+        return SDL_InvalidParamError("dst_pitch");
+    }
+    if (src_format != SDL_PIXELFORMAT_ARGB8888) {
+        return SDL_InvalidParamError("src_format");
+    }
+    if (dst_format != SDL_PIXELFORMAT_ARGB8888) {
+        return SDL_InvalidParamError("dst_format");
+    }
+
+    while (height--) {
+        const Uint32 *src_px = (const Uint32 *)src;
+        Uint32 *dst_px = (Uint32 *)dst;
+        for (c = width; c; --c) {
+            /* Component bytes extraction. */
+            srcpixel = *src_px++;
+            RGBA_FROM_ARGB8888(srcpixel, srcR, srcG, srcB, srcA);
+
+            /* Alpha pre-multiplication of each component. */
+            dstA = srcA;
+            dstR = (srcA * srcR) / 255;
+            dstG = (srcA * srcG) / 255;
+            dstB = (srcA * srcB) / 255;
+
+            /* ARGB8888 pixel recomposition. */
+            ARGB8888_FROM_RGBA(dstpixel, dstR, dstG, dstB, dstA);
+            *dst_px++ = dstpixel;
+        }
+        src = (const Uint8 *)src + src_pitch;
+        dst = (Uint8 *)dst + dst_pitch;
+    }
+    return 0;
 }
 
 /*

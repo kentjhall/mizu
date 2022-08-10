@@ -1,14 +1,14 @@
 #! /bin/sh
 # Attempt to guess a canonical system name.
-#   Copyright 1992-2021 Free Software Foundation, Inc.
+#   Copyright 1992-2022 Free Software Foundation, Inc.
 
 # shellcheck disable=SC2006,SC2268 # see below for rationale
 
-timestamp='2021-06-03'
+timestamp='2022-05-25'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful, but
@@ -60,7 +60,7 @@ version="\
 GNU config.guess ($timestamp)
 
 Originally written by Per Bothner.
-Copyright 1992-2021 Free Software Foundation, Inc.
+Copyright 1992-2022 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -437,10 +437,10 @@ case $UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION in
 	# This test works for both compilers.
 	if test "$CC_FOR_BUILD" != no_compiler_found; then
 	    if (echo '#ifdef __amd64'; echo IS_64BIT_ARCH; echo '#endif') | \
-		(CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
+		(CCOPTS="" $CC_FOR_BUILD -m64 -E - 2>/dev/null) | \
 		grep IS_64BIT_ARCH >/dev/null
 	    then
-		SUN_ARCH=ARM64
+		SUN_ARCH=x86_64
 	    fi
 	fi
 	SUN_REL=`echo "$UNAME_RELEASE" | sed -e 's/[^.]*//'`
@@ -907,7 +907,7 @@ EOF
 	UNAME_PROCESSOR=`/usr/bin/uname -p`
 	case $UNAME_PROCESSOR in
 	    amd64)
-		UNAME_PROCESSOR=ARM64 ;;
+		UNAME_PROCESSOR=x86_64 ;;
 	    i386)
 		UNAME_PROCESSOR=i586 ;;
 	esac
@@ -929,13 +929,16 @@ EOF
     i*:PW*:*)
 	GUESS=$UNAME_MACHINE-pc-pw32
 	;;
+    *:SerenityOS:*:*)
+        GUESS=$UNAME_MACHINE-pc-serenity
+        ;;
     *:Interix*:*)
 	case $UNAME_MACHINE in
 	    x86)
 		GUESS=i586-pc-interix$UNAME_RELEASE
 		;;
 	    authenticamd | genuineintel | EM64T)
-		GUESS=ARM64-unknown-interix$UNAME_RELEASE
+		GUESS=x86_64-unknown-interix$UNAME_RELEASE
 		;;
 	    IA64)
 		GUESS=ia64-unknown-interix$UNAME_RELEASE
@@ -944,8 +947,8 @@ EOF
     i*:UWIN*:*)
 	GUESS=$UNAME_MACHINE-pc-uwin
 	;;
-    amd64:CYGWIN*:*:* | ARM64:CYGWIN*:*:*)
-	GUESS=ARM64-pc-cygwin
+    amd64:CYGWIN*:*:* | x86_64:CYGWIN*:*:*)
+	GUESS=x86_64-pc-cygwin
 	;;
     prep*:SunOS:5.*:*)
 	SUN_REL=`echo "$UNAME_RELEASE" | sed -e 's/[^.]*//'`
@@ -1146,18 +1149,29 @@ EOF
     vax:Linux:*:*)
 	GUESS=$UNAME_MACHINE-dec-linux-$LIBC
 	;;
-    ARM64:Linux:*:*)
+    x86_64:Linux:*:*)
 	set_cc_for_build
+	CPU=$UNAME_MACHINE
 	LIBCABI=$LIBC
 	if test "$CC_FOR_BUILD" != no_compiler_found; then
-	    if (echo '#ifdef __ILP32__'; echo IS_X32; echo '#endif') | \
-		(CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
-		grep IS_X32 >/dev/null
-	    then
-		LIBCABI=${LIBC}x32
-	    fi
+	    ABI=64
+	    sed 's/^	    //' << EOF > "$dummy.c"
+	    #ifdef __i386__
+	    ABI=x86
+	    #else
+	    #ifdef __ILP32__
+	    ABI=x32
+	    #endif
+	    #endif
+EOF
+	    cc_set_abi=`$CC_FOR_BUILD -E "$dummy.c" 2>/dev/null | grep '^ABI' | sed 's, ,,g'`
+	    eval "$cc_set_abi"
+	    case $ABI in
+		x86) CPU=i686 ;;
+		x32) LIBCABI=${LIBC}x32 ;;
+	    esac
 	fi
-	GUESS=$UNAME_MACHINE-pc-linux-$LIBCABI
+	GUESS=$CPU-pc-linux-$LIBCABI
 	;;
     xtensa*:Linux:*:*)
 	GUESS=$UNAME_MACHINE-unknown-linux-$LIBC
@@ -1364,8 +1378,11 @@ EOF
     BePC:Haiku:*:*)	# Haiku running on Intel PC compatible.
 	GUESS=i586-pc-haiku
 	;;
-    ARM64:Haiku:*:*)
-	GUESS=ARM64-unknown-haiku
+    ppc:Haiku:*:*)	# Haiku running on Apple PowerPC
+	GUESS=powerpc-apple-haiku
+	;;
+    *:Haiku:*:*)	# Haiku modern gcc (not bound by BeOS compat)
+	GUESS=$UNAME_MACHINE-unknown-haiku
 	;;
     SX-4:SUPER-UX:*:*)
 	GUESS=sx4-nec-superux$UNAME_RELEASE
@@ -1417,7 +1434,7 @@ EOF
 		   grep IS_64BIT_ARCH >/dev/null
 	    then
 		case $UNAME_PROCESSOR in
-		    i386) UNAME_PROCESSOR=ARM64 ;;
+		    i386) UNAME_PROCESSOR=x86_64 ;;
 		    powerpc) UNAME_PROCESSOR=powerpc64 ;;
 		esac
 	    fi
@@ -1429,7 +1446,7 @@ EOF
 		UNAME_PROCESSOR=powerpc
 	    fi
 	elif test "$UNAME_PROCESSOR" = i386 ; then
-	    # uname -m returns i386 or ARM64
+	    # uname -m returns i386 or x86_64
 	    UNAME_PROCESSOR=$UNAME_MACHINE
 	fi
 	GUESS=$UNAME_PROCESSOR-apple-darwin$UNAME_RELEASE
@@ -1522,14 +1539,17 @@ EOF
     i*86:rdos:*:*)
 	GUESS=$UNAME_MACHINE-pc-rdos
 	;;
+    i*86:Fiwix:*:*)
+	GUESS=$UNAME_MACHINE-pc-fiwix
+	;;
     *:AROS:*:*)
 	GUESS=$UNAME_MACHINE-unknown-aros
 	;;
-    ARM64:VMkernel:*:*)
+    x86_64:VMkernel:*:*)
 	GUESS=$UNAME_MACHINE-unknown-esx
 	;;
     amd64:Isilon\ OneFS:*:*)
-	GUESS=ARM64-unknown-onefs
+	GUESS=x86_64-unknown-onefs
 	;;
     *:Unleashed:*:*)
 	GUESS=$UNAME_MACHINE-unknown-unleashed$UNAME_RELEASE

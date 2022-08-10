@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 #  Simple DirectMedia Layer
-#  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+#  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -33,6 +33,7 @@ use File::Basename;
 chdir(dirname(__FILE__) . '/../..');
 my $sdl_dynapi_procs_h = "src/dynapi/SDL_dynapi_procs.h";
 my $sdl_dynapi_overrides_h = "src/dynapi/SDL_dynapi_overrides.h";
+my $sdl2_exports = "src/dynapi/SDL2.exports";
 
 my %existing = ();
 if (-f $sdl_dynapi_procs_h) {
@@ -47,6 +48,7 @@ if (-f $sdl_dynapi_procs_h) {
 
 open(SDL_DYNAPI_PROCS_H, '>>', $sdl_dynapi_procs_h) or die("Can't open $sdl_dynapi_procs_h: $!\n");
 open(SDL_DYNAPI_OVERRIDES_H, '>>', $sdl_dynapi_overrides_h) or die("Can't open $sdl_dynapi_overrides_h: $!\n");
+open(SDL2_EXPORTS, '>>', $sdl2_exports) or die("Can't open $sdl2_exports: $!\n");
 
 opendir(HEADERS, 'include') or die("Can't open include dir: $!\n");
 while (my $d = readdir(HEADERS)) {
@@ -55,7 +57,7 @@ while (my $d = readdir(HEADERS)) {
     open(HEADER, '<', $header) or die("Can't open $header: $!\n");
     while (<HEADER>) {
         chomp;
-        next if not /\A\s*extern\s+DECLSPEC/;
+        next if not /\A\s*extern\s+(SDL_DEPRECATED\s+|)DECLSPEC/;
         my $decl = "$_ ";
         if (not $decl =~ /\)\s*;/) {
             while (<HEADER>) {
@@ -70,13 +72,13 @@ while (my $d = readdir(HEADERS)) {
         $decl =~ s/\s+\Z//;
         #print("DECL: [$decl]\n");
 
-        if ($decl =~ /\A\s*extern\s+DECLSPEC\s+(const\s+|)(unsigned\s+|)(.*?)\s*(\*?)\s*SDLCALL\s+(.*?)\s*\((.*?)\);/) {
-            my $rc = "$1$2$3$4";
-            my $fn = $5;
+        if ($decl =~ /\A\s*extern\s+(SDL_DEPRECATED\s+|)DECLSPEC\s+(const\s+|)(unsigned\s+|)(.*?)\s*(\*?)\s*SDLCALL\s+(.*?)\s*\((.*?)\);/) {
+            my $rc = "$2$3$4$5";
+            my $fn = $6;
 
             next if $existing{$fn};   # already slotted into the jump table.
 
-            my @params = split(',', $6);
+            my @params = split(',', $7);
 
             #print("rc == '$rc', fn == '$fn', params == '$params'\n");
 
@@ -133,6 +135,7 @@ while (my $d = readdir(HEADERS)) {
             print("NEW: $decl\n");
             print SDL_DYNAPI_PROCS_H "SDL_DYNAPI_PROC($rc,$fn,$paramstr,$argstr,$retstr)\n";
             print SDL_DYNAPI_OVERRIDES_H "#define $fn ${fn}_REAL\n";
+            print SDL2_EXPORTS "++'_${fn}'.'SDL2.dll'.'${fn}'\n";
         } else {
             print("Failed to parse decl [$decl]!\n");
         }
@@ -143,5 +146,6 @@ closedir(HEADERS);
 
 close(SDL_DYNAPI_PROCS_H);
 close(SDL_DYNAPI_OVERRIDES_H);
+close(SDL2_EXPORTS);
 
 # vi: set ts=4 sw=4 expandtab:

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -31,7 +31,7 @@
 #define ALIGN(x, a)     (((x) + ((a) - 1)) & ~((a) - 1))
 #define DISPLAY_PIXEL_FORMAT SCE_DISPLAY_PIXELFORMAT_A8B8G8R8
 
-void *vita_gpu_alloc(SceKernelMemBlockType type, unsigned int size, SceUID *uid)
+void *vita_gpu_alloc(unsigned int type, unsigned int size, SceUID *uid)
 {
     void *mem;
 
@@ -74,7 +74,7 @@ int VITA_CreateWindowFramebuffer(_THIS, SDL_Window * window, Uint32 * format, vo
         &data->buffer_uid
     );
 
-    // memset the buffer to black
+    // SDL_memset the buffer to black
     SDL_memset(data->buffer, 0x0, SCREEN_W*SCREEN_H*4);
 
     SDL_memset(&framebuf, 0x00, sizeof(SceDisplayFrameBuf));

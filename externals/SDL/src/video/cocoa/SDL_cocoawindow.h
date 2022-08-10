@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -29,7 +29,7 @@
 #include "../SDL_egl_c.h"
 #endif
 
-typedef struct SDL_WindowData SDL_WindowData;
+@class SDL_WindowData;
 
 typedef enum
 {
@@ -40,7 +40,10 @@ typedef enum
 } PendingWindowOperation;
 
 @interface Cocoa_WindowListener : NSResponder <NSWindowDelegate> {
-    SDL_WindowData *_data;
+    /* SDL_WindowData owns this Listener and has a strong reference to it.
+     * To avoid reference cycles, we could have either a weak or an
+     * unretained ref to the WindowData. */
+    __weak SDL_WindowData *_data;
     BOOL observingVisible;
     BOOL wasCtrlLeft;
     BOOL wasVisible;
@@ -48,7 +51,7 @@ typedef enum
     BOOL inFullscreenTransition;
     PendingWindowOperation pendingWindowOperation;
     BOOL isMoving;
-    int focusClickPending;
+    NSInteger focusClickPending;
     int pendingWindowWarpX, pendingWindowWarpY;
     BOOL isDragAreaRunning;
 }
@@ -64,8 +67,8 @@ typedef enum
 
 -(BOOL) isMoving;
 -(BOOL) isMovingOrFocusClickPending;
--(void) setFocusClickPending:(int) button;
--(void) clearFocusClickPending:(int) button;
+-(void) setFocusClickPending:(NSInteger) button;
+-(void) clearFocusClickPending:(NSInteger) button;
 -(void) setPendingMoveX:(int)x Y:(int)y;
 -(void) windowDidFinishMoving;
 -(void) onMovingOrFocusClickPendingStateCleared;
@@ -80,6 +83,7 @@ typedef enum
 -(void) windowDidBecomeKey:(NSNotification *) aNotification;
 -(void) windowDidResignKey:(NSNotification *) aNotification;
 -(void) windowDidChangeBackingProperties:(NSNotification *) aNotification;
+-(void) windowDidChangeScreenProfile:(NSNotification *) aNotification;
 -(void) windowWillEnterFullScreen:(NSNotification *) aNotification;
 -(void) windowDidEnterFullScreen:(NSNotification *) aNotification;
 -(void) windowWillExitFullScreen:(NSNotification *) aNotification;
@@ -113,22 +117,23 @@ typedef enum
 /* *INDENT-ON* */
 
 @class SDLOpenGLContext;
+@class SDL_VideoData;
 
-struct SDL_WindowData
-{
-    SDL_Window *window;
-    NSWindow *nswindow;
-    NSView *sdlContentView;
-    NSMutableArray *nscontexts;
-    SDL_bool created;
-    SDL_bool inWindowFullscreenTransition;
-    NSInteger flash_request;
-    Cocoa_WindowListener *listener;
-    struct SDL_VideoData *videodata;
+@interface SDL_WindowData : NSObject
+    @property (nonatomic) SDL_Window *window;
+    @property (nonatomic) NSWindow *nswindow;
+    @property (nonatomic) NSView *sdlContentView;
+    @property (nonatomic) NSMutableArray *nscontexts;
+    @property (nonatomic) SDL_bool created;
+    @property (nonatomic) SDL_bool inWindowFullscreenTransition;
+    @property (nonatomic) NSInteger window_number;
+    @property (nonatomic) NSInteger flash_request;
+    @property (nonatomic) Cocoa_WindowListener *listener;
+    @property (nonatomic) SDL_VideoData *videodata;
 #if SDL_VIDEO_OPENGL_EGL
-    EGLSurface egl_surface;
+    @property (nonatomic) EGLSurface egl_surface;
 #endif
-};
+@end
 
 extern int Cocoa_CreateWindow(_THIS, SDL_Window * window);
 extern int Cocoa_CreateWindowFrom(_THIS, SDL_Window * window,
@@ -151,7 +156,10 @@ extern void Cocoa_SetWindowResizable(_THIS, SDL_Window * window, SDL_bool resiza
 extern void Cocoa_SetWindowAlwaysOnTop(_THIS, SDL_Window * window, SDL_bool on_top);
 extern void Cocoa_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * display, SDL_bool fullscreen);
 extern int Cocoa_SetWindowGammaRamp(_THIS, SDL_Window * window, const Uint16 * ramp);
+extern void* Cocoa_GetWindowICCProfile(_THIS, SDL_Window * window, size_t * size);
+extern int Cocoa_GetWindowDisplayIndex(_THIS, SDL_Window * window);
 extern int Cocoa_GetWindowGammaRamp(_THIS, SDL_Window * window, Uint16 * ramp);
+extern void Cocoa_SetWindowMouseRect(_THIS, SDL_Window * window);
 extern void Cocoa_SetWindowMouseGrab(_THIS, SDL_Window * window, SDL_bool grabbed);
 extern void Cocoa_DestroyWindow(_THIS, SDL_Window * window);
 extern SDL_bool Cocoa_GetWindowWMInfo(_THIS, SDL_Window * window, struct SDL_SysWMinfo *info);

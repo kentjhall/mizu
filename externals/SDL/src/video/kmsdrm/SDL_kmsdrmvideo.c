@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -53,133 +53,122 @@
 #include <errno.h>
 
 #ifdef __OpenBSD__
-static SDL_bool openbsd69orgreater = SDL_FALSE;
-#define KMSDRM_DRI_PATH openbsd69orgreater ? "/dev/dri/" : "/dev/"
-#define KMSDRM_DRI_DEVFMT openbsd69orgreater ? "%scard%d" : "%sdrm%d"
-#define KMSDRM_DRI_DEVNAME openbsd69orgreater ? "card" : "drm"
-#define KMSDRM_DRI_DEVNAMESIZE openbsd69orgreater ? 4 : 3
-#define KMSDRM_DRI_CARDPATHFMT openbsd69orgreater ? "/dev/dri/card%d" : "/dev/drm%d"
+static SDL_bool moderndri = SDL_FALSE;
 #else
-#define KMSDRM_DRI_PATH "/dev/dri/"
-#define KMSDRM_DRI_DEVFMT "%scard%d"
-#define KMSDRM_DRI_DEVNAME "card"
-#define KMSDRM_DRI_DEVNAMESIZE 4
-#define KMSDRM_DRI_CARDPATHFMT "/dev/dri/card%d"
+static SDL_bool moderndri = SDL_TRUE;
 #endif
+
+static char kmsdrm_dri_path[16];
+static int kmsdrm_dri_pathsize = 0;
+static char kmsdrm_dri_devname[8];
+static int kmsdrm_dri_devnamesize = 0;
+static char kmsdrm_dri_cardpath[32];
 
 #ifndef EGL_PLATFORM_GBM_MESA
 #define EGL_PLATFORM_GBM_MESA 0x31D7
 #endif
 
 static int
-check_modestting(int devindex)
-{
-    SDL_bool available = SDL_FALSE;
-    char device[512];
-    int drm_fd;
-    int i;
-
-    SDL_snprintf(device, sizeof (device), KMSDRM_DRI_DEVFMT, KMSDRM_DRI_PATH, devindex);
-
-    drm_fd = open(device, O_RDWR | O_CLOEXEC);
-    if (drm_fd >= 0) {
-        if (SDL_KMSDRM_LoadSymbols()) {
-            drmModeRes *resources = KMSDRM_drmModeGetResources(drm_fd);
-            if (resources) {
-                SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO,
-                  KMSDRM_DRI_DEVFMT
-                  " connector, encoder and CRTC counts are: %d %d %d",
-                  KMSDRM_DRI_PATH, devindex,
-                  resources->count_connectors, resources->count_encoders,
-                  resources->count_crtcs);
-
-                if (resources->count_connectors > 0
-                 && resources->count_encoders > 0
-                 && resources->count_crtcs > 0)
-                {
-                    available = SDL_FALSE;
-                    for (i = 0; i < resources->count_connectors; i++) {
-                        drmModeConnector *conn = KMSDRM_drmModeGetConnector(drm_fd,
-                            resources->connectors[i]);
-
-                        if (!conn) {
-                            continue;
-                        }
-
-                        if (conn->connection == DRM_MODE_CONNECTED && conn->count_modes) {
-                            if (SDL_GetHintBoolean(SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER, SDL_TRUE)) {
-                                /* Skip this device if we can't obtain DRM master */
-                                KMSDRM_drmSetMaster(drm_fd);
-                                if (KMSDRM_drmAuthMagic(drm_fd, 0) == -EACCES) {
-                                    continue;
-                                }
-                            }
-
-                            available = SDL_TRUE;
-                            break;
-                        }
-
-                        KMSDRM_drmModeFreeConnector(conn);
-                    }
-                }
-                KMSDRM_drmModeFreeResources(resources);
-            }
-            SDL_KMSDRM_UnloadSymbols();
-        }
-        close(drm_fd);
-    }
-
-    return available;
-}
-
-static int get_dricount(void)
-{
-    int devcount = 0;
-    struct dirent *res;
-    struct stat sb;
-    DIR *folder;
-
-    if (!(stat(KMSDRM_DRI_PATH, &sb) == 0
-                && S_ISDIR(sb.st_mode))) {
-        printf("The path %s cannot be opened or is not available\n",
-               KMSDRM_DRI_PATH);
-        return 0;
-    }
-
-    if (access(KMSDRM_DRI_PATH, F_OK) == -1) {
-        printf("The path %s cannot be opened\n",
-               KMSDRM_DRI_PATH);
-        return 0;
-    }
-
-    folder = opendir(KMSDRM_DRI_PATH);
-    if (folder) {
-        while ((res = readdir(folder))) {
-            int len = SDL_strlen(res->d_name);
-            if (len > KMSDRM_DRI_DEVNAMESIZE && SDL_strncmp(res->d_name,
-                      KMSDRM_DRI_DEVNAME, KMSDRM_DRI_DEVNAMESIZE) == 0) {
-                devcount++;
-            }
-        }
-        closedir(folder);
-    }
-
-    return devcount;
-}
-
-static int
 get_driindex(void)
 {
-    const int devcount = get_dricount();
+    int available = -ENOENT;
+    char device[sizeof(kmsdrm_dri_cardpath)];
+    int drm_fd;
     int i;
+    int devindex = -1;
+    DIR *folder;
+    const char *hint;
 
-    for (i = 0; i < devcount; i++) {
-        if (check_modestting(i)) {
-            return i;
+    hint = SDL_GetHint(SDL_HINT_KMSDRM_DEVICE_INDEX);
+    if (hint && *hint) {
+        char *endptr = NULL;
+        const int idx = (int) SDL_strtol(hint, &endptr, 10);
+        if ((*endptr == '\0') && (idx >= 0)) {  /* *endptr==0 means "whole string was a valid number" */
+            return idx;  /* we'll take the user's request here. */
         }
     }
 
-    return -ENOENT;
+    SDL_strlcpy(device, kmsdrm_dri_path, sizeof(device));
+    folder = opendir(device);
+    if (!folder) {
+        SDL_SetError("Failed to open directory '%s'", device);
+        return -ENOENT;
+    }
+
+    SDL_strlcpy(device + kmsdrm_dri_pathsize, kmsdrm_dri_devname,
+                sizeof(device) - kmsdrm_dri_devnamesize);
+    for (struct dirent *res; (res = readdir(folder));) {
+        if (SDL_memcmp(res->d_name, kmsdrm_dri_devname,
+                       kmsdrm_dri_devnamesize) == 0) {
+            SDL_strlcpy(device + kmsdrm_dri_pathsize + kmsdrm_dri_devnamesize,
+                        res->d_name + kmsdrm_dri_devnamesize,
+                        sizeof(device) - kmsdrm_dri_pathsize -
+                            kmsdrm_dri_devnamesize);
+
+            drm_fd = open(device, O_RDWR | O_CLOEXEC);
+            if (drm_fd >= 0) {
+                devindex = SDL_atoi(device + kmsdrm_dri_pathsize +
+                                    kmsdrm_dri_devnamesize);
+                if (SDL_KMSDRM_LoadSymbols()) {
+                    drmModeRes *resources = KMSDRM_drmModeGetResources(drm_fd);
+                    if (resources) {
+                        SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO,
+                                     "%s%d connector, encoder and CRTC counts are: %d %d %d",
+                                     kmsdrm_dri_cardpath, devindex,
+                                     resources->count_connectors,
+                                     resources->count_encoders,
+                                     resources->count_crtcs);
+
+                        if (resources->count_connectors > 0 &&
+                            resources->count_encoders > 0 &&
+                            resources->count_crtcs > 0) {
+                            available = -ENOENT;
+                            for (i = 0; i < resources->count_connectors; i++) {
+                                drmModeConnector *conn =
+                                    KMSDRM_drmModeGetConnector(
+                                        drm_fd, resources->connectors[i]);
+
+                                if (!conn) {
+                                    continue;
+                                }
+
+                                if (conn->connection == DRM_MODE_CONNECTED &&
+                                    conn->count_modes) {
+                                    if (SDL_GetHintBoolean(
+                                            SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER,
+                                            SDL_TRUE)) {
+                                        /* Skip this device if we can't obtain
+                                         * DRM master */
+                                        KMSDRM_drmSetMaster(drm_fd);
+                                        if (KMSDRM_drmAuthMagic(drm_fd, 0) ==
+                                            -EACCES) {
+                                            continue;
+                                        }
+                                    }
+
+                                    available = devindex;
+                                    break;
+                                }
+
+                                KMSDRM_drmModeFreeConnector(conn);
+                            }
+                        }
+                        KMSDRM_drmModeFreeResources(resources);
+                    }
+                    SDL_KMSDRM_UnloadSymbols();
+                }
+                close(drm_fd);
+            }
+
+            SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO,
+                         "Failed to open KMSDRM device %s, errno: %d\n", device,
+                         errno);
+        }
+    }
+
+    closedir(folder);
+
+    return available;
 }
 
 static int
@@ -195,13 +184,28 @@ KMSDRM_Available(void)
     if (!(uname(&nameofsystem) < 0)) {
         releaseversion = SDL_atof(nameofsystem.release);
         if (releaseversion >= 6.9) {
-            openbsd69orgreater = SDL_TRUE;
+            moderndri = SDL_TRUE;
         }
     }
 #endif
+
+    if (moderndri) {
+        SDL_strlcpy(kmsdrm_dri_path, "/dev/dri/", sizeof(kmsdrm_dri_path));
+        SDL_strlcpy(kmsdrm_dri_devname, "card", sizeof(kmsdrm_dri_devname));
+    } else {
+        SDL_strlcpy(kmsdrm_dri_path, "/dev/", sizeof(kmsdrm_dri_path));
+        SDL_strlcpy(kmsdrm_dri_devname, "drm", sizeof(kmsdrm_dri_devname));
+    }
+
+    kmsdrm_dri_pathsize = SDL_strlen(kmsdrm_dri_path);
+    kmsdrm_dri_devnamesize = SDL_strlen(kmsdrm_dri_devname);
+    SDL_snprintf(kmsdrm_dri_cardpath, sizeof(kmsdrm_dri_cardpath), "%s%s",
+                 kmsdrm_dri_path, kmsdrm_dri_devname);
+
     ret = get_driindex();
-    if (ret >= 0)
+    if (ret >= 0) {
         return 1;
+    }
 
     return ret;
 }
@@ -220,21 +224,19 @@ KMSDRM_DeleteDevice(SDL_VideoDevice * device)
 }
 
 static SDL_VideoDevice *
-KMSDRM_CreateDevice(int devindex)
+KMSDRM_CreateDevice(void)
 {
     SDL_VideoDevice *device;
     SDL_VideoData *viddata;
+    int devindex;
 
     if (!KMSDRM_Available()) {
         return NULL;
     }
 
-    if (!devindex || (devindex > 99)) {
-        devindex = get_driindex();
-    }
-
+    devindex = get_driindex();
     if (devindex < 0) {
-        SDL_SetError("devindex (%d) must be between 0 and 99.\n", devindex);
+        SDL_SetError("devindex (%d) must be between 0 and 99.", devindex);
         return NULL;
     }
 
@@ -473,7 +475,7 @@ KMSDRM_WaitPageflip(_THIS, SDL_WindowData *windata) {
    available on the DRM connector of the display.
    We use the SDL mode list (which we filled in KMSDRM_GetDisplayModes)
    because it's ordered, while the list on the connector is mostly random.*/
-drmModeModeInfo*
+static drmModeModeInfo*
 KMSDRM_GetClosestDisplayMode(SDL_VideoDisplay * display,
 uint32_t width, uint32_t height, uint32_t refresh_rate){
 
@@ -504,7 +506,8 @@ uint32_t width, uint32_t height, uint32_t refresh_rate){
 /*****************************************************************************/
 
 /* Deinitializes the driverdata of the SDL Displays in the SDL display list. */
-void KMSDRM_DeinitDisplays (_THIS) {
+static void
+KMSDRM_DeinitDisplays (_THIS) {
 
     SDL_DisplayData *dispdata;
     int num_displays, i;
@@ -533,7 +536,8 @@ void KMSDRM_DeinitDisplays (_THIS) {
 
 /* Gets a DRM connector, builds an SDL_Display with it, and adds it to the
    list of SDL Displays in _this->displays[]  */
-void KMSDRM_AddDisplay (_THIS, drmModeConnector *connector, drmModeRes *resources) {
+static void
+KMSDRM_AddDisplay (_THIS, drmModeConnector *connector, drmModeRes *resources) {
 
     SDL_VideoData *viddata = ((SDL_VideoData *)_this->driverdata);
     SDL_DisplayData *dispdata = NULL;
@@ -555,6 +559,7 @@ void KMSDRM_AddDisplay (_THIS, drmModeConnector *connector, drmModeRes *resource
     /* Initialize some of the members of the new display's driverdata
        to sane values. */
     dispdata->cursor_bo = NULL;
+    dispdata->cursor_bo_drm_fd = -1;
 
     /* Since we create and show the default cursor on KMSDRM_InitMouse(),
        and we call KMSDRM_InitMouse() when we create a window, we have to know
@@ -721,7 +726,8 @@ cleanup:
    closed when we get to the end of this function.
    This is to be called early, in VideoInit(), because it gets us
    the videomode information, which SDL needs immediately after VideoInit(). */
-int KMSDRM_InitDisplays (_THIS) {
+static int
+KMSDRM_InitDisplays (_THIS) {
 
     SDL_VideoData *viddata = ((SDL_VideoData *)_this->driverdata);
     drmModeRes *resources = NULL;
@@ -730,8 +736,9 @@ int KMSDRM_InitDisplays (_THIS) {
     int ret = 0;
     int i;
 
-    /* Open /dev/dri/cardNN (/dev/drmN if on OpenBSD) */
-    SDL_snprintf(viddata->devpath, sizeof(viddata->devpath), KMSDRM_DRI_CARDPATHFMT, viddata->devindex);
+    /* Open /dev/dri/cardNN (/dev/drmN if on OpenBSD version less than 6.9) */
+    SDL_snprintf(viddata->devpath, sizeof(viddata->devpath), "%s%d",
+                 kmsdrm_dri_cardpath, viddata->devindex);
 
     SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "Opening device %s", viddata->devpath);
     viddata->drm_fd = open(viddata->devpath, O_RDWR | O_CLOEXEC);
@@ -815,7 +822,7 @@ cleanup:
    These things are incompatible with Vulkan, which accesses the same resources
    internally so they must be free when trying to build a Vulkan surface.
 */
-int
+static int
 KMSDRM_GBMInit (_THIS, SDL_DisplayData *dispdata)
 {
     SDL_VideoData *viddata = (SDL_VideoData *)_this->driverdata;
@@ -839,7 +846,7 @@ KMSDRM_GBMInit (_THIS, SDL_DisplayData *dispdata)
 }
 
 /* Deinit the Vulkan-incompatible KMSDRM stuff. */
-void
+static void
 KMSDRM_GBMDeinit (_THIS, SDL_DisplayData *dispdata)
 {
     SDL_VideoData *viddata = ((SDL_VideoData *)_this->driverdata);
@@ -860,7 +867,7 @@ KMSDRM_GBMDeinit (_THIS, SDL_DisplayData *dispdata)
     viddata->gbm_init = SDL_FALSE;
 }
 
-void
+static void
 KMSDRM_DestroySurfaces(_THIS, SDL_Window *window)
 {
     SDL_VideoData *viddata = ((SDL_VideoData *)_this->driverdata);
@@ -871,7 +878,7 @@ KMSDRM_DestroySurfaces(_THIS, SDL_Window *window)
     /**********************************************/
     /* Wait for last issued pageflip to complete. */
     /**********************************************/
-    KMSDRM_WaitPageflip(_this, windata);
+    /*KMSDRM_WaitPageflip(_this, windata);*/
 
     /***********************************************************************/
     /* Restore the original CRTC configuration: configue the crtc with the */

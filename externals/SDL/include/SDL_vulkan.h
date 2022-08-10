@@ -43,7 +43,7 @@ extern "C" {
 #ifndef NO_SDL_VULKAN_TYPEDEFS
 #define VK_DEFINE_HANDLE(object) typedef struct object##_T* object;
 
-#if defined(__LP64__) || defined(_WIN64) || defined(__ARM64__) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
+#if defined(__LP64__) || defined(_WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
 #define VK_DEFINE_NON_DISPATCHABLE_HANDLE(object) typedef struct object##_T *object;
 #else
 #define VK_DEFINE_NON_DISPATCHABLE_HANDLE(object) typedef uint64_t object;
@@ -101,7 +101,7 @@ typedef VkSurfaceKHR SDL_vulkanSurface; /* for compatibility with Tizen */
  * \returns 0 on success or -1 if the library couldn't be loaded; call
  *          SDL_GetError() for more information.
  *
- * \since This function is available in SDL 2.0.8
+ * \since This function is available since SDL 2.0.6.
  *
  * \sa SDL_Vulkan_GetVkInstanceProcAddr
  * \sa SDL_Vulkan_UnloadLibrary
@@ -115,13 +115,15 @@ extern DECLSPEC int SDLCALL SDL_Vulkan_LoadLibrary(const char *path);
  * creating an SDL_Window with the `SDL_WINDOW_VULKAN` flag.
  *
  * \returns the function pointer for `vkGetInstanceProcAddr` or NULL on error.
+ *
+ * \since This function is available since SDL 2.0.6.
  */
 extern DECLSPEC void *SDLCALL SDL_Vulkan_GetVkGetInstanceProcAddr(void);
 
 /**
  * Unload the Vulkan library previously loaded by SDL_Vulkan_LoadLibrary()
  *
- * \since This function is available in SDL 2.0.8
+ * \since This function is available since SDL 2.0.6.
  *
  * \sa SDL_Vulkan_LoadLibrary
  */
@@ -151,7 +153,7 @@ extern DECLSPEC void SDLCALL SDL_Vulkan_UnloadLibrary(void);
  *               Vulkan instance extensions
  * \returns SDL_TRUE on success, SDL_FALSE on error.
  *
- * \since This function is available in SDL 2.0.8
+ * \since This function is available since SDL 2.0.6.
  *
  * \sa SDL_Vulkan_CreateSurface
  */
@@ -172,7 +174,7 @@ extern DECLSPEC SDL_bool SDLCALL SDL_Vulkan_GetInstanceExtensions(SDL_Window *wi
  *                created surface
  * \returns SDL_TRUE on success, SDL_FALSE on error.
  *
- * \since This function is available in SDL 2.0.8
+ * \since This function is available since SDL 2.0.6.
  *
  * \sa SDL_Vulkan_GetInstanceExtensions
  * \sa SDL_Vulkan_GetDrawableSize
@@ -193,7 +195,7 @@ extern DECLSPEC SDL_bool SDLCALL SDL_Vulkan_CreateSurface(SDL_Window *window,
  * \param w Pointer to the variable to write the width to or NULL
  * \param h Pointer to the variable to write the height to or NULL
  *
- * \since This function is available in SDL 2.0.8
+ * \since This function is available since SDL 2.0.6.
  *
  * \sa SDL_GetWindowSize
  * \sa SDL_CreateWindow

@@ -37,7 +37,7 @@ all: $(1).pexe
 $(1)_x86_32.nexe : $(1).bc
 	$(call LOG,TRANSLATE,$$@,$(PNACL_TRANSLATE) --allow-llvm-bitcode-input -arch x86-32 $$^ -o $$@)
 
-$(1)_ARM64.nexe : $(1).bc
+$(1)_x86_64.nexe : $(1).bc
 	$(call LOG,TRANSLATE,$$@,$(PNACL_TRANSLATE) --allow-llvm-bitcode-input -arch x86-64 $$^ -o $$@)
 
 $(1)_arm.nexe : $(1).bc

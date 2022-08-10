@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -98,7 +98,7 @@ SDLTest_GenerateRunSeed(const int length)
 *
 */
 static Uint64
-SDLTest_GenerateExecKey(const char *runSeed, char *suiteName, char *testName, int iteration)
+SDLTest_GenerateExecKey(const char *runSeed, const char *suiteName, const char *testName, int iteration)
 {
     SDLTest_Md5Context md5Context;
     Uint64 *keys;
@@ -169,7 +169,7 @@ SDLTest_GenerateExecKey(const char *runSeed, char *suiteName, char *testName, in
 * \return Timer id or -1 on failure.
 */
 static SDL_TimerID
-SDLTest_SetTestTimeout(int timeout, void (*callback)(void))
+SDLTest_SetTestTimeout(int timeout, void (SDLCALL *callback)(void))
 {
     Uint32 timeoutInMilliseconds;
     SDL_TimerID timerID;
@@ -209,7 +209,7 @@ SDLTest_SetTestTimeout(int timeout, void (*callback)(void))
 #if defined(__WATCOMC__)
 #pragma aux SDLTest_BailOut aborts;
 #endif
-static SDL_NORETURN void
+static SDL_NORETURN void SDLCALL
 SDLTest_BailOut(void)
 {
     SDLTest_LogError("TestCaseTimeout timer expired. Aborting test run.");
@@ -240,7 +240,7 @@ SDLTest_RunTest(SDLTest_TestSuiteReference *testSuite, const SDLTest_TestCaseRef
         return TEST_RESULT_SETUP_FAILURE;
     }
 
-	if (!testCase->enabled && forceTestRun == SDL_FALSE)
+    if (!testCase->enabled && forceTestRun == SDL_FALSE)
     {
         SDLTest_Log(SDLTEST_FINAL_RESULT_FORMAT, "Test", testCase->name, "Skipped (Disabled)");
         return TEST_RESULT_SKIPPED;
@@ -316,7 +316,7 @@ SDLTest_RunTest(SDLTest_TestSuiteReference *testSuite, const SDLTest_TestCaseRef
 }
 
 /* Prints summary of all suites/tests contained in the given reference */
-#if 0 
+#if 0
 static void SDLTest_LogTestSuiteSummary(SDLTest_TestSuiteReference *testSuites)
 {
     int suiteCounter;
@@ -349,7 +349,7 @@ static void SDLTest_LogTestSuiteSummary(SDLTest_TestSuiteReference *testSuites)
 /* Gets a timer value in seconds */
 static float GetClock()
 {
-    float currentClock = clock() / (float) CLOCKS_PER_SEC;
+    float currentClock = SDL_GetPerformanceCounter() / (float) SDL_GetPerformanceFrequency();
     return currentClock;
 }
 
@@ -377,8 +377,8 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
     SDLTest_TestSuiteReference *testSuite;
     const SDLTest_TestCaseReference *testCase;
     const char *runSeed = NULL;
-    char *currentSuiteName;
-    char *currentTestName;
+    const char *currentSuiteName;
+    const char *currentTestName;
     Uint64 execKey;
     float runStartSeconds;
     float suiteStartSeconds;
@@ -388,10 +388,10 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
     float testEndSeconds;
     float runtime;
     int suiteFilter = 0;
-    char *suiteFilterName = NULL;
+    const char *suiteFilterName = NULL;
     int testFilter = 0;
-    char *testFilterName = NULL;
-	SDL_bool forceTestRun = SDL_FALSE;
+    const char *testFilterName = NULL;
+    SDL_bool forceTestRun = SDL_FALSE;
     int testResult = 0;
     int runResult = 0;
     int totalTestFailedCount = 0;
@@ -419,7 +419,6 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
         runSeed = userRunSeed;
     }
 
-
     /* Reset per-run counters */
     totalTestFailedCount = 0;
     totalTestPassedCount = 0;
@@ -431,7 +430,7 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
     /* Log run with fuzzer parameters */
     SDLTest_Log("::::: Test Run /w seed '%s' started\n", runSeed);
 
-	/* Count the total number of tests */
+    /* Count the total number of tests */
     suiteCounter = 0;
     while (testSuites[suiteCounter]) {
         testSuite = testSuites[suiteCounter];
@@ -440,17 +439,22 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
         while (testSuite->testCases[testCounter])
         {
             testCounter++;
-			totalNumberOfTests++;
-		}
-	}
+            totalNumberOfTests++;
+        }
+    }
 
-	/* Pre-allocate an array for tracking failed tests (potentially all test cases) */
-	failedTests = (const SDLTest_TestCaseReference **)SDL_malloc(totalNumberOfTests * sizeof(SDLTest_TestCaseReference *));
-	if (failedTests == NULL) {	
-	   SDLTest_LogError("Unable to allocate cache for failed tests");
-           SDL_Error(SDL_ENOMEM);	   
+    if (totalNumberOfTests == 0) {
+        SDLTest_LogError("No tests to run?");
+        return -1;
+    }
+
+    /* Pre-allocate an array for tracking failed tests (potentially all test cases) */
+    failedTests = (const SDLTest_TestCaseReference **)SDL_malloc(totalNumberOfTests * sizeof(SDLTest_TestCaseReference *));
+    if (failedTests == NULL) {    
+       SDLTest_LogError("Unable to allocate cache for failed tests");
+           SDL_Error(SDL_ENOMEM);       
            return -1;
-	}
+    }
 
     /* Initialize filtering */
     if (filter != NULL && filter[0] != '\0') {
@@ -469,8 +473,7 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
 
             /* Within each suite, loop over all test cases to check if we have a filter match */
             testCounter = 0;
-            while (testSuite->testCases[testCounter] && testFilter == 0)
-            {
+            while (testSuite->testCases[testCounter] && testFilter == 0) {
                 testCase = testSuite->testCases[testCounter];
                 testCounter++;
                 if (testCase->name != NULL && SDL_strcmp(filter, testCase->name) == 0) {
@@ -487,6 +490,18 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
 
         if (suiteFilter == 0 && testFilter == 0) {
             SDLTest_LogError("Filter '%s' did not match any test suite/case.", filter);
+            for (suiteCounter = 0; testSuites[suiteCounter]; ++suiteCounter) {
+                testSuite = testSuites[suiteCounter];
+                if (testSuite->name != NULL) {
+                    SDLTest_Log("Test suite: %s", testSuite->name);
+                }
+
+                /* Within each suite, loop over all test cases to check if we have a filter match */
+                for (testCounter = 0; testSuite->testCases[testCounter]; ++testCounter) {
+                    testCase = testSuite->testCases[testCounter];
+                    SDLTest_Log("      test: %s", testCase->name);
+                }
+            }
             SDLTest_Log("Exit code: 2");
             SDL_free((void *) failedTests);
             return 2;
@@ -542,7 +557,7 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
                     /* Override 'disabled' flag if we specified a test filter (i.e. force run for debugging) */
                     if (testFilter == 1 && !testCase->enabled) {
                         SDLTest_Log("Force run of disabled test since test filter was set");
-						forceTestRun = SDL_TRUE;
+                        forceTestRun = SDL_TRUE;
                     }
 
                     /* Take time - test start */
@@ -571,7 +586,7 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
                         }
 
                         SDLTest_Log("Test Iteration %i: execKey %" SDL_PRIu64, iterationCounter, execKey);
-						testResult = SDLTest_RunTest(testSuite, testCase, execKey, forceTestRun);
+                        testResult = SDLTest_RunTest(testSuite, testCase, execKey, forceTestRun);
 
                         if (testResult == TEST_RESULT_PASSED) {
                             testPassedCount++;

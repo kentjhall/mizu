@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -34,6 +34,7 @@
 
 struct xkb_context;
 struct SDL_WaylandInput;
+struct SDL_WaylandTabletManager;
 
 #ifdef SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH
 struct SDL_WaylandTouch;
@@ -42,12 +43,21 @@ struct qt_windowmanager;
 #endif /* SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH */
 
 typedef struct {
+    struct wl_cursor_theme *theme;
+    int size;
+} SDL_WaylandCursorTheme;
+
+typedef struct SDL_WaylandOutputData SDL_WaylandOutputData;
+
+typedef struct {
+    SDL_bool initializing;
     struct wl_display *display;
     int display_disconnected;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
     struct wl_shm *shm;
-    struct wl_cursor_theme *cursor_theme;
+    SDL_WaylandCursorTheme *cursor_themes;
+    int num_cursor_themes;
     struct wl_pointer *pointer;
     struct {
         struct xdg_wm_base *xdg;
@@ -63,6 +73,8 @@ typedef struct {
     struct zwp_idle_inhibit_manager_v1 *idle_inhibit_manager;
     struct xdg_activation_v1 *activation_manager;
     struct zwp_text_input_manager_v3 *text_input_manager;
+    struct zxdg_output_manager_v1 *xdg_output_manager;
+    struct wp_viewporter *viewporter;
 
     EGLDisplay edpy;
     EGLContext context;
@@ -70,6 +82,8 @@ typedef struct {
 
     struct xkb_context *xkb_context;
     struct SDL_WaylandInput *input;
+    struct SDL_WaylandTabletManager *tablet_manager;
+    SDL_WaylandOutputData *output_list;
 
 #ifdef SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH
     struct SDL_WaylandTouch *touch;
@@ -82,15 +96,23 @@ typedef struct {
     int relative_mouse_mode;
 } SDL_VideoData;
 
-typedef struct {
+struct SDL_WaylandOutputData {
+    SDL_VideoData *videodata;
     struct wl_output *output;
+    struct zxdg_output_v1 *xdg_output;
+    uint32_t registry_id;
     float scale_factor;
+    int native_width, native_height;
     int x, y, width, height, refresh, transform;
+    SDL_DisplayOrientation orientation;
     int physical_width, physical_height;
     float ddpi, hdpi, vdpi;
+    SDL_bool has_logical_position, has_logical_size;
+    int index;
     SDL_VideoDisplay placeholder;
-    SDL_bool done;
-} SDL_WaylandOutputData;
+    int wl_output_done_count;
+    SDL_WaylandOutputData *next;
+};
 
 /* Needed here to get wl_surface declaration, fixes GitHub#4594 */
 #include "SDL_waylanddyn.h"
@@ -99,6 +121,8 @@ extern void SDL_WAYLAND_register_surface(struct wl_surface *surface);
 extern void SDL_WAYLAND_register_output(struct wl_output *output);
 extern SDL_bool SDL_WAYLAND_own_surface(struct wl_surface *surface);
 extern SDL_bool SDL_WAYLAND_own_output(struct wl_output *output);
+
+extern SDL_bool Wayland_LoadLibdecor(SDL_VideoData *data, SDL_bool ignore_xdg);
 
 #endif /* SDL_waylandvideo_h_ */
 

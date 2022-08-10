@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2015 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -147,7 +147,7 @@ int VITA_JoystickInit(void)
     // after the app has already started.
 
     SDL_numjoysticks = 1;
-
+    SDL_PrivateJoystickAdded(0);
     // How many additional paired controllers are there?
     sceCtrlGetControllerPortInfo(&myPortInfo);
 
@@ -157,6 +157,7 @@ int VITA_JoystickInit(void)
     {
         if (myPortInfo.port[i]!=SCE_CTRL_TYPE_UNPAIRED)
         {
+            SDL_PrivateJoystickAdded(SDL_numjoysticks);
             SDL_numjoysticks++;
         }
     }
@@ -178,7 +179,6 @@ SDL_JoystickID VITA_JoystickGetDeviceInstanceID(int device_index)
     return device_index;
 }
 
-/* Function to get the device-dependent name of a joystick */
 const char *VITA_JoystickGetDeviceName(int index)
 {
     if (index == 0)
@@ -194,7 +194,12 @@ const char *VITA_JoystickGetDeviceName(int index)
         return "PSVita Controller";
 
     SDL_SetError("No joystick available with that index");
-    return(NULL);
+    return NULL;
+}
+
+const char *VITA_JoystickGetDevicePath(int index)
+{
+    return NULL;
 }
 
 static int
@@ -365,11 +370,11 @@ VITA_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left, Uint16 right)
     return SDL_Unsupported();
 }
 
-static SDL_bool
-VITA_JoystickHasLED(SDL_Joystick *joystick)
+static Uint32
+VITA_JoystickGetCapabilities(SDL_Joystick *joystick)
 {
-    // always return true for now
-    return SDL_TRUE;
+    // always return LED and rumble supported for now
+    return SDL_JOYCAP_LED | SDL_JOYCAP_RUMBLE;
 }
 
 
@@ -393,12 +398,19 @@ VITA_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool enabled)
     return SDL_Unsupported();
 }
 
+static SDL_bool
+VITA_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping *out)
+{
+    return SDL_FALSE;
+}
+
 SDL_JoystickDriver SDL_VITA_JoystickDriver =
 {
     VITA_JoystickInit,
     VITA_JoystickGetCount,
     VITA_JoystickDetect,
     VITA_JoystickGetDeviceName,
+    VITA_JoystickGetDevicePath,
     VITA_JoystickGetDevicePlayerIndex,
     VITA_JoystickSetDevicePlayerIndex,
     VITA_JoystickGetDeviceGUID,
@@ -409,7 +421,7 @@ SDL_JoystickDriver SDL_VITA_JoystickDriver =
     VITA_JoystickRumble,
     VITA_JoystickRumbleTriggers,
 
-    VITA_JoystickHasLED,
+    VITA_JoystickGetCapabilities,
     VITA_JoystickSetLED,
     VITA_JoystickSendEffect,
     VITA_JoystickSetSensorsEnabled,
@@ -417,6 +429,7 @@ SDL_JoystickDriver SDL_VITA_JoystickDriver =
     VITA_JoystickUpdate,
     VITA_JoystickClose,
     VITA_JoystickQuit,
+    VITA_JoystickGetGamepadMapping,
 };
 
 #endif /* SDL_JOYSTICK_VITA */
