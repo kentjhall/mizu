@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <asm-generic/mman-common.h>
 
 #include "common/alignment.h"
 #include "common/assert.h"

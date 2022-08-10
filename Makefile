@@ -1,8 +1,8 @@
 CXX := g++
 CC := g++
-INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include -I /usr/include/aarch64-linux-gnu/qt5/QtGui/*/QtGui -I /usr/include/qt5/QtGui/*/QtGui # these last two are just hardcoded because I don't know how to deal with Qt private headers :( really don't wanna learn qmake
+INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include $(shell bash -c 'PATH=/usr/lib/qt5/bin/:/usr/lib64/qt5/bin/:$$PATH qmake -o - <(echo "QT += gui-private") 2> /dev/null | grep INCPATH | cut -d"=" -f2')
 DEBUG-y := -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
-CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) $(DEBUG-$(DEBUG))
+CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -fno-new-ttp-matching -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
 LDFLAGS := -L ./externals/sirit/build/src -L ./externals/soundtouch/build -L ./externals/cubeb/build -L ./externals/mbedtls/library -L ./externals/SDL/build $(DEBUG-$(DEBUG))
 LDLIBS := -pthread -lrt -ldl -lmbedcrypto -lsirit -lcubeb -lSoundTouch -lSDL2 $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus)
@@ -47,7 +47,7 @@ externals = externals/cubeb/build/CMakeFiles externals/soundtouch/build/CMakeFil
 	    externals/mbedtls/library/libmbedtls.a
 
 .PHONY: default
-default: externals mizu hlaunch
+default: $(externals) mizu hlaunch
 
 mizu: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -55,10 +55,10 @@ mizu: $(objects)
 hlaunch: hlaunch.c
 	gcc $(DEBUG-$(DEBUG)) -Wall -o $@ $^ -lrt
 
-$(objects): $(externals) $(headers)
+$(objects): $(headers)
 
 %.moc.cpp: %.h
-	PATH=$$PATH:/usr/lib64/qt5/bin/ moc -o $@ $^
+	PATH=/usr/lib/qt5/bin/:/usr/lib64/qt5/bin/:$$PATH moc -o $@ $^
 
 video_core/host_shaders/%_comp.h: video_core/host_shaders/%.comp video_core/host_shaders/source_shader.h.in
 	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
@@ -77,7 +77,6 @@ externals/%/build/CMakeFiles: $(filter %/CMakeFiles, $(externals)) # hack to ens
 	mkdir -p $(dir $@)
 	cd $(dir $@) ; cmake .. || ( rm -rf $(dir $@) ; false )
 	make -C $(dir $@) -j$(shell nproc) || ( rm -rf $(dir $@) ; false )
-	bash
 
 externals/mbedtls/library/libmbedtls.a:
 	make -C $(dir $@) -j$(shell nproc)
