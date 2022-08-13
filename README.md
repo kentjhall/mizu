@@ -22,7 +22,12 @@ most of it is buggy and/or unoptimized. Generally, the major TODOs include:
   every header is a dependency of everything. Ideally I figure out CMake at some
   point.
 
-Once these things are sorted, the main focus should be porting over any
+Additionally, not all the services copied here from yuzu are actually supported
+yet—I've only bothered porting the ones which I've needed for the games I've
+tried to run up to this point. Likely more of those will need to be updated for
+running under Horizon Linux in the future.
+
+But once these things are sorted, the main focus should be porting over any
 important yuzu features / improvements that have occurred since I ripped their
 codebase.
 
