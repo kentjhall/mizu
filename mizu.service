@@ -2,14 +2,15 @@
 Description=Mizu services / GPU emulation / loader for Horizon apps.
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=graphical-session.target default.target
 
 [Service]
 Type=simple
 Environment=MESA_GL_VERSION_OVERRIDE=4.6
+EnvironmentFile=-/etc/sysconfig/mizu
 ExecStart=/usr/bin/mizu
 Restart=always
 RestartSec=2
-StandardOutput=syslog
-StandardError=syslog
+StandardOutput=journal
+StandardError=journal
 SyslogIdentifier=%n

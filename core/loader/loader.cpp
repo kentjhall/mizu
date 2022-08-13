@@ -279,17 +279,11 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 [[ noreturn ]] void RunForever() {
     Common::SetCurrentThreadName("mizu:Loader");
 
-    // ensure we start with a fresh queue
-    if (::mq_unlink("/mizu_loader") == -1 && errno != ENOENT) {
-        ::perror("mq_unlink failed");
-        ::exit(1);
-    }
-
     // open the message queue for receiving requests
     mq_attr attr = { 0 };
     attr.mq_maxmsg = 10; // default per mq_overview(7)
     attr.mq_msgsize = PATH_MAX;
-    mqd_t mqd = ::mq_open("/mizu_loader", O_RDONLY | O_CLOEXEC | O_CREAT | O_EXCL,
+    mqd_t mqd = ::mq_open("/mizu_loader", O_RDONLY | O_CLOEXEC | O_CREAT,
                           0666, &attr);
     if (mqd == -1) {
         ::perror("mq_open failed");
@@ -298,6 +292,10 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 
     // cleanup on exit
     ::atexit([](){ ::mq_unlink("/mizu_loader"); });
+
+    // for some reason the mq_open mode doesn't seem to work really, do this to
+    // be sure
+    ::chmod("/dev/mqueue/mizu_loader", 0666);
 
     char path[PATH_MAX];
     for (;;) {

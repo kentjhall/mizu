@@ -85,11 +85,16 @@ externals/mbedtls/library/libmbedtls.a:
 install: mizu hlaunch
 	cp mizu hlaunch /usr/bin
 	cp mizu.service /usr/lib/systemd/user
+	touch /etc/sysconfig/mizu
+	chmod 666 /etc/sysconfig/mizu
+	echo 'enable mizu.service' > /usr/lib/systemd/user-preset/90-mizu.preset
 	systemctl --global enable mizu
 
 .PHONY: uninstall
 uninstall:
 	systemctl --global disable mizu
+	rm -f /usr/lib/systemd/user-preset/90-mizu.preset
+	rm -f /etc/sysconfig/mizu
 	rm -f /etc/systemd/user/mizu.service
 	rm -f /usr/bin/hlaunch
 
