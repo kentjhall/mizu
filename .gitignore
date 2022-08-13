@@ -7,3 +7,4 @@ video_core/host_shaders/*_frag.h
 video_core/host_shaders/*_vert.h
 video_core/host_shaders/*_spv.h
 externals/*/build
+.qmake.stash

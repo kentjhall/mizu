@@ -47,7 +47,7 @@ externals = externals/cubeb/build/CMakeFiles externals/soundtouch/build/CMakeFil
 	    externals/mbedtls/library/libmbedtls.a
 
 .PHONY: default
-default: $(externals) mizu hlaunch
+default: mizu hlaunch
 
 mizu: $(objects)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -55,7 +55,7 @@ mizu: $(objects)
 hlaunch: hlaunch.c
 	gcc $(DEBUG-$(DEBUG)) -Wall -o $@ $^ -lrt
 
-$(objects): $(headers)
+$(objects): $(externals) $(headers)
 
 %.moc.cpp: %.h
 	PATH=/usr/lib/qt5/bin/:/usr/lib64/qt5/bin/:$$PATH moc -o $@ $^
