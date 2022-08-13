@@ -2,6 +2,9 @@
 Description=Mizu services / GPU emulation / loader for Horizon apps.
 
 [Install]
+# default.target is necessary on Fedora for now since graphical-session.target
+# doesn't seem to be hit, but is definitely not ideal since the service is
+# started before login
 WantedBy=graphical-session.target default.target
 
 [Service]
