@@ -98,6 +98,7 @@ uninstall:
 	rm -f /etc/sysconfig/mizu
 	rm -f /etc/systemd/user/mizu.service
 	rm -f /usr/bin/hlaunch
+	rm -f /dev/mqueue/mizu_loader
 
 .PHONY: clean
 clean:

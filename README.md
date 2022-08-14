@@ -35,6 +35,14 @@ codebase.
 
 This is tested to build on Debian 11 and Fedora Rawhide (post-Fedora 36).
 
+Note that I recommend testing on Debian 11; Fedora Rawhide is supported because
+I wanted to test with the latest graphics API that macOS virtualization
+presently has to offer, but Debian is far more stable (I frequently get hangups
+doing common things in Fedora, e.g. building this project with too many
+threads). Also Fedora seems to not start the mizu service automatically on login
+since the graphical-session target is never triggered (likely a bug?), so that's
+kind of annoying.
+
 First install the required dependencies...
 
 for Debian:
