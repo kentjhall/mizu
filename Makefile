@@ -85,6 +85,7 @@ externals/mbedtls/library/libmbedtls.a:
 install: mizu hlaunch
 	cp mizu hlaunch /usr/bin
 	cp mizu.service /usr/lib/systemd/user
+	mkdir -p /etc/sysconfig
 	touch /etc/sysconfig/mizu
 	chmod 666 /etc/sysconfig/mizu
 	echo 'enable mizu.service' > /usr/lib/systemd/user-preset/90-mizu.preset
