@@ -105,6 +105,18 @@ public:
     /// Instructs the window to exit the application.
     void Exit();
 
+    /**
+     * If the emulation is running,
+     * asks the user if he really want to close the emulator
+     *
+     * @return true if the user confirmed
+     */
+    bool ConfirmForceLockedExit();
+
+    void SetExitLock(bool locked) {
+        exit_lock.store(locked, std::memory_order::relaxed);
+    }
+
 public slots:
     void OnFramebufferSizeChanged();
 
@@ -149,6 +161,8 @@ private:
     bool first_frame = false;
 
     bool is_fullscreen = false;
+
+    std::atomic_bool exit_lock{false};
 
     std::array<std::size_t, 16> touch_ids{};
 

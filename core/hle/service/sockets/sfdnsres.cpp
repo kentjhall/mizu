@@ -9,7 +9,7 @@
 
 namespace Service::Sockets {
 
-SFDNSRES::SFDNSRES(Core::System& system_) : ServiceFramework{system_, "sfdnsres"} {
+SFDNSRES::SFDNSRES() : ServiceFramework{"sfdnsres"} {
     static const FunctionInfo functions[] = {
         {0, nullptr, "SetDnsAddressesPrivateRequest"},
         {1, nullptr, "GetDnsAddressPrivateRequest"},

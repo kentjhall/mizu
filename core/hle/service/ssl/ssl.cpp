@@ -18,7 +18,7 @@ enum class CertificateFormat : u32 {
 
 class ISslConnection final : public ServiceFramework<ISslConnection> {
 public:
-    explicit ISslConnection(Core::System& system_) : ServiceFramework{system_, "ISslConnection"} {
+    explicit ISslConnection() : ServiceFramework{"ISslConnection"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, nullptr, "SetSocketDescriptor"},
@@ -58,7 +58,7 @@ public:
 
 class ISslContext final : public ServiceFramework<ISslContext> {
 public:
-    explicit ISslContext(Core::System& system_) : ServiceFramework{system_, "ISslContext"} {
+    explicit ISslContext() : ServiceFramework{"ISslContext"} {
         static const FunctionInfo functions[] = {
             {0, &ISslContext::SetOption, "SetOption"},
             {1, nullptr, "GetOption"},
@@ -98,7 +98,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<ISslConnection>(system);
+        rb.PushIpcInterface<ISslConnection>();
     }
 
     void ImportServerPki(Kernel::HLERequestContext& ctx) {
@@ -137,7 +137,7 @@ private:
 
 class SSL final : public ServiceFramework<SSL> {
 public:
-    explicit SSL(Core::System& system_) : ServiceFramework{system_, "ssl"} {
+    explicit SSL() : ServiceFramework{"ssl"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &SSL::CreateContext, "CreateContext"},
@@ -162,7 +162,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<ISslContext>(system);
+        rb.PushIpcInterface<ISslContext>();
     }
 
     void SetInterfaceVersion(Kernel::HLERequestContext& ctx) {
@@ -176,8 +176,8 @@ private:
     }
 };
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
-    std::make_shared<SSL>(system)->InstallAsService(service_manager);
+void InstallInterfaces() {
+    MakeService<SSL>();
 }
 
 } // namespace Service::SSL

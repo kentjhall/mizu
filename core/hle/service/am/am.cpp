@@ -326,45 +326,36 @@ ISelfController::~ISelfController() {
 }
 
 void ISelfController::Exit(Kernel::HLERequestContext& ctx) {
-#if 0
     LOG_DEBUG(Service_AM, "called");
 
     IPC::ResponseBuilder rb{ctx, 2};
     rb.Push(ResultSuccess);
 
-    sYstem.Exit();
-#endif
-    LOG_CRITICAL(Service_AM, "mizu TODO");
-    IPC::ResponseBuilder rb{ctx, 2};
-    rb.Push(ResultUnknown);
+    GrabGPU(ctx.GetRequesterPid());
+    SharedUnlocked(GPU(ctx.GetRequesterPid()))->RenderWindow().Exit();
+    PutGPU(ctx.GetRequesterPid());
 }
 
 void ISelfController::LockExit(Kernel::HLERequestContext& ctx) {
-#if 0
     LOG_DEBUG(Service_AM, "called");
 
-    sYstem.SetExitLock(true);
+    GrabGPU(ctx.GetRequesterPid());
+    SharedUnlocked(GPU(ctx.GetRequesterPid()))->RenderWindow().SetExitLock(true);
+    PutGPU(ctx.GetRequesterPid());
 
     IPC::ResponseBuilder rb{ctx, 2};
     rb.Push(ResultSuccess);
-#endif
-    LOG_CRITICAL(Service_AM, "mizu TODO");
-    IPC::ResponseBuilder rb{ctx, 2};
-    rb.Push(ResultUnknown);
 }
 
 void ISelfController::UnlockExit(Kernel::HLERequestContext& ctx) {
-#if 0
     LOG_DEBUG(Service_AM, "called");
 
-    sYstem.SetExitLock(false);
+    GrabGPU(ctx.GetRequesterPid());
+    SharedUnlocked(GPU(ctx.GetRequesterPid()))->RenderWindow().SetExitLock(false);
+    PutGPU(ctx.GetRequesterPid());
 
     IPC::ResponseBuilder rb{ctx, 2};
     rb.Push(ResultSuccess);
-#endif
-    LOG_CRITICAL(Service_AM, "mizu TODO");
-    IPC::ResponseBuilder rb{ctx, 2};
-    rb.Push(ResultUnknown);
 }
 
 void ISelfController::EnterFatalSection(Kernel::HLERequestContext& ctx) {

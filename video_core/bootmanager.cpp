@@ -258,7 +258,17 @@ void GRenderWindow::ExecuteProgram(std::size_t program_index) {
 }
 
 void GRenderWindow::Exit() {
+    if (exit_lock.load(std::memory_order::relaxed) && !ConfirmForceLockedExit())
+        return;
     emit ExitSignal();
+}
+
+bool GRenderWindow::ConfirmForceLockedExit() {
+    const auto text = tr("The currently running application has requested yuzu to not exit.\n\n"
+                         "Would you like to bypass this and exit anyway?");
+
+    const auto answer = QMessageBox::question(this, tr("yuzu"), text);
+    return answer != QMessageBox::No;
 }
 
 GRenderWindow::~GRenderWindow() {
@@ -327,6 +337,8 @@ std::pair<u32, u32> GRenderWindow::ScaleTouch(const QPointF& pos) const {
 }
 
 void GRenderWindow::closeEvent(QCloseEvent* event) {
+    if (exit_lock.load(std::memory_order::relaxed) && !ConfirmForceLockedExit())
+        return;
     emit Closed();
     QWidget::closeEvent(event);
     ::kill(gpu.SessionPid(), SIGTERM);

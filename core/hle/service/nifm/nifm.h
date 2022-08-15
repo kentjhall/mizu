@@ -6,17 +6,9 @@
 
 #pragma once
 
-namespace Core {
-class System;
-}
-
-namespace Service::SM {
-class ServiceManager;
-}
-
 namespace Service::NIFM {
 
 /// Registers all NIFM services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system);
+void InstallInterfaces();
 
 } // namespace Service::NIFM

@@ -2,12 +2,12 @@ CXX := g++
 CC := g++
 INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include $(shell bash -c 'PATH=/usr/lib/qt5/bin/:/usr/lib64/qt5/bin/:$$PATH qmake -o - <(echo "QT += gui-private") 2> /dev/null | grep INCPATH | cut -d"=" -f2')
 DEBUG-y := -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
-CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -fno-new-ttp-matching -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) $(DEBUG-$(DEBUG))
+CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -DMIZU_UNIX -fno-new-ttp-matching -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) $(DEBUG-$(DEBUG))
 CFLAGS := $(CXXFLAGS)
 LDFLAGS := -L ./externals/sirit/build/src -L ./externals/soundtouch/build -L ./externals/cubeb/build -L ./externals/mbedtls/library -L ./externals/SDL/build $(DEBUG-$(DEBUG))
 LDLIBS := -pthread -lrt -ldl -lmbedcrypto -lsirit -lcubeb -lSoundTouch -lSDL2 $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus)
 
-services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend
+services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend nifm sockets ssl
 
 shader_headers := astc_decoder_comp.h \
                   block_linear_unswizzle_2d_comp.h \
@@ -34,7 +34,7 @@ shader_headers := astc_decoder_comp.h \
                   vulkan_uint8_comp_spv.h
 subdirs := common common/fs common/logging configuration \
 	   core core/file_sys core/file_sys/system_archive core/file_sys/system_archive/data core/crypto \
-	   core/frontend core/loader core/frontend/applets core/hle core/hle/kernel \
+	   core/frontend core/loader core/frontend/applets core/hle core/hle/kernel core/network \
 	   $(shell find video_core -type d) $(shell find audio_core -type d) $(shell find shader_recompiler -type d) \
 	   input_common $(shell find input_common -type d)  \
 	   core/hle/service $(shell find $(addprefix core/hle/service/,$(services)) -type d)

@@ -16,7 +16,7 @@ namespace Service::Sockets {
 
 class SFDNSRES final : public ServiceFramework<SFDNSRES> {
 public:
-    explicit SFDNSRES(Core::System& system_);
+    explicit SFDNSRES();
     ~SFDNSRES() override;
 
 private:

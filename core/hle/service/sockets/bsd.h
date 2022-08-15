@@ -25,7 +25,7 @@ namespace Service::Sockets {
 
 class BSD final : public ServiceFramework<BSD> {
 public:
-    explicit BSD(Core::System& system_, const char* name);
+    explicit BSD(const char* name);
     ~BSD() override;
 
 private:
@@ -172,7 +172,7 @@ private:
 
 class BSDCFG final : public ServiceFramework<BSDCFG> {
 public:
-    explicit BSDCFG(Core::System& system_);
+    explicit BSDCFG();
     ~BSDCFG() override;
 };
 

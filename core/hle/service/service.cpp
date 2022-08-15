@@ -51,7 +51,7 @@
 /* #include "core/hle/service/nfc/nfc.h" */
 /* #include "core/hle/service/nfp/nfp.h" */
 /* #include "core/hle/service/ngct/ngct.h" */
-/* #include "core/hle/service/nifm/nifm.h" */
+#include "core/hle/service/nifm/nifm.h"
 /* #include "core/hle/service/nim/nim.h" */
 /* #include "core/hle/service/npns/npns.h" */
 #include "core/hle/service/ns/ns.h"
@@ -68,9 +68,9 @@
 #include "core/hle/service/service.h"
 #include "core/hle/service/set/settings.h"
 #include "core/hle/service/sm/sm.h"
-/* #include "core/hle/service/sockets/sockets.h" */
+#include "core/hle/service/sockets/sockets.h"
 /* #include "core/hle/service/spl/spl_module.h" */
-/* #include "core/hle/service/ssl/ssl.h" */
+#include "core/hle/service/ssl/ssl.h"
 #include "core/hle/service/time/time.h"
 /* #include "core/hle/service/usb/usb.h" */
 #include "core/hle/service/vi/vi.h"
@@ -265,7 +265,7 @@ void StartServices() {
     /* NFC::InstallInterfaces(*sm, system); */
     /* NFP::InstallInterfaces(*sm, system); */
     /* NGCT::InstallInterfaces(*sm, system); */
-    /* NIFM::InstallInterfaces(*sm, system); */
+    NIFM::InstallInterfaces();
     /* NIM::InstallInterfaces(*sm, system); */
     /* NPNS::InstallInterfaces(*sm, system); */
     NS::InstallInterfaces();
@@ -279,9 +279,9 @@ void StartServices() {
     /* PSC::InstallInterfaces(*sm, system); */
     PSM::InstallInterfaces();
     Set::InstallInterfaces();
-    /* Sockets::InstallInterfaces(*sm, system); */
+    Sockets::InstallInterfaces();
     /* SPL::InstallInterfaces(*sm, system); */
-    /* SSL::InstallInterfaces(*sm, system); */
+    SSL::InstallInterfaces();
     Time::InstallInterfaces();
     /* USB::InstallInterfaces(*sm, system); */
     VI::InstallInterfaces();

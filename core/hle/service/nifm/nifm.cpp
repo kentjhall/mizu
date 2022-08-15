@@ -9,14 +9,14 @@
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/service/kernel_helpers.h"
 #include "core/hle/service/nifm/nifm.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/service.h"
 
 namespace {
 
 // Avoids name conflict with Windows' CreateEvent macro.
-[[nodiscard]] Kernel::KEvent* CreateKEvent(Service::KernelHelpers::ServiceContext& service_context,
-                                           std::string&& name) {
-    return service_context.CreateEvent(std::move(name));
+[[nodiscard]] int CreateKEvent(std::string&& name) {
+    return Service::KernelHelpers::CreateEvent(std::move(name));
 }
 
 } // Anonymous namespace
@@ -122,7 +122,7 @@ static_assert(sizeof(NifmNetworkProfileData) == 0x18E,
 
 class IScanRequest final : public ServiceFramework<IScanRequest> {
 public:
-    explicit IScanRequest(Core::System& system_) : ServiceFramework{system_, "IScanRequest"} {
+    explicit IScanRequest() : ServiceFramework{"IScanRequest"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, nullptr, "Submit"},
@@ -139,8 +139,8 @@ public:
 
 class IRequest final : public ServiceFramework<IRequest> {
 public:
-    explicit IRequest(Core::System& system_)
-        : ServiceFramework{system_, "IRequest"}, service_context{system_, "IRequest"} {
+    explicit IRequest()
+        : ServiceFramework{"IRequest"} {
         static const FunctionInfo functions[] = {
             {0, &IRequest::GetRequestState, "GetRequestState"},
             {1, &IRequest::GetResult, "GetResult"},
@@ -170,13 +170,13 @@ public:
         };
         RegisterHandlers(functions);
 
-        event1 = CreateKEvent(service_context, "IRequest:Event1");
-        event2 = CreateKEvent(service_context, "IRequest:Event2");
+        event1 = CreateKEvent("IRequest:Event1");
+        event2 = CreateKEvent("IRequest:Event2");
     }
 
     ~IRequest() override {
-        service_context.CloseEvent(event1);
-        service_context.CloseEvent(event2);
+        Service::KernelHelpers::CloseEvent(event1);
+        Service::KernelHelpers::CloseEvent(event2);
     }
 
 private:
@@ -212,7 +212,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 2};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(event1->GetReadableEvent(), event2->GetReadableEvent());
+        rb.PushCopyFds(event1, event2);
     }
 
     void Cancel(Kernel::HLERequestContext& ctx) {
@@ -243,15 +243,13 @@ private:
         rb.Push<u32>(0);
     }
 
-    KernelHelpers::ServiceContext service_context;
-
-    Kernel::KEvent* event1;
-    Kernel::KEvent* event2;
+    int event1;
+    int event2;
 };
 
 class INetworkProfile final : public ServiceFramework<INetworkProfile> {
 public:
-    explicit INetworkProfile(Core::System& system_) : ServiceFramework{system_, "INetworkProfile"} {
+    explicit INetworkProfile() : ServiceFramework{"INetworkProfile"} {
         static const FunctionInfo functions[] = {
             {0, nullptr, "Update"},
             {1, nullptr, "PersistOld"},
@@ -263,7 +261,7 @@ public:
 
 class IGeneralService final : public ServiceFramework<IGeneralService> {
 public:
-    explicit IGeneralService(Core::System& system_);
+    explicit IGeneralService();
 
 private:
     void GetClientId(Kernel::HLERequestContext& ctx) {
@@ -280,7 +278,7 @@ private:
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
 
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<IScanRequest>(system);
+        rb.PushIpcInterface<IScanRequest>();
     }
     void CreateRequest(Kernel::HLERequestContext& ctx) {
         LOG_DEBUG(Service_NIFM, "called");
@@ -288,7 +286,7 @@ private:
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
 
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<IRequest>(system);
+        rb.PushIpcInterface<IRequest>();
     }
     void GetCurrentNetworkProfile(Kernel::HLERequestContext& ctx) {
         LOG_WARNING(Service_NIFM, "(STUBBED) called");
@@ -369,7 +367,7 @@ private:
         IPC::ResponseBuilder rb{ctx, 6, 0, 1};
 
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<INetworkProfile>(system);
+        rb.PushIpcInterface<INetworkProfile>();
         rb.PushRaw<u128>(uuid);
     }
     void GetCurrentIpConfigInfo(Kernel::HLERequestContext& ctx) {
@@ -439,8 +437,8 @@ private:
     }
 };
 
-IGeneralService::IGeneralService(Core::System& system_)
-    : ServiceFramework{system_, "IGeneralService"} {
+IGeneralService::IGeneralService()
+    : ServiceFramework{"IGeneralService"} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {1, &IGeneralService::GetClientId, "GetClientId"},
@@ -493,8 +491,8 @@ IGeneralService::IGeneralService(Core::System& system_)
 
 class NetworkInterface final : public ServiceFramework<NetworkInterface> {
 public:
-    explicit NetworkInterface(const char* name, Core::System& system_)
-        : ServiceFramework{system_, name} {
+    explicit NetworkInterface(const char* name)
+        : ServiceFramework{name} {
         static const FunctionInfo functions[] = {
             {4, &NetworkInterface::CreateGeneralServiceOld, "CreateGeneralServiceOld"},
             {5, &NetworkInterface::CreateGeneralService, "CreateGeneralService"},
@@ -508,7 +506,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<IGeneralService>(system);
+        rb.PushIpcInterface<IGeneralService>();
     }
 
     void CreateGeneralService(Kernel::HLERequestContext& ctx) {
@@ -516,14 +514,14 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(ResultSuccess);
-        rb.PushIpcInterface<IGeneralService>(system);
+        rb.PushIpcInterface<IGeneralService>();
     }
 };
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
-    std::make_shared<NetworkInterface>("nifm:a", system)->InstallAsService(service_manager);
-    std::make_shared<NetworkInterface>("nifm:s", system)->InstallAsService(service_manager);
-    std::make_shared<NetworkInterface>("nifm:u", system)->InstallAsService(service_manager);
+void InstallInterfaces() {
+    MakeService<NetworkInterface>("nifm:a");
+    MakeService<NetworkInterface>("nifm:s");
+    MakeService<NetworkInterface>("nifm:u");
 }
 
 } // namespace Service::NIFM

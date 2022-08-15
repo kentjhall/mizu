@@ -6,17 +6,9 @@
 
 #pragma once
 
-namespace Core {
-class System;
-}
-
-namespace Service::SM {
-class ServiceManager;
-}
-
 namespace Service::SSL {
 
 /// Registers all SSL services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system);
+void InstallInterfaces();
 
 } // namespace Service::SSL

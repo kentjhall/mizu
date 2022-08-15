@@ -8,7 +8,7 @@
 
 namespace Service::Sockets {
 
-NSD::NSD(Core::System& system_, const char* name) : ServiceFramework{system_, name} {
+NSD::NSD(const char* name) : ServiceFramework{name} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {5, nullptr, "GetSettingUrl"},

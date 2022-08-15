@@ -16,7 +16,7 @@ namespace Service::Sockets {
 
 class NSD final : public ServiceFramework<NSD> {
 public:
-    explicit NSD(Core::System& system_, const char* name);
+    explicit NSD(const char* name);
     ~NSD() override;
 };
 
