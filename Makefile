@@ -68,10 +68,13 @@ video_core/host_shaders/%_vert.h: video_core/host_shaders/%.vert video_core/host
 	cmake -P video_core/host_shaders/StringShaderHeader.cmake $< $@ $(word 2,$^)
 video_core/host_shaders/%_comp_spv.h: video_core/host_shaders/%.comp
 	glslangValidator -V --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
+	sed -i '1 i\#include <cstdint>' $@
 video_core/host_shaders/%_frag_spv.h: video_core/host_shaders/%.frag video_core/host_shaders/source_shader.h.in
 	glslangValidator -V --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
+	sed -i '1 i\#include <cstdint>' $@
 video_core/host_shaders/%_vert_spv.h: video_core/host_shaders/%.vert video_core/host_shaders/source_shader.h.in
 	glslangValidator -V --variable-name $(shell echo $(shell basename -s _spv.h $@) | tr '[:lower:]' '[:upper:]')_SPV -o $@ $<
+	sed -i '1 i\#include <cstdint>' $@
 
 externals/%/build/CMakeFiles: $(filter %/CMakeFiles, $(externals)) # hack to ensure cmake doesn't run concurrently (seems to cause problems)
 	mkdir -p $(dir $@)
