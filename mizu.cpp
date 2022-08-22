@@ -21,6 +21,10 @@ int main(int argc, char **argv) {
         ::perror("signal failed");
         return 1;
     }
+    if (::signal(SIGTERM, on_sig) == SIG_ERR) {
+        ::perror("signal failed");
+        return 1;
+    }
     if (::signal(SIGSEGV, on_sig) == SIG_ERR) {
         ::perror("signal failed");
         return 1;
