@@ -47,6 +47,7 @@ int main(int argc, char **argv) {
     }
 
     QCoreApplication::setAttribute(Qt::AA_DontCheckOpenGLContextThreadAffinity);
+    QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
     QApplication app(argc, argv);
     QWidget dummy; // prevents render window from telling the QApplication to exit
     auto* layout = new QHBoxLayout(&dummy);
