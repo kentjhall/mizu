@@ -7,7 +7,7 @@ CFLAGS := $(CXXFLAGS)
 LDFLAGS := -L ./externals/sirit/build/src -L ./externals/soundtouch/build -L ./externals/cubeb/build -L ./externals/mbedtls/library -L ./externals/SDL/build $(DEBUG-$(DEBUG))
 LDLIBS := -pthread -lrt -ldl -lmbedcrypto -lsirit -lcubeb -lSoundTouch -lSDL2 $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus)
 
-services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend nifm sockets ssl
+services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend nifm sockets ssl nfp prepo
 
 shader_headers := astc_decoder_comp.h \
                   block_linear_unswizzle_2d_comp.h \

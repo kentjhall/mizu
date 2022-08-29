@@ -437,7 +437,7 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
 
         // load data
         std::vector<Kernel::CodeSet> codesets;
-        const auto load_result = app_loader->Load(pid, codesets);
+        const auto [load_result, load_parameters] = app_loader->Load(pid, codesets);
         if (load_result != ResultStatus::Success) {
             LOG_CRITICAL(Core, "Failed to load ROM at '{}' (Error {})!", path, load_result);
             ::close(fd);
@@ -499,9 +499,11 @@ std::unique_ptr<AppLoader> GetLoader(FileSys::VirtualFile file,
         horizon_hdr hdr = {
             .magic = HORIZON_MAGIC,
             .title_id = title_id,
+            .ideal_core = metadata.GetMainThreadCore(),
             .is_64bit = metadata.Is64BitProgram(),
             .address_space_type = static_cast<u8>(metadata.GetAddressSpaceType()),
             .system_resource_size = metadata.GetSystemResourceSize(),
+            .main_thread_priority = load_parameters->main_thread_priority,
             .num_codesets = static_cast<u32>(codesets.size()),
         };
         static_assert(sizeof(hdr) <= BINPRM_BUF_SIZE);

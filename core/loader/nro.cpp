@@ -17,9 +17,11 @@
 #include "core/file_sys/romfs_factory.h"
 #include "core/file_sys/vfs_offset.h"
 #include "core/hle/kernel/code_set.h"
+#include "core/hle/kernel/k_thread.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/loader/nro.h"
 #include "core/loader/nso.h"
+#include "core/memory.h"
 
 namespace Loader {
 
@@ -207,7 +209,8 @@ AppLoader_NRO::LoadResult AppLoader_NRO::Load(::pid_t pid, std::vector<Kernel::C
     }
 
     is_loaded = true;
-    return ResultStatus::Success;
+    return {ResultStatus::Success, LoadParameters{Kernel::KThread::DefaultThreadPriority,
+                                                  Core::Memory::DEFAULT_STACK_SIZE}};
 }
 
 ResultStatus AppLoader_NRO::ReadIcon(std::vector<u8>& buffer) {

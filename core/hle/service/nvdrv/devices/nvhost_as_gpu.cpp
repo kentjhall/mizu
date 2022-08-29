@@ -106,9 +106,9 @@ NvResult nvhost_as_gpu::AllocateSpace(const std::vector<u8>& input, std::vector<
 
     const auto size{static_cast<u64>(params.pages) * static_cast<u64>(params.page_size)};
     if ((params.flags & AddressSpaceFlags::FixedOffset) != AddressSpaceFlags::None) {
-        params.offset = *SharedWriter(gpu)->MemoryManager().AllocateFixed(params.offset, size);
+        params.offset = *SharedUnlocked(gpu)->MemoryManager().AllocateFixed(params.offset, size);
     } else {
-        params.offset = SharedWriter(gpu)->MemoryManager().Allocate(size, params.align);
+        params.offset = SharedUnlocked(gpu)->MemoryManager().Allocate(size, params.align);
     }
 
     auto result = NvResult::Success;
@@ -128,7 +128,7 @@ NvResult nvhost_as_gpu::FreeSpace(const std::vector<u8>& input, std::vector<u8>&
     LOG_DEBUG(Service_NVDRV, "called, offset={:X}, pages={:X}, page_size={:X}", params.offset,
               params.pages, params.page_size);
 
-    SharedWriter(gpu)->MemoryManager().Unmap(params.offset,
+    SharedUnlocked(gpu)->MemoryManager().Unmap(params.offset,
                                              static_cast<std::size_t>(params.pages) * params.page_size);
 
     std::memcpy(output.data(), &params, output.size());
@@ -158,7 +158,7 @@ NvResult nvhost_as_gpu::Remap(const std::vector<u8>& input, std::vector<u8>& out
         const auto offset{static_cast<GPUVAddr>(entry.offset) << 0x10};
         const auto size{static_cast<u64>(entry.pages) << 0x10};
         const auto map_offset{static_cast<u64>(entry.map_offset) << 0x10};
-        const auto addr{SharedWriter(gpu)->MemoryManager().Map(object->addr + map_offset, offset, size)};
+        const auto addr{SharedUnlocked(gpu)->MemoryManager().Map(object->addr + map_offset, offset, size)};
 
         if (!addr) {
             LOG_CRITICAL(Service_NVDRV, "map returned an invalid address!");
@@ -203,7 +203,7 @@ NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8
             const auto cpu_addr{static_cast<VAddr>(buffer_map->CpuAddr() + params.buffer_offset)};
             const auto gpu_addr{static_cast<GPUVAddr>(params.offset + params.buffer_offset)};
 
-            if (!SharedWriter(gpu)->MemoryManager().Map(cpu_addr, gpu_addr, params.mapping_size)) {
+            if (!SharedUnlocked(gpu)->MemoryManager().Map(cpu_addr, gpu_addr, params.mapping_size)) {
                 LOG_CRITICAL(Service_NVDRV,
                              "remap failed, flags={:X}, nvmap_handle={:X}, buffer_offset={}, "
                              "mapping_size = {}, offset={}",
@@ -235,9 +235,9 @@ NvResult nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8
 
     const bool is_alloc{(params.flags & AddressSpaceFlags::FixedOffset) == AddressSpaceFlags::None};
     if (is_alloc) {
-        params.offset = SharedWriter(gpu)->MemoryManager().MapAllocate(physical_address, size, page_size);
+        params.offset = SharedUnlocked(gpu)->MemoryManager().MapAllocate(physical_address, size, page_size);
     } else {
-        params.offset = SharedWriter(gpu)->MemoryManager().Map(physical_address, params.offset, size);
+        params.offset = SharedUnlocked(gpu)->MemoryManager().Map(physical_address, params.offset, size);
     }
 
     auto result = NvResult::Success;
@@ -259,7 +259,7 @@ NvResult nvhost_as_gpu::UnmapBuffer(const std::vector<u8>& input, std::vector<u8
     LOG_DEBUG(Service_NVDRV, "called, offset=0x{:X}", params.offset);
 
     if (const auto size{RemoveBufferMap(params.offset)}; size) {
-        SharedWriter(gpu)->MemoryManager().Unmap(params.offset, *size);
+        SharedUnlocked(gpu)->MemoryManager().Unmap(params.offset, *size);
     } else {
         LOG_ERROR(Service_NVDRV, "invalid offset=0x{:X}", params.offset);
     }

@@ -12,7 +12,7 @@ namespace Service::NFP {
 
 class NFP_User final : public Module::Interface {
 public:
-    explicit NFP_User(std::shared_ptr<Module> module_, Core::System& system_);
+    explicit NFP_User();
     ~NFP_User() override;
 };
 

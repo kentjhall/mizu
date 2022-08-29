@@ -8,6 +8,7 @@
 #include "common/logging/log.h"
 #include "core/core.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/acc/profile_manager.h"
 #include "core/hle/service/prepo/prepo.h"
 #include "core/hle/service/service.h"
@@ -17,7 +18,7 @@ namespace Service::PlayReport {
 
 class PlayReport final : public ServiceFramework<PlayReport> {
 public:
-    explicit PlayReport(const char* name, Core::System& system_) : ServiceFramework{system_, name} {
+    explicit PlayReport(const char* name) : ServiceFramework{name} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {10100, &PlayReport::SaveReport<Core::Reporter::PlayReportType::Old>, "SaveReportOld"},
@@ -73,8 +74,7 @@ private:
                   "called, type={:02X}, process_id={:016X}, data1_size={:016X}, data2_size={:016X}",
                   Type, process_id, data1.size(), data2.size());
 
-        const auto& reporter{system.GetReporter()};
-        reporter.SavePlayReport(Type, system.CurrentProcess()->GetTitleID(), {data1, data2},
+        Service::reporter.SavePlayReport(Type, Service::GetTitleID(), {data1, data2},
                                 process_id);
 
         IPC::ResponseBuilder rb{ctx, 2};
@@ -101,8 +101,7 @@ private:
                   "data1_size={:016X}, data2_size={:016X}",
                   Type, user_id[1], user_id[0], process_id, data1.size(), data2.size());
 
-        const auto& reporter{system.GetReporter()};
-        reporter.SavePlayReport(Type, system.CurrentProcess()->GetTitleID(), {data1, data2},
+        Service::reporter.SavePlayReport(Type, Service::GetTitleID(), {data1, data2},
                                 process_id, user_id);
 
         IPC::ResponseBuilder rb{ctx, 2};
@@ -129,10 +128,10 @@ private:
     void GetSystemSessionId(Kernel::HLERequestContext& ctx) {
         LOG_WARNING(Service_PREPO, "(STUBBED) called");
 
-        constexpr u64 system_session_id = 0;
+        constexpr u64 session_id = 0;
         IPC::ResponseBuilder rb{ctx, 4};
         rb.Push(ResultSuccess);
-        rb.Push(system_session_id);
+        rb.Push(session_id);
     }
 
     void SaveSystemReport(Kernel::HLERequestContext& ctx) {
@@ -151,8 +150,7 @@ private:
         LOG_DEBUG(Service_PREPO, "called, title_id={:016X}, data1_size={:016X}, data2_size={:016X}",
                   title_id, data1.size(), data2.size());
 
-        const auto& reporter{system.GetReporter()};
-        reporter.SavePlayReport(Core::Reporter::PlayReportType::System, title_id, {data1, data2});
+        Service::reporter.SavePlayReport(Core::Reporter::PlayReportType::System, title_id, {data1, data2});
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(ResultSuccess);
@@ -177,8 +175,7 @@ private:
                   "data2_size={:016X}",
                   user_id[1], user_id[0], title_id, data1.size(), data2.size());
 
-        const auto& reporter{system.GetReporter()};
-        reporter.SavePlayReport(Core::Reporter::PlayReportType::System, title_id, {data1, data2},
+        Service::reporter.SavePlayReport(Core::Reporter::PlayReportType::System, title_id, {data1, data2},
                                 std::nullopt, user_id);
 
         IPC::ResponseBuilder rb{ctx, 2};
@@ -186,12 +183,12 @@ private:
     }
 };
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
-    std::make_shared<PlayReport>("prepo:a", system)->InstallAsService(service_manager);
-    std::make_shared<PlayReport>("prepo:a2", system)->InstallAsService(service_manager);
-    std::make_shared<PlayReport>("prepo:m", system)->InstallAsService(service_manager);
-    std::make_shared<PlayReport>("prepo:s", system)->InstallAsService(service_manager);
-    std::make_shared<PlayReport>("prepo:u", system)->InstallAsService(service_manager);
+void InstallInterfaces() {
+    MakeService<PlayReport>("prepo:a");
+    MakeService<PlayReport>("prepo:a2");
+    MakeService<PlayReport>("prepo:m");
+    MakeService<PlayReport>("prepo:s");
+    MakeService<PlayReport>("prepo:u");
 }
 
 } // namespace Service::PlayReport

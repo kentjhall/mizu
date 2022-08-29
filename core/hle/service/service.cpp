@@ -49,7 +49,7 @@
 /* #include "core/hle/service/mm/mm_u.h" */
 /* #include "core/hle/service/ncm/ncm.h" */
 /* #include "core/hle/service/nfc/nfc.h" */
-/* #include "core/hle/service/nfp/nfp.h" */
+#include "core/hle/service/nfp/nfp.h"
 /* #include "core/hle/service/ngct/ngct.h" */
 #include "core/hle/service/nifm/nifm.h"
 /* #include "core/hle/service/nim/nim.h" */
@@ -62,7 +62,7 @@
 #include "core/hle/service/pctl/pctl_module.h"
 /* #include "core/hle/service/pcv/pcv.h" */
 /* #include "core/hle/service/pm/pm.h" */
-/* #include "core/hle/service/prepo/prepo.h" */
+#include "core/hle/service/prepo/prepo.h"
 /* #include "core/hle/service/psc/psc.h" */
 #include "core/hle/service/ptm/psm.h"
 #include "core/hle/service/service.h"
@@ -169,6 +169,7 @@ void ServiceFrameworkBase::InvokeRequest(Kernel::HLERequestContext& ctx) {
 
     LOG_TRACE(Service, "{}", MakeFunctionString(info->name, GetServiceName(), ctx.CommandBuffer()));
     handler_invoker(this, info->handler_callback, ctx);
+    LOG_TRACE(Service, "Done: {}", MakeFunctionString(info->name, GetServiceName(), ctx.CommandBuffer()));
 }
 
 void ServiceFrameworkBase::InvokeRequestTipc(Kernel::HLERequestContext& ctx) {
@@ -263,7 +264,7 @@ void StartServices() {
     /* MM::InstallInterfaces(*sm, system); */
     /* NCM::InstallInterfaces(*sm, system); */
     /* NFC::InstallInterfaces(*sm, system); */
-    /* NFP::InstallInterfaces(*sm, system); */
+    NFP::InstallInterfaces();
     /* NGCT::InstallInterfaces(*sm, system); */
     NIFM::InstallInterfaces();
     /* NIM::InstallInterfaces(*sm, system); */
@@ -274,7 +275,7 @@ void StartServices() {
     /* PCIe::InstallInterfaces(*sm, system); */
     PCTL::InstallInterfaces();
     /* PCV::InstallInterfaces(*sm, system); */
-    /* PlayReport::InstallInterfaces(*sm, system); */
+    PlayReport::InstallInterfaces();
     /* PM::InstallInterfaces(system); */
     /* PSC::InstallInterfaces(*sm, system); */
     PSM::InstallInterfaces();

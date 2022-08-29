@@ -16,4 +16,7 @@ constexpr std::size_t PAGE_BITS = 12;
 constexpr u64 PAGE_SIZE = 1ULL << PAGE_BITS;
 constexpr u64 PAGE_MASK = PAGE_SIZE - 1;
 
+/// Application stack
+constexpr u64 DEFAULT_STACK_SIZE = 0x100000;
+
 } // namespace Core::Memory

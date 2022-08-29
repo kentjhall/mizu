@@ -147,7 +147,7 @@ NvResult nvhost_nvdec_common::MapBuffer(const std::vector<u8>& input, std::vecto
         if (object->dma_map_addr == 0) {
             // NVDEC and VIC memory is in the 32-bit address space
             // MapAllocate32 will attempt to map a lower 32-bit value in the shared gpu memory space
-            const GPUVAddr low_addr = SharedWriter(gpu)->MemoryManager().MapAllocate32(object->addr, object->size);
+            const GPUVAddr low_addr = SharedUnlocked(gpu)->MemoryManager().MapAllocate32(object->addr, object->size);
             object->dma_map_addr = static_cast<u32>(low_addr);
             // Ensure that the dma_map_addr is indeed in the lower 32-bit address space.
             ASSERT(object->dma_map_addr == low_addr);

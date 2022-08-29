@@ -9,6 +9,7 @@
 #include <map>
 #include <optional>
 #include <vector>
+#include <shared_mutex>
 
 #include "common/common_types.h"
 #include "core/hle/result.h"
@@ -140,7 +141,7 @@ public:
     [[nodiscard]] GPUVAddr Allocate(std::size_t size, std::size_t align);
     void Unmap(GPUVAddr gpu_addr, std::size_t size);
 
-    void SyncCPUWrites();
+    void SyncCPUWrites() const;
 
 private:
     [[nodiscard]] std::optional<GPUVAddr> FindAllocateFreeRange(std::size_t size, std::size_t align,
@@ -162,6 +163,8 @@ private:
     std::vector<MapRange> map_ranges;
 
     std::vector<std::pair<VAddr, std::size_t>> cache_invalidate_queue;
+
+    mutable std::shared_mutex mtx;
 };
 
 } // namespace Tegra
