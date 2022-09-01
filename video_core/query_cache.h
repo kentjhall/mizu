@@ -104,6 +104,10 @@ public:
           gpu_memory{gpu_memory_}, streams{{CounterStream{static_cast<QueryCache&>(*this),
                                                           VideoCore::QueryType::SamplesPassed}}} {}
 
+    ~QueryCacheBase() {
+        destructing = true;
+    }
+
     void InvalidateRegion(VAddr addr, std::size_t size) {
         std::unique_lock lock{mutex};
         FlushAndRemoveRegion(addr, size);
@@ -208,6 +212,10 @@ public:
         committed_flushes.pop_front();
     }
 
+    bool Destructing() const {
+        return destructing;
+    }
+
 private:
     /// Flushes a memory range to guest memory and removes it from the cache.
     void FlushAndRemoveRegion(VAddr addr, std::size_t size) {
@@ -280,6 +288,8 @@ private:
 
     std::shared_ptr<std::vector<VAddr>> uncommitted_flushes{};
     std::list<std::shared_ptr<std::vector<VAddr>>> committed_flushes;
+
+    bool destructing = false;
 };
 
 template <class QueryCache, class HostCounter>

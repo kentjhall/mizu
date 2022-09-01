@@ -68,7 +68,8 @@ HostCounter::HostCounter(QueryCache& cache_, std::shared_ptr<HostCounter> depend
 }
 
 HostCounter::~HostCounter() {
-    cache.Reserve(type, std::move(query));
+    if (!cache.Destructing())
+        cache.Reserve(type, std::move(query));
 }
 
 void HostCounter::EndQuery() {

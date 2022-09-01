@@ -720,8 +720,8 @@ struct GPU::Impl {
     Core::SpeedLimiter speed_limiter;
 
     std::unique_ptr<GRenderWindow> render_window;
-    VideoCommon::GPUThread::ThreadManager gpu_thread;
     std::unique_ptr<Core::Frontend::GraphicsContext> cpu_context;
+    VideoCommon::GPUThread::ThreadManager gpu_thread;
 
 #define ASSERT_REG_POSITION(field_name, position)                                                  \
     static_assert(offsetof(Regs, field_name) == position * 4,                                      \

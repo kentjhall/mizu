@@ -46,7 +46,7 @@
 #include "core/hle/service/lm/lm.h"
 /* #include "core/hle/service/mig/mig.h" */
 /* #include "core/hle/service/mii/mii.h" */
-/* #include "core/hle/service/mm/mm_u.h" */
+#include "core/hle/service/mm/mm_u.h"
 /* #include "core/hle/service/ncm/ncm.h" */
 /* #include "core/hle/service/nfc/nfc.h" */
 #include "core/hle/service/nfp/nfp.h"
@@ -261,7 +261,7 @@ void StartServices() {
     LM::InstallInterfaces();
     /* Migration::InstallInterfaces(*sm, system); */
     /* Mii::InstallInterfaces(*sm, system); */
-    /* MM::InstallInterfaces(*sm, system); */
+    MM::InstallInterfaces();
     /* NCM::InstallInterfaces(*sm, system); */
     /* NFC::InstallInterfaces(*sm, system); */
     NFP::InstallInterfaces();
