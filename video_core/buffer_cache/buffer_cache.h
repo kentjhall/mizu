@@ -361,7 +361,8 @@ private:
     [[nodiscard]] TextureBufferBinding GetTextureBufferBinding(GPUVAddr gpu_addr, u32 size,
                                                                PixelFormat format);
 
-    [[nodiscard]] std::span<const u8> ImmediateBufferWithData(GPUVAddr gpu_addr, size_t size);
+    [[nodiscard]] std::span<const u8> ImmediateBufferWithData(VAddr cpu_addr,
+                                                              size_t size, GPUVAddr gpu_addr);
 
     [[nodiscard]] std::span<u8> ImmediateBuffer(size_t wanted_capacity);
 
@@ -1031,7 +1032,7 @@ void BufferCache<P>::BindHostGraphicsUniformBuffer(size_t stage, u32 index, u32 
                     uniform_buffer_binding_sizes[stage][binding_index] = size;
                     runtime.BindFastUniformBuffer(stage, binding_index, size);
                 }
-                const auto span = ImmediateBufferWithData(gpu_addr, size);
+                const auto span = ImmediateBufferWithData(cpu_addr, size, gpu_addr);
                 runtime.PushFastUniformBuffer(stage, binding_index, span);
                 return;
             }
@@ -1617,10 +1618,22 @@ void BufferCache<P>::UploadMemory(Buffer& buffer, u64 total_size_bytes, u64 larg
 template <class P>
 void BufferCache<P>::ImmediateUploadMemory(Buffer& buffer, u64 largest_copy,
                                            std::span<const BufferCopy> copies) {
+    std::span<u8> immediate_buffer;
     for (const BufferCopy& copy : copies) {
         std::span<const u8> upload_span;
-        const GPUVAddr gpu_addr = buffer.GpuAddr() + copy.dst_offset;
-        upload_span = std::span(gpu_memory.GetPointer(gpu_addr), copy.size);
+        const VAddr cpu_addr = buffer.CpuAddr() + copy.dst_offset;
+        if (IsRangeGranular(cpu_addr, copy.size)) {
+            const GPUVAddr gpu_addr = buffer.GpuAddr() + copy.dst_offset;
+            upload_span = std::span(gpu_memory.GetPointer(gpu_addr), copy.size);
+        } else {
+            if (immediate_buffer.empty()) {
+                immediate_buffer = ImmediateBuffer(largest_copy);
+            }
+            horizon_servctl_read_buffer_from(cpu_addr, immediate_buffer.data(),
+                                             copy.size,
+					     rasterizer.GPU().SessionPid());
+            upload_span = immediate_buffer.subspan(0, copy.size);
+        }
         buffer.ImmediateUpload(copy.dst_offset, upload_span);
     }
 }
@@ -1791,8 +1804,18 @@ typename BufferCache<P>::TextureBufferBinding BufferCache<P>::GetTextureBufferBi
 }
 
 template <class P>
-std::span<const u8> BufferCache<P>::ImmediateBufferWithData(GPUVAddr gpu_addr, size_t size) {
-    return std::span(gpu_memory.GetPointer(gpu_addr), size);
+std::span<const u8> BufferCache<P>::ImmediateBufferWithData(VAddr cpu_addr,
+							    size_t size,
+							    GPUVAddr gpu_addr) {
+    if (IsRangeGranular(cpu_addr, size) ||
+        gpu_memory.IsFullyMappedRange(gpu_addr, size)) {
+        return std::span(gpu_memory.GetPointer(gpu_addr), size);
+    } else {
+        const std::span<u8> span = ImmediateBuffer(size);
+        horizon_servctl_read_buffer_from(cpu_addr, span.data(), size,
+					 rasterizer.GPU().SessionPid());
+        return span;
+    }
 }
 
 template <class P>

@@ -330,6 +330,7 @@ struct GPU::Impl {
     void Start() {
         gpu_thread.StartThread(*renderer, renderer->Context(), *dma_pusher);
         cpu_context = renderer->GetEmuWindow().CreateSharedContext();
+        cpu_context->MakeCurrent();
     }
 
     /// Obtain the CPU Context
