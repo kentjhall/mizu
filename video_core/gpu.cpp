@@ -329,7 +329,7 @@ struct GPU::Impl {
     /// core timing events.
     void Start() {
         gpu_thread.StartThread(*renderer, renderer->Context(), *dma_pusher);
-        cpu_context = renderer->GetEmuWindow().CreateSharedContext();
+        cpu_context = renderer->GetRenderWindow().CreateSharedContext();
     }
 
     /// Obtain the CPU Context

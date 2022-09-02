@@ -33,7 +33,7 @@ u16 GetResolutionScaleFactor(const RendererBase& renderer) {
     return static_cast<u16>(
         Settings::values.resolution_factor.GetValue() != 0
             ? Settings::values.resolution_factor.GetValue()
-            : renderer.GetEmuWindow().GetFramebufferLayout().GetScalingRatio());
+            : renderer.GetRenderWindow().GetFramebufferLayout().GetScalingRatio());
 }
 
 } // namespace VideoCore

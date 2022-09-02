@@ -4,7 +4,7 @@
 //
 // Adapted by Kent Hall for mizu on Horizon Linux.
 
-#version 450
+#version 430
 
 #ifdef VULKAN
 

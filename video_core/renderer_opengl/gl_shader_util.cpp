@@ -36,8 +36,10 @@ static OGLProgram LinkSeparableProgram(GLuint shader) {
     glGetProgramInfoLog(program.handle, log_length, nullptr, log.data());
     if (link_status == GL_FALSE) {
         LOG_ERROR(Render_OpenGL, "{}", log);
+        ::fprintf(stderr, "%s\n", log.c_str());
     } else {
         LOG_WARNING(Render_OpenGL, "{}", log);
+        ::fprintf(stderr, "%s\n", log.c_str());
     }
     return program;
 }
@@ -47,6 +49,7 @@ static void LogShader(GLuint shader, std::string_view code = {}) {
     glGetShaderiv(shader, GL_COMPILE_STATUS, &shader_status);
     if (shader_status == GL_FALSE) {
         LOG_ERROR(Render_OpenGL, "Failed to build shader");
+        ::fprintf(stderr, "Failed to build shader\n");
     }
     GLint log_length{};
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
@@ -57,11 +60,14 @@ static void LogShader(GLuint shader, std::string_view code = {}) {
     glGetShaderInfoLog(shader, log_length, nullptr, log.data());
     if (shader_status == GL_FALSE) {
         LOG_ERROR(Render_OpenGL, "{}", log);
+        ::fprintf(stderr, "%s\n", log.c_str());
         if (!code.empty()) {
             LOG_INFO(Render_OpenGL, "\n{}", code);
+        ::fprintf(stderr, "%s\n", std::string(code).c_str());
         }
     } else {
         LOG_WARNING(Render_OpenGL, "{}", log);
+        ::fprintf(stderr, "%s\n", log.c_str());
     }
 }
 

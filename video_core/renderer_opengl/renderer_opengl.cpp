@@ -111,6 +111,7 @@ void APIENTRY DebugHandler(GLenum source, GLenum type, GLuint id, GLenum severit
     const char format[] = "{} {} {}: {}";
     const char* const str_source = GetSource(source);
     const char* const str_type = GetType(type);
+    ::fprintf(stderr, "%s %s %u %s\n", str_source, str_type, id, (char *)message);
 
     switch (severity) {
     case GL_DEBUG_SEVERITY_HIGH:

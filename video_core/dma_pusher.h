@@ -146,7 +146,6 @@ private:
     std::array<Engines::EngineInterface*, max_subchannels> subchannels{};
 
     GPU& gpu;
-    ;
 };
 
 } // namespace Tegra

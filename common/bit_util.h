@@ -20,6 +20,46 @@ template <typename T>
     return sizeof(T) * CHAR_BIT;
 }
 
+#ifdef VIDEO_CORE_COMPAT
+#ifdef _MSC_VER
+inline u32 CountTrailingZeroes32(u32 value) {
+    unsigned long trailing_zero = 0;
+
+    if (_BitScanForward(&trailing_zero, value) != 0) {
+        return trailing_zero;
+    }
+
+    return 32;
+}
+
+inline u32 CountTrailingZeroes64(u64 value) {
+    unsigned long trailing_zero = 0;
+
+    if (_BitScanForward64(&trailing_zero, value) != 0) {
+        return trailing_zero;
+    }
+
+    return 64;
+}
+#else
+inline u32 CountTrailingZeroes32(u32 value) {
+    if (value == 0) {
+        return 32;
+    }
+
+    return static_cast<u32>(__builtin_ctz(value));
+}
+
+inline u32 CountTrailingZeroes64(u64 value) {
+    if (value == 0) {
+        return 64;
+    }
+
+    return static_cast<u32>(__builtin_ctzll(value));
+}
+#endif
+#endif
+
 [[nodiscard]] constexpr u32 MostSignificantBit32(const u32 value) {
     return 31U - static_cast<u32>(std::countl_zero(value));
 }

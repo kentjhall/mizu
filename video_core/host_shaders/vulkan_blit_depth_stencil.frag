@@ -4,7 +4,7 @@
 //
 // Adapted by Kent Hall for mizu on Horizon Linux.
 
-#version 450
+#version 430
 #extension GL_ARB_shader_stencil_export : require
 
 layout(binding = 0) uniform sampler2D depth_tex;

@@ -51,8 +51,8 @@ UtilShaders::UtilShaders(ProgramManager& program_manager_)
     : program_manager{program_manager_}, astc_decoder_program(MakeProgram(ASTC_DECODER_COMP)),
       block_linear_unswizzle_2d_program(MakeProgram(BLOCK_LINEAR_UNSWIZZLE_2D_COMP)),
       block_linear_unswizzle_3d_program(MakeProgram(BLOCK_LINEAR_UNSWIZZLE_3D_COMP)),
-      pitch_unswizzle_program(MakeProgram(PITCH_UNSWIZZLE_COMP)),
-      copy_bc4_program(MakeProgram(OPENGL_COPY_BC4_COMP)) {
+      pitch_unswizzle_program(MakeProgram(PITCH_UNSWIZZLE_COMP)) {
+      /* copy_bc4_program(MakeProgram(OPENGL_COPY_BC4_COMP)) { */
     const auto swizzle_table = Tegra::Texture::MakeSwizzleTable();
     swizzle_table_buffer.Create();
     glNamedBufferStorage(swizzle_table_buffer.handle, sizeof(swizzle_table), &swizzle_table, 0);

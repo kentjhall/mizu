@@ -47,17 +47,22 @@ First install the required dependencies...
 
 for Debian:
 ```
-# apt install cmake qtbase5-dev qtbase5-private-dev qtbase5-dev-tools libglfw3-dev libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavresample-dev libavutil-dev libpostproc-dev libswresample-dev libswscale-dev libopus-dev libusb-1.0-0-dev glslang-tools liblz4-dev libboost-dev nlohmann-json3-dev
+# apt install cmake qtbase5-dev qtbase5-private-dev qtbase5-dev-tools libglfw3-dev libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavresample-dev libavutil-dev libpostproc-dev libswresample-dev libswscale-dev libopus-dev libusb-1.0-0-dev glslang-tools liblz4-dev libboost-dev nlohmann-json3-dev libzstd-dev
 ```
 
 for Fedora:
 ```
-# dnf install make cmake gcc gcc-c++ qt5-qtbase-devel qt5-qtbase-private-devel glfw-devel.aarch64 ffmpeg-free-devel.aarch64 opus-devel.aarch64 libusb1-devel.aarch64 libusb1.aarch64 glslang-devel.aarch64 lz4-devel.aarch64 boost-devel json-devel
+# dnf install make cmake gcc gcc-c++ qt5-qtbase-devel qt5-qtbase-private-devel glfw-devel.aarch64 ffmpeg-free-devel.aarch64 opus-devel.aarch64 libusb1-devel.aarch64 libusb1.aarch64 glslang-devel.aarch64 lz4-devel.aarch64 boost-devel json-devel libzstd-devel
 ```
 
 Then run:
 ```
 $ make -j$(nproc)
+```
+
+Or (alternatively) if you want the older OpenGL 4.3 GPU emulation, then:
+```
+$ make VIDEO_CORE_COMPAT=y -j$(nproc)
 ```
 
 And to install:

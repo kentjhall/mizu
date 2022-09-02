@@ -20,7 +20,6 @@
 #include "common/thread.h"
 #include "core/frontend/emu_window.h"
 #include "input_common/main.h"
-#include "video_core/gpu.h"
 
 class GRenderWindow;
 class GMainWindow;
@@ -37,6 +36,10 @@ class InputSubsystem;
 
 namespace MouseInput {
 enum class MouseButton;
+}
+
+namespace Tegra {
+class GPU;
 }
 
 namespace VideoCore {

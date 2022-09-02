@@ -213,6 +213,43 @@ public:
      */
     [[nodiscard]] bool IsOpen() const;
 
+#ifdef VIDEO_CORE_COMPAT
+    template <typename T>
+    std::size_t ReadArray(T* data, std::size_t length) const {
+        static_assert(std::is_trivially_copyable_v<T>,
+                      "Given array does not consist of trivially copyable objects");
+
+        if (!IsOpen()) {
+            return std::numeric_limits<std::size_t>::max();
+        }
+
+        return std::fread(data, sizeof(T), length, file);
+    }
+
+    template <typename T>
+    std::size_t WriteArray(const T* data, std::size_t length) {
+        static_assert(std::is_trivially_copyable_v<T>,
+                      "Given array does not consist of trivially copyable objects");
+        if (!IsOpen()) {
+            return std::numeric_limits<std::size_t>::max();
+        }
+
+        return std::fwrite(data, sizeof(T), length, file);
+    }
+
+    template <typename T>
+    std::size_t ReadBytes(T* data, std::size_t length) const {
+        static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
+        return ReadArray(reinterpret_cast<char*>(data), length);
+    }
+
+    template <typename T>
+    std::size_t WriteBytes(const T* data, std::size_t length) {
+        static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
+        return WriteArray(reinterpret_cast<const char*>(data), length);
+    }
+#endif
+
     /**
      * Helper function which deduces the value type of a contiguous STL container used in ReadSpan.
      * If T is not a contiguous STL container as defined by the concept IsSTLContainer, this calls

@@ -1,15 +1,23 @@
 CXX := g++
 CC := g++
-INCLUDES := -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include $(shell bash -c 'PATH=/usr/lib/qt5/bin/:/usr/lib64/qt5/bin/:$$PATH qmake -o - <(echo "QT += gui-private") 2> /dev/null | grep INCPATH | cut -d"=" -f2')
-DEBUG-y := -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
-CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -DMIZU_UNIX -fno-new-ttp-matching -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus) $(INCLUDES) $(DEBUG-$(DEBUG))
+VIDEO_CORE_COMPAT_INCLUDE-y := -I ./compat
+INCLUDES := $(VIDEO_CORE_COMPAT_INCLUDE-$(VIDEO_CORE_COMPAT)) -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include $(shell bash -c 'PATH=/usr/lib/qt5/bin/:/usr/lib64/qt5/bin/:$$PATH qmake -o - <(echo "QT += gui-private") 2> /dev/null | grep INCPATH | cut -d"=" -f2')
+VIDEO_CORE_COMPAT-y := -DVIDEO_CORE_COMPAT
+CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -DMIZU_UNIX $(VIDEO_CORE_COMPAT-$(VIDEO_CORE_COMPAT)) -fno-new-ttp-matching -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus libzstd)  $(INCLUDES) 
+ifeq ($(DEBUG), y)
+CXXFLAGS += -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
+else
+CXXFLAGS += -O3
+endif
 CFLAGS := $(CXXFLAGS)
 LDFLAGS := -L ./externals/sirit/build/src -L ./externals/soundtouch/build -L ./externals/cubeb/build -L ./externals/mbedtls/library -L ./externals/SDL/build $(DEBUG-$(DEBUG))
-LDLIBS := -pthread -lrt -ldl -lmbedcrypto -lsirit -lcubeb -lSoundTouch -lSDL2 $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus)
+LDLIBS := -pthread -lrt -ldl -lmbedcrypto -lsirit -lcubeb -lSoundTouch -lSDL2 $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus libzstd)
 
 services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend nifm sockets ssl
 
-shader_headers := astc_decoder_comp.h \
+shader_headers :=
+ifneq ($(VIDEO_CORE_COMPAT), y)
+shader_headers += astc_decoder_comp.h \
                   block_linear_unswizzle_2d_comp.h \
                   block_linear_unswizzle_3d_comp.h \
                   convert_depth_to_float_frag.h \
@@ -32,12 +40,17 @@ shader_headers := astc_decoder_comp.h \
                   vulkan_present_vert_spv.h \
                   vulkan_quad_indexed_comp_spv.h \
                   vulkan_uint8_comp_spv.h
+endif
 subdirs := common common/fs common/logging configuration \
 	   core core/file_sys core/file_sys/system_archive core/file_sys/system_archive/data core/crypto \
 	   core/frontend core/loader core/frontend/applets core/hle core/hle/kernel core/network \
-	   $(shell find video_core -type d) $(shell find audio_core -type d) $(shell find shader_recompiler -type d) \
-	   input_common $(shell find input_common -type d)  \
+	   $(shell find audio_core input_common -type d) \
 	   core/hle/service $(shell find $(addprefix core/hle/service/,$(services)) -type d)
+ifneq ($(VIDEO_CORE_COMPAT), y)
+subdirs += $(shell find video_core shader_recompiler -type d)
+else
+subdirs += $(shell find compat/video_core -type d)
+endif
 sources := $(wildcard *.cpp) $(wildcard $(addsuffix /*.cpp,$(subdirs))) video_core/bootmanager.moc.cpp
 headers := $(wildcard $(patsubst %.cpp,%.h,$(sources))) $(addprefix video_core/host_shaders/,$(shader_headers)) \
 	   glad/include/glad/glad.h horizon_servctl.h
@@ -108,10 +121,10 @@ clean:
 	rm -f mizu hlaunch
 	find . -name '*.o' -not -path "./externals/*" -exec rm {} \;
 	find . -name '*.moc.cpp' -not -path "./externals/*" -exec rm {} \;
-	find video_core/host_shaders -name '*_comp.h' -exec rm {} \;
-	find video_core/host_shaders -name '*_frag.h' -exec rm {} \;
-	find video_core/host_shaders -name '*_vert.h' -exec rm {} \;
-	find video_core/host_shaders -name '*_spv.h' -exec rm {} \;
+	# find video_core/host_shaders -name '*_comp.h' -exec rm {} \;
+	# find video_core/host_shaders -name '*_frag.h' -exec rm {} \;
+	# find video_core/host_shaders -name '*_vert.h' -exec rm {} \;
+	# find video_core/host_shaders -name '*_spv.h' -exec rm {} \;
 
 .PHONY: distclean
 distclean: clean

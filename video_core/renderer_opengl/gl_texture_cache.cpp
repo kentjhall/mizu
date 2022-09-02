@@ -1026,8 +1026,11 @@ Sampler::Sampler(TextureCacheRuntime& runtime, const TSCEntry& config) {
 
     sampler.Create();
     const GLuint handle = sampler.handle;
+    if (MaxwellToGL::WrapMode(config.wrap_u) == GL_MIRROR_CLAMP_TO_EDGE || MaxwellToGL::WrapMode(config.wrap_u) == GL_MIRROR_CLAMP_TO_BORDER_EXT || MaxwellToGL::WrapMode(config.wrap_u) == GL_MIRROR_CLAMP_EXT) fprintf(stderr, "BAD OPENGL %d\n", __LINE__);
     glSamplerParameteri(handle, GL_TEXTURE_WRAP_S, MaxwellToGL::WrapMode(config.wrap_u));
+    if (MaxwellToGL::WrapMode(config.wrap_v) == GL_MIRROR_CLAMP_TO_EDGE || MaxwellToGL::WrapMode(config.wrap_v) == GL_MIRROR_CLAMP_TO_BORDER_EXT || MaxwellToGL::WrapMode(config.wrap_v) == GL_MIRROR_CLAMP_EXT) fprintf(stderr, "BAD OPENGL %d\n", __LINE__);
     glSamplerParameteri(handle, GL_TEXTURE_WRAP_T, MaxwellToGL::WrapMode(config.wrap_v));
+    if (MaxwellToGL::WrapMode(config.wrap_p) == GL_MIRROR_CLAMP_TO_EDGE || MaxwellToGL::WrapMode(config.wrap_p) == GL_MIRROR_CLAMP_TO_BORDER_EXT || MaxwellToGL::WrapMode(config.wrap_p) == GL_MIRROR_CLAMP_EXT) fprintf(stderr, "BAD OPENGL %d\n", __LINE__);
     glSamplerParameteri(handle, GL_TEXTURE_WRAP_R, MaxwellToGL::WrapMode(config.wrap_p));
     glSamplerParameteri(handle, GL_TEXTURE_COMPARE_MODE, compare_mode);
     glSamplerParameteri(handle, GL_TEXTURE_COMPARE_FUNC, compare_func);

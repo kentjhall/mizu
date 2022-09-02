@@ -666,6 +666,7 @@ bool GRenderWindow::LoadOpenGL() {
     const QString renderer =
         QString::fromUtf8(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
 
+#if 0
     if (!GLAD_GL_VERSION_4_6) {
         LOG_ERROR(Frontend, "GPU does not support OpenGL 4.6: {}", renderer.toStdString());
         QMessageBox::warning(this, tr("Error while initializing OpenGL 4.6!"),
@@ -674,6 +675,7 @@ bool GRenderWindow::LoadOpenGL() {
                                  .arg(renderer));
         return false;
     }
+#endif
 
     QStringList unsupported_gl_extensions = GetUnsupportedGLExtensions();
     if (!unsupported_gl_extensions.empty()) {

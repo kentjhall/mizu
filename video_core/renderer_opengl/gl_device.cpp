@@ -115,10 +115,12 @@ bool IsASTCSupported() {
 } // Anonymous namespace
 
 Device::Device() {
+#if 0
     if (!GLAD_GL_VERSION_4_6) {
         LOG_ERROR(Render_OpenGL, "OpenGL 4.6 is not available");
         throw std::runtime_error{"Insufficient version"};
     }
+#endif
     vendor_name = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
     const std::string_view version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
     const std::vector extensions = GetExtensions();

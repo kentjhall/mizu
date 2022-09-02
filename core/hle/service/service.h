@@ -193,11 +193,15 @@ inline void GrabGPU(::pid_t req_pid) {
             }
             gpu.Start();
 	    gpu.ObtainContext();
+#ifdef VIDEO_CORE_COMPAT
+	    gpu.Renderer().Rasterizer().LoadDiskResources();
+#else
             if (Settings::values.use_disk_shader_cache.GetValue()) {
                 gpu.Renderer().ReadRasterizer()->LoadDiskResources(
                     GetTitleID(), std::stop_token{},
                     [](VideoCore::LoadCallbackStage, size_t value, size_t total) {});
             }
+#endif
 	    gpu.ReleaseContext();
         } catch (const std::runtime_error& exception) {
             LOG_ERROR(HW_GPU, "Failed to initialize GPU: {}", exception.what());
