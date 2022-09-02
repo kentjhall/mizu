@@ -13,7 +13,7 @@ namespace Service::MM {
 
 class MM_U final : public ServiceFramework<MM_U> {
 public:
-    explicit MM_U(Core::System& system_) : ServiceFramework{system_, "mm:u"} {
+    explicit MM_U() : ServiceFramework{"mm:u"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &MM_U::InitializeOld, "InitializeOld"},
@@ -106,8 +106,8 @@ private:
     u32 id{1};
 };
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
-    std::make_shared<MM_U>(system)->InstallAsService(service_manager);
+void InstallInterfaces() {
+    MakeService<MM_U>();
 }
 
 } // namespace Service::MM

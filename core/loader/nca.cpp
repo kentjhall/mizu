@@ -55,7 +55,7 @@ AppLoader_NCA::LoadResult AppLoader_NCA::Load(::pid_t pid, std::vector<Kernel::C
     directory_loader = std::make_unique<AppLoader_DeconstructedRomDirectory>(exefs, true);
 
     const auto load_result = directory_loader->Load(pid, codesets);
-    if (load_result != ResultStatus::Success) {
+    if (load_result.load_result != ResultStatus::Success) {
         return load_result;
     }
 

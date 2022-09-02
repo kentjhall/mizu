@@ -107,7 +107,7 @@ AppLoader_NSP::LoadResult AppLoader_NSP::Load(::pid_t pid, std::vector<Kernel::C
     }
 
     const auto result = secondary_loader->Load(pid, codesets);
-    if (result != ResultStatus::Success) {
+    if (result.load_result != ResultStatus::Success) {
         return result;
     }
 

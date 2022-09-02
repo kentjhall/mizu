@@ -1,6 +1,7 @@
 #include <csignal>
 #include <clocale>
 #include <limits.h>
+#include <sched.h>
 #include <QApplication>
 #include <QHBoxLayout>
 #include "core/hle/service/service.h"
@@ -21,8 +22,27 @@ int main(int argc, char **argv) {
         ::perror("signal failed");
         return 1;
     }
+    if (::signal(SIGTERM, on_sig) == SIG_ERR) {
+        ::perror("signal failed");
+        return 1;
+    }
     if (::signal(SIGSEGV, on_sig) == SIG_ERR) {
         ::perror("signal failed");
+        return 1;
+    }
+
+    // stay off the first four CPUs if we've got extras to spare; this is where
+    // horizon tasks will live
+    cpu_set_t  mask;
+    CPU_ZERO(&mask);
+    if (::sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+        ::perror("sched_getaffinity failed");
+        return 1;
+    }
+    for (int cpu = 0; cpu < 4 && CPU_COUNT(&mask) > 4; ++cpu)
+        CPU_CLR(cpu, &mask);
+    if (sched_setaffinity(0, sizeof(mask), &mask) != 0) {
+        ::perror("sched_setaffinity failed");
         return 1;
     }
 
@@ -43,6 +63,7 @@ int main(int argc, char **argv) {
     }
 
     QCoreApplication::setAttribute(Qt::AA_DontCheckOpenGLContextThreadAffinity);
+    QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
     QApplication app(argc, argv);
     QWidget dummy; // prevents render window from telling the QApplication to exit
     auto* layout = new QHBoxLayout(&dummy);

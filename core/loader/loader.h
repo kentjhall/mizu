@@ -149,7 +149,16 @@ public:
         s32 main_thread_priority;
         u64 main_thread_stack_size;
     };
-    using LoadResult = ResultStatus;
+    struct LoadResult {
+        ResultStatus load_result;
+        std::optional<LoadParameters> load_parameters;
+        LoadResult(ResultStatus res)
+            : load_result{res}, load_parameters{std::nullopt}
+        {}
+        LoadResult(ResultStatus res, LoadParameters lp)
+            : load_result{res}, load_parameters{lp}
+        {}
+    };
 
     explicit AppLoader(FileSys::VirtualFile file_);
     virtual ~AppLoader();

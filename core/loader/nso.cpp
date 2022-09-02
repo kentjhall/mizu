@@ -17,7 +17,9 @@
 #include "core/core.h"
 #include "core/file_sys/patch_manager.h"
 #include "core/hle/kernel/code_set.h"
+#include "core/hle/kernel/k_thread.h"
 #include "core/loader/nso.h"
+#include "core/memory.h"
 
 namespace Loader {
 namespace {
@@ -165,7 +167,8 @@ AppLoader_NSO::LoadResult AppLoader_NSO::Load(::pid_t, std::vector<Kernel::CodeS
     LOG_DEBUG(Loader, "loaded module {}", file->GetName());
 
     is_loaded = true;
-    return ResultStatus::Success;
+    return {ResultStatus::Success, LoadParameters{Kernel::KThread::DefaultThreadPriority,
+                                                  Core::Memory::DEFAULT_STACK_SIZE}};
 }
 
 } // namespace Loader

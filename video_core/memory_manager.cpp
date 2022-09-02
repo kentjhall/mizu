@@ -27,6 +27,7 @@ namespace Tegra {
 MemoryManager::MemoryManager() {}
 
 MemoryManager::~MemoryManager() {
+    std::shared_lock lock(mtx);
     for (const auto& alloc_range : alloc_ranges) {
         ::munmap(reinterpret_cast<void *>(alloc_range.gpu_addr), alloc_range.size);
     }
@@ -37,6 +38,7 @@ void MemoryManager::BindRasterizer(VideoCore::RasterizerInterface* rasterizer_) 
 }
 
 GPUVAddr MemoryManager::Map(VAddr cpu_addr, GPUVAddr gpu_addr, std::size_t size) {
+    std::unique_lock lock(mtx);
     for (auto& alloc_range : alloc_ranges) {
         if (gpu_addr >= alloc_range.gpu_addr &&
             gpu_addr + size <= alloc_range.gpu_addr + alloc_range.size) {
@@ -64,8 +66,11 @@ void MemoryManager::Unmap(GPUVAddr gpu_addr, std::size_t size) {
     if (size == 0) {
         return;
     }
-    if (!UnmapRegion(gpu_addr, size)) {
-        UNREACHABLE_MSG("Unmapping non-existent GPU address=0x{:x}", gpu_addr);
+    {
+        std::unique_lock lock(mtx);
+        if (!UnmapRegion(gpu_addr, size)) {
+            UNREACHABLE_MSG("Unmapping non-existent GPU address=0x{:x}", gpu_addr);
+        }
     }
 
     const auto submapped_ranges = GetSubmappedRange(gpu_addr, size);
@@ -79,6 +84,7 @@ void MemoryManager::Unmap(GPUVAddr gpu_addr, std::size_t size) {
 bool MemoryManager::UnmapRegion(GPUVAddr gpu_addr, std::size_t size) {
     ASSERT(size != 0);
 
+    // unique_lock(mtx) should be held
     for (auto it = map_ranges.begin(); it != map_ranges.end(); ++it) {
         if (gpu_addr >= it->gpu_addr &&
             gpu_addr + size <= it->gpu_addr + it->size) {
@@ -110,6 +116,7 @@ std::optional<GPUVAddr> MemoryManager::AllocateFixed(GPUVAddr gpu_addr, std::siz
                MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0) == MAP_FAILED) {
         return std::nullopt;
     }
+    std::unique_lock lock(mtx);
     alloc_ranges.emplace_back(gpu_addr, size);
     return gpu_addr;
 }
@@ -132,6 +139,7 @@ std::optional<GPUVAddr> MemoryManager::FindAllocateFreeRange(std::size_t size, s
     align = PAGE_SIZE;
 #endif
 
+    std::unique_lock lock(mtx);
     if (align == PAGE_SIZE && !start_32bit_address) {
         // let mmap find the range if aligned normally
         void *addr = ::mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
@@ -174,6 +182,7 @@ std::optional<VAddr> MemoryManager::GpuToCpuAddress(GPUVAddr gpu_addr) const {
     if (gpu_addr == 0) {
         return std::nullopt;
     }
+    std::shared_lock lock(mtx);
     for (const auto& range : map_ranges) {
         if (gpu_addr >= range.gpu_addr &&
             gpu_addr < range.gpu_addr + range.size &&
@@ -185,6 +194,7 @@ std::optional<VAddr> MemoryManager::GpuToCpuAddress(GPUVAddr gpu_addr) const {
 }
 
 std::optional<VAddr> MemoryManager::GpuToCpuAddress(GPUVAddr addr, std::size_t size) const {
+    std::shared_lock lock(mtx);
     for (const auto& range : map_ranges) {
         if (range.gpu_addr <= addr &&
             range.gpu_addr + range.size >= addr + size &&
@@ -225,6 +235,7 @@ const u8* MemoryManager::GetPointer(GPUVAddr gpu_addr) const {
 }
 
 size_t MemoryManager::BytesToMapEnd(GPUVAddr gpu_addr) const noexcept {
+    std::shared_lock lock(mtx);
     auto it = std::ranges::upper_bound(alloc_ranges, gpu_addr, {}, &AllocRange::gpu_addr);
     --it;
     return it->size - (gpu_addr - it->gpu_addr);
@@ -279,6 +290,7 @@ void MemoryManager::WriteBlockUnsafe(GPUVAddr gpu_dest_addr, const void* src_buf
 }
 
 void MemoryManager::FlushRegion(GPUVAddr gpu_addr, size_t size) const {
+    std::shared_lock lock(mtx);
     for (const auto& range : map_ranges) {
         if (range.gpu_addr + range.size <= gpu_addr ||
             range.gpu_addr >= gpu_addr + size ||
@@ -321,6 +333,7 @@ bool MemoryManager::IsFullyMappedRange(GPUVAddr gpu_addr, std::size_t size) cons
 
 std::vector<MemoryManager::MapRange> MemoryManager::GetSubmappedRange(
     GPUVAddr gpu_addr, std::size_t size) const {
+    std::shared_lock lock(mtx);
     std::vector<MapRange> result{};
     for (const auto& range : map_ranges) {
         if (range.gpu_addr + range.size <= gpu_addr ||
@@ -339,8 +352,9 @@ std::vector<MemoryManager::MapRange> MemoryManager::GetSubmappedRange(
     return result;
 }
 
-void MemoryManager::SyncCPUWrites()
+void MemoryManager::SyncCPUWrites() const
 {
+    std::shared_lock lock(mtx);
     for (const auto& mapping : map_ranges) {
         long dirty_len = Common::DivCeil(mapping.size, PAGE_SIZE);
         std::unique_ptr<::loff_t[]> dirty(new ::loff_t[dirty_len]);

@@ -11,6 +11,7 @@
 #include "core/core.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/lock.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/nfp/nfp.h"
 #include "core/hle/service/nfp/nfp_user.h"
 
@@ -19,23 +20,20 @@ namespace ErrCodes {
 constexpr ResultCode ERR_NO_APPLICATION_AREA(ErrorModule::NFP, 152);
 } // namespace ErrCodes
 
-Module::Interface::Interface(std::shared_ptr<Module> module_, Core::System& system_,
-                             const char* name)
-    : ServiceFramework{system_, name}, module{std::move(module_)}, service_context{system_,
-                                                                                   "NFP::IUser"} {
-    nfc_tag_load = service_context.CreateEvent("NFP::IUser:NFCTagDetected");
+Module::Interface::Interface(const char* name)
+    : ServiceFramework{name} {
+    KernelHelpers::SetupServiceContext("NFP::IUser");
+    nfc_tag_load = KernelHelpers::CreateEvent("NFP::IUser:NFCTagDetected");
 }
 
 Module::Interface::~Interface() {
-    service_context.CloseEvent(nfc_tag_load);
+    KernelHelpers::CloseEvent(nfc_tag_load);
 }
 
 class IUser final : public ServiceFramework<IUser> {
 public:
-    explicit IUser(Module::Interface& nfp_interface_, Core::System& system_,
-                   KernelHelpers::ServiceContext& service_context_)
-        : ServiceFramework{system_, "NFP::IUser"}, nfp_interface{nfp_interface_},
-          service_context{service_context_} {
+    explicit IUser(Module::Interface& nfp_interface_)
+        : ServiceFramework{"NFP::IUser"}, nfp_interface{nfp_interface_} {
         static const FunctionInfo functions[] = {
             {0, &IUser::Initialize, "Initialize"},
             {1, &IUser::Finalize, "Finalize"},
@@ -65,14 +63,14 @@ public:
         };
         RegisterHandlers(functions);
 
-        deactivate_event = service_context.CreateEvent("NFP::IUser:DeactivateEvent");
+        deactivate_event = KernelHelpers::CreateEvent("NFP::IUser:DeactivateEvent");
         availability_change_event =
-            service_context.CreateEvent("NFP::IUser:AvailabilityChangeEvent");
+            KernelHelpers::CreateEvent("NFP::IUser:AvailabilityChangeEvent");
     }
 
     ~IUser() override {
-        service_context.CloseEvent(deactivate_event);
-        service_context.CloseEvent(availability_change_event);
+        KernelHelpers::CloseEvent(deactivate_event);
+        KernelHelpers::CloseEvent(availability_change_event);
     }
 
 private:
@@ -159,7 +157,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(nfp_interface.GetNFCEvent());
+        rb.PushCopyFds(nfp_interface.GetNFCEvent());
         has_attached_handle = true;
     }
 
@@ -170,7 +168,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(deactivate_event->GetReadableEvent());
+        rb.PushCopyFds(deactivate_event);
     }
 
     void StopDetection(Kernel::HLERequestContext& ctx) {
@@ -179,7 +177,7 @@ private:
         switch (device_state) {
         case DeviceState::TagFound:
         case DeviceState::TagNearby:
-            deactivate_event->GetWritableEvent().Signal();
+            KernelHelpers::SignalEvent(deactivate_event);
             device_state = DeviceState::Initialized;
             break;
         case DeviceState::SearchingForTag:
@@ -268,7 +266,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(availability_change_event->GetReadableEvent());
+        rb.PushCopyFds(availability_change_event);
     }
 
     void GetRegisterInfo(Kernel::HLERequestContext& ctx) {
@@ -318,15 +316,14 @@ private:
     }
 
     Module::Interface& nfp_interface;
-    KernelHelpers::ServiceContext& service_context;
 
     bool has_attached_handle{};
     const u64 device_handle{0}; // Npad device 1
     const u32 npad_id{0};       // Player 1 controller
     State state{State::NonInitialized};
     DeviceState device_state{DeviceState::Initialized};
-    Kernel::KEvent* deactivate_event;
-    Kernel::KEvent* availability_change_event;
+    int deactivate_event;
+    int availability_change_event;
 };
 
 void Module::Interface::CreateUserInterface(Kernel::HLERequestContext& ctx) {
@@ -334,7 +331,7 @@ void Module::Interface::CreateUserInterface(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(ResultSuccess);
-    rb.PushIpcInterface<IUser>(*this, system, service_context);
+    rb.PushIpcInterface<IUser>(*this);
 }
 
 bool Module::Interface::LoadAmiibo(const std::vector<u8>& buffer) {
@@ -344,21 +341,20 @@ bool Module::Interface::LoadAmiibo(const std::vector<u8>& buffer) {
     }
 
     std::memcpy(&amiibo, buffer.data(), sizeof(amiibo));
-    nfc_tag_load->GetWritableEvent().Signal();
+    KernelHelpers::SignalEvent(nfc_tag_load);
     return true;
 }
 
-Kernel::KReadableEvent& Module::Interface::GetNFCEvent() {
-    return nfc_tag_load->GetReadableEvent();
+int Module::Interface::GetNFCEvent() {
+    return nfc_tag_load;
 }
 
 const Module::Interface::AmiiboFile& Module::Interface::GetAmiiboBuffer() const {
     return amiibo;
 }
 
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
-    auto module = std::make_shared<Module>();
-    std::make_shared<NFP_User>(module, system)->InstallAsService(service_manager);
+void InstallInterfaces() {
+    MakeService<NFP_User>();
 }
 
 } // namespace Service::NFP
