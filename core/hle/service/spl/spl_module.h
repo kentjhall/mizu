@@ -11,17 +11,13 @@
 #include "core/hle/service/spl/spl_results.h"
 #include "core/hle/service/spl/spl_types.h"
 
-namespace Core {
-class System;
-}
-
 namespace Service::SPL {
 
 class Module final {
 public:
     class Interface : public ServiceFramework<Interface> {
     public:
-        explicit Interface(Core::System& system_, std::shared_ptr<Module> module_,
+        explicit Interface(std::shared_ptr<Module> module_,
                            const char* name);
         ~Interface() override;
 
@@ -45,6 +41,6 @@ public:
 };
 
 /// Registers all SPL services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system);
+void InstallInterfaces();
 
 } // namespace Service::SPL

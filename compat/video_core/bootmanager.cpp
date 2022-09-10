@@ -695,6 +695,8 @@ QStringList GRenderWindow::GetUnsupportedGLExtensions() const {
     if (!GLAD_GL_ARB_texture_mirror_clamp_to_edge)
         LOG_WARNING(Render_OpenGL, "Missing GL_ARB_texture_mirror_clamp_to_edge may cause problems");
         /* unsupported_ext.append(QStringLiteral("ARB_texture_mirror_clamp_to_edge")); */
+    if (!GLAD_GL_ARB_polygon_offset_clamp)
+        LOG_WARNING(Render_OpenGL, "Missing GL_ARB_polygon_offset_clamp may cause problems");
     if (!GLAD_GL_ARB_multi_bind)
         unsupported_ext.append(QStringLiteral("ARB_multi_bind"));
     if (!GLAD_GL_ARB_clip_control)

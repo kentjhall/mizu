@@ -3,17 +3,20 @@ CC := g++
 VIDEO_CORE_COMPAT_INCLUDE-y := -I ./compat
 INCLUDES := $(VIDEO_CORE_COMPAT_INCLUDE-$(VIDEO_CORE_COMPAT)) -I . -I ./glad/include -I ./externals/fmt/include -I ./externals/cubeb/include -I ./externals/cubeb/build/exports -I ./externals/soundtouch/include -I ./externals/microprofile -I ./externals/Vulkan-Headers/include -I ./externals/SDL/include -I ./externals/sirit/externals/SPIRV-Headers/include -I ./externals/sirit/include -I ./externals/mbedtls/include $(shell bash -c 'PATH=/usr/lib/qt5/bin/:/usr/lib64/qt5/bin/:$$PATH qmake -o - <(echo "QT += gui-private") 2> /dev/null | grep INCPATH | cut -d"=" -f2')
 VIDEO_CORE_COMPAT-y := -DVIDEO_CORE_COMPAT
-CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_SDL2 -DMIZU_UNIX $(VIDEO_CORE_COMPAT-$(VIDEO_CORE_COMPAT)) -fno-new-ttp-matching -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus libzstd)  $(INCLUDES) 
+CXXFLAGS := -DHAS_OPENGL -DFMT_HEADER_ONLY -DHAVE_CUBEB -DHAVE_SDL2 -DMIZU_UNIX $(VIDEO_CORE_COMPAT-$(VIDEO_CORE_COMPAT)) -fno-new-ttp-matching -std=gnu++2a $(shell pkg-config --cflags Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus libzstd)  $(INCLUDES) 
 ifeq ($(DEBUG), y)
 CXXFLAGS += -O0 -ggdb -D_DEBUG -fsanitize=address -static-libasan
 else
 CXXFLAGS += -O3
 endif
 CFLAGS := $(CXXFLAGS)
-LDFLAGS := -L ./externals/sirit/build/src -L ./externals/soundtouch/build -L ./externals/cubeb/build -L ./externals/mbedtls/library -L ./externals/SDL/build $(DEBUG-$(DEBUG))
+LDFLAGS := -L ./externals/sirit/build/src -L ./externals/soundtouch/build -L ./externals/cubeb/build -L ./externals/mbedtls/library -L ./externals/SDL/build
+ifeq ($(DEBUG), y)
+LDFLAGS += -fsanitize=address -static-libasan
+endif
 LDLIBS := -pthread -lrt -ldl -lmbedcrypto -lsirit -lcubeb -lSoundTouch -lSDL2 $(shell pkg-config --libs Qt5Gui Qt5Widgets libusb-1.0 glfw3 libavutil libavcodec libswscale liblz4 opus libzstd)
 
-services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend nifm sockets ssl nfp prepo mm
+services := sm set apm am acc bcat glue hid ns filesystem nvflinger vi nvdrv time lm aoc pctl audio ptm friend nifm sockets ssl nfp prepo mm spl
 
 shader_headers :=
 ifneq ($(VIDEO_CORE_COMPAT), y)

@@ -8,8 +8,8 @@
 
 namespace Service::SPL {
 
-SPL::SPL(Core::System& system_, std::shared_ptr<Module> module_)
-    : Interface(system_, std::move(module_), "spl:") {
+SPL::SPL(std::shared_ptr<Module> module_)
+    : Interface(std::move(module_), "spl:") {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &SPL::GetConfig, "GetConfig"},
@@ -25,8 +25,8 @@ SPL::SPL(Core::System& system_, std::shared_ptr<Module> module_)
     RegisterHandlers(functions);
 }
 
-SPL_MIG::SPL_MIG(Core::System& system_, std::shared_ptr<Module> module_)
-    : Interface(system_, std::move(module_), "spl:mig") {
+SPL_MIG::SPL_MIG(std::shared_ptr<Module> module_)
+    : Interface(std::move(module_), "spl:mig") {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &SPL::GetConfig, "GetConfig"},
@@ -51,8 +51,8 @@ SPL_MIG::SPL_MIG(Core::System& system_, std::shared_ptr<Module> module_)
     RegisterHandlers(functions);
 }
 
-SPL_FS::SPL_FS(Core::System& system_, std::shared_ptr<Module> module_)
-    : Interface(system_, std::move(module_), "spl:fs") {
+SPL_FS::SPL_FS(std::shared_ptr<Module> module_)
+    : Interface(std::move(module_), "spl:fs") {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &SPL::GetConfig, "GetConfig"},
@@ -82,8 +82,8 @@ SPL_FS::SPL_FS(Core::System& system_, std::shared_ptr<Module> module_)
     RegisterHandlers(functions);
 }
 
-SPL_SSL::SPL_SSL(Core::System& system_, std::shared_ptr<Module> module_)
-    : Interface(system_, std::move(module_), "spl:ssl") {
+SPL_SSL::SPL_SSL(std::shared_ptr<Module> module_)
+    : Interface(std::move(module_), "spl:ssl") {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &SPL::GetConfig, "GetConfig"},
@@ -111,8 +111,8 @@ SPL_SSL::SPL_SSL(Core::System& system_, std::shared_ptr<Module> module_)
     RegisterHandlers(functions);
 }
 
-SPL_ES::SPL_ES(Core::System& system_, std::shared_ptr<Module> module_)
-    : Interface(system_, std::move(module_), "spl:es") {
+SPL_ES::SPL_ES(std::shared_ptr<Module> module_)
+    : Interface(std::move(module_), "spl:es") {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &SPL::GetConfig, "GetConfig"},
@@ -145,8 +145,8 @@ SPL_ES::SPL_ES(Core::System& system_, std::shared_ptr<Module> module_)
     RegisterHandlers(functions);
 }
 
-SPL_MANU::SPL_MANU(Core::System& system_, std::shared_ptr<Module> module_)
-    : Interface(system_, std::move(module_), "spl:manu") {
+SPL_MANU::SPL_MANU(std::shared_ptr<Module> module_)
+    : Interface(std::move(module_), "spl:manu") {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &SPL::GetConfig, "GetConfig"},

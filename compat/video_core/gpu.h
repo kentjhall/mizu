@@ -24,6 +24,10 @@ inline CacheAddr ToCacheAddr(const void* host_ptr) {
     return reinterpret_cast<CacheAddr>(host_ptr);
 }
 
+inline CacheAddr ToCacheAddr(GPUVAddr gpu_addr) {
+    return reinterpret_cast<CacheAddr>(gpu_addr);
+}
+
 inline u8* FromCacheAddr(CacheAddr cache_addr) {
     return reinterpret_cast<u8*>(cache_addr);
 }

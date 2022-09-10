@@ -6,7 +6,6 @@ WantedBy=graphical-session.target
 
 [Service]
 Type=simple
-Environment=MESA_GL_VERSION_OVERRIDE=4.6
 EnvironmentFile=-/etc/sysconfig/mizu
 ExecStart=/usr/bin/mizu
 Restart=always

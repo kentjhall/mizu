@@ -69,7 +69,7 @@
 #include "core/hle/service/set/settings.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/hle/service/sockets/sockets.h"
-/* #include "core/hle/service/spl/spl_module.h" */
+#include "core/hle/service/spl/spl_module.h"
 #include "core/hle/service/ssl/ssl.h"
 #include "core/hle/service/time/time.h"
 /* #include "core/hle/service/usb/usb.h" */
@@ -281,7 +281,7 @@ void StartServices() {
     PSM::InstallInterfaces();
     Set::InstallInterfaces();
     Sockets::InstallInterfaces();
-    /* SPL::InstallInterfaces(*sm, system); */
+    SPL::InstallInterfaces();
     SSL::InstallInterfaces();
     Time::InstallInterfaces();
     /* USB::InstallInterfaces(*sm, system); */

@@ -1366,9 +1366,10 @@ void RasterizerOpenGL::SyncPolygonOffset() {
 
     if (regs.polygon_offset_fill_enable || regs.polygon_offset_line_enable ||
         regs.polygon_offset_point_enable) {
-        // Hardware divides polygon offset units by two
-        glPolygonOffsetClamp(regs.polygon_offset_factor, regs.polygon_offset_units / 2.0f,
-                             regs.polygon_offset_clamp);
+        if (GLAD_GL_ARB_polygon_offset_clamp)
+            // Hardware divides polygon offset units by two
+            glPolygonOffsetClamp(regs.polygon_offset_factor, regs.polygon_offset_units / 2.0f,
+                                 regs.polygon_offset_clamp);
     }
 }
 

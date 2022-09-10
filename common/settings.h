@@ -561,7 +561,7 @@ struct Values {
     BasicSetting<bool> use_auto_stub{false, "use_auto_stub"};
 
     // Miscellaneous
-    BasicSetting<std::string> log_filter{"*:Trace", "log_filter"};
+    BasicSetting<std::string> log_filter{"*:Info", "log_filter"};
     BasicSetting<bool> use_dev_keys{false, "use_dev_keys"};
 
     // Network

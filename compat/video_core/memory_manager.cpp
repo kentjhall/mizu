@@ -66,7 +66,7 @@ void MemoryManager::Unmap(GPUVAddr gpu_addr, std::size_t size) {
     if (size == 0) {
         return;
     }
-    rasterizer->GPU().FlushAndInvalidateRegion(gpu_addr, size);
+    rasterizer->GPU().FlushAndInvalidateRegion(ToCacheAddr(gpu_addr), size);
     {
         std::unique_lock lock(mtx);
         if (!UnmapRegion(gpu_addr, size)) {
@@ -241,7 +241,7 @@ void MemoryManager::ReadBlock(GPUVAddr gpu_src_addr, void* dest_buffer, std::siz
     for (const auto& map : submapped_ranges) {
         // Flush must happen on the rasterizer interface, such that memory is always synchronous
         // when it is read (even when in asynchronous GPU mode). Fixes Dead Cells title menu.
-        rasterizer->FlushRegion(map.gpu_addr, map.size);
+        rasterizer->FlushRegion(ToCacheAddr(map.gpu_addr), map.size);
 
         ASSERT(map.gpu_addr >= gpu_src_addr && map.gpu_addr + map.size <= gpu_src_addr + size &&
                map.gpu_addr - gpu_src_addr + map.size <= size);
@@ -265,7 +265,7 @@ void MemoryManager::WriteBlock(GPUVAddr gpu_dest_addr, const void* src_buffer, s
     for (const auto& map : submapped_ranges) {
         // Invalidate must happen on the rasterizer interface, such that memory is always
         // synchronous when it is written (even when in asynchronous GPU mode).
-        rasterizer->InvalidateRegion(map.gpu_addr, map.size);
+        rasterizer->InvalidateRegion(ToCacheAddr(map.gpu_addr), map.size);
 
         ASSERT(map.gpu_addr >= gpu_dest_addr && map.gpu_addr + map.size <= gpu_dest_addr + size &&
                map.gpu_addr - gpu_dest_addr + map.size <= size);
@@ -284,18 +284,7 @@ void MemoryManager::WriteBlockUnsafe(GPUVAddr gpu_dest_addr, const void* src_buf
 }
 
 void MemoryManager::FlushRegion(GPUVAddr gpu_addr, size_t size) const {
-    std::shared_lock lock(mtx);
-    for (const auto& range : map_ranges) {
-        if (range.gpu_addr + range.size <= gpu_addr ||
-            range.gpu_addr >= gpu_addr + size ||
-            !range.cpu_addr) {
-            continue;
-        }
-        auto to_flush = range.gpu_addr + range.size > gpu_addr + size ?
-                        gpu_addr + size - range.gpu_addr : range.size;
-        ASSERT(range.gpu_addr + to_flush < gpu_addr + size);
-        rasterizer->FlushRegion(range.gpu_addr, to_flush);
-    }
+    rasterizer->FlushRegion(ToCacheAddr(gpu_addr), size);
     ASSERT_MSG(::msync(reinterpret_cast<void *>(gpu_addr & ~(PAGE_SIZE-1)),
                        size + (gpu_addr & (PAGE_SIZE-1)), MS_SYNC) == 0,
                "msync failed: {}", ::strerror(errno));
